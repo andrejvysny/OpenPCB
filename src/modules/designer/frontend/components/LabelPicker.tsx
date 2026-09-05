@@ -37,33 +37,33 @@ export function LabelPicker({
 
   const view = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       onMouseDown={onCancel}
       role="dialog"
       aria-modal="true"
       aria-label={title}
     >
       <div
-        className="w-80 rounded-xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+        className="w-80 rounded-float border border-border bg-surface-raised p-3 shadow-lg"
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+        <h3 className="text-sm font-medium text-text-strong">
           {title}
         </h3>
         {subtitle ? (
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-xs leading-snug text-text-tertiary">
             {subtitle}
           </p>
         ) : null}
 
         {presets && presets.length > 0 ? (
-          <div className="mt-3 grid grid-cols-3 gap-1.5">
+          <div className="mt-2.5 grid grid-cols-3 gap-1">
             {presets.map((preset) => (
               <button
                 key={preset}
                 type="button"
                 onClick={() => onPick(preset)}
-                className="rounded-md border border-slate-300 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-700 transition-colors hover:border-violet-500 hover:bg-violet-50 hover:text-violet-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-violet-500 dark:hover:bg-violet-950 dark:hover:text-violet-300"
+                className="h-[22px] rounded-control border border-border-control bg-surface-input px-2 font-mono text-xs text-text transition-colors hover:border-selection hover:bg-surface-hover hover:text-text-strong"
               >
                 {preset}
               </button>
@@ -71,7 +71,7 @@ export function LabelPicker({
           </div>
         ) : null}
 
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-2.5 flex items-center gap-1.5">
           <input
             ref={inputRef}
             type="text"
@@ -87,23 +87,23 @@ export function LabelPicker({
               }
             }}
             placeholder={placeholder}
-            className="h-9 flex-1 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            className="h-[22px] min-w-0 flex-1 rounded-control border border-border-control bg-surface-input px-1.5 font-mono text-xs text-text-strong outline-none placeholder:text-text-disabled focus:border-selection"
           />
           <button
             type="button"
             onClick={submitCustom}
             disabled={custom.trim().length === 0}
-            className="inline-flex h-9 items-center rounded-md bg-violet-600 px-3 text-sm font-medium text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-[22px] shrink-0 items-center rounded-control bg-primary px-[10px] text-xs font-medium text-primary-foreground transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitLabel}
           </button>
         </div>
 
-        <div className="mt-3 flex justify-end">
+        <div className="mt-2 flex justify-end">
           <button
             type="button"
             onClick={onCancel}
-            className="text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+            className="text-xs text-text-tertiary transition-colors hover:text-text-strong"
           >
             Cancel
           </button>

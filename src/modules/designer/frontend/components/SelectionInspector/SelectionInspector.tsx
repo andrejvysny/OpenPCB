@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type ReactElement } from "react";
-import { CircuitBoard, Network, PanelRightClose, Tag, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ReactElement } from "react";
+import { CircuitBoard, File as FileIcon, Network, Tag } from "lucide-react";
 import type {
   DesignerLabel,
   DesignerPlacedPart,
@@ -14,6 +14,8 @@ import { PartInspectorPanel } from "./PartInspectorPanel";
 import { MultiPartInspectorPanel } from "./MultiPartInspectorPanel";
 import { LabelInspectorPanel } from "./LabelInspectorPanel";
 import { WireInspectorPanel } from "./WireInspectorPanel";
+import { PanelSectionHeader } from "@shared/frontend/ui/panel-section-header";
+import { PropertyGrid, PropertyRow } from "@shared/frontend/ui/property-grid";
 
 export type InspectorSelection =
   | { kind: "part"; part: DesignerPlacedPart }
@@ -28,14 +30,69 @@ interface SelectionInspectorProps {
   variants: readonly LibraryComponentFootprintVariant[];
   dispatchCommand: DesignerWorkspaceActions["dispatchCommand"];
   setError: DesignerWorkspaceActions["setError"];
+  /** Clears the 5 selection slots (rendered as the panel's "Deselect"). */
   onClose(): void;
   onOpenInLibrary?(componentId: string): void;
-  /** When true, render as a docked column (full height, no overlay chrome). */
-  docked?: boolean;
-  /** Collapse the docked column (docked mode only). */
-  onCollapse?(): void;
   /** Cross-probe the selected part to the PCB editor. */
   onCrossProbePcb?(part: DesignerPlacedPart): void;
+}
+
+const PANEL_CLASS =
+  "flex h-full min-h-0 w-full flex-col overflow-hidden bg-surface-panel text-xs text-text";
+const HEADER_CLASS =
+  "flex h-[28px] shrink-0 items-center gap-1.5 border-b border-border px-2";
+const HEADER_ICON_CLASS = "h-[13px] w-[13px] shrink-0 text-text-tertiary";
+
+/**
+ * Idle state of the Properties tab: a read-only summary of the sheet (design
+ * D2 §7, "nothing selected"). ERC and net-class rows are omitted — no data.
+ */
+function SheetSummary({
+  projection,
+}: {
+  projection: DesignerSchematicProjection;
+}): ReactElement {
+  // Same derivation the outline uses: a net counts once the user expressed
+  // intent (a wire, a label or a power/portal primitive), never the auto
+  // 1-pin nets the projection emits for unconnected pins.
+  const netCount = useMemo(
+    () =>
+      projection.nets.filter(
+        (net) =>
+          net.wireIds.length > 0 ||
+          net.labelIds.length > 0 ||
+          net.primitiveIds.length > 0,
+      ).length,
+    [projection.nets],
+  );
+
+  return (
+    <div className={PANEL_CLASS} data-testid="selection-inspector">
+      <div className={HEADER_CLASS}>
+        <FileIcon aria-hidden="true" className={HEADER_ICON_CLASS} />
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-text-strong">
+          Sheet
+        </span>
+        <span className="shrink-0 text-xs text-text-tertiary">
+          Nothing selected
+        </span>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <PanelSectionHeader variant="uppercase" title="Summary" />
+        <PropertyGrid>
+          <PropertyRow label="Symbols" mono>
+            {projection.parts.length}
+          </PropertyRow>
+          <PropertyRow label="Nets" mono>
+            {netCount}
+          </PropertyRow>
+          <PropertyRow label="Labels" mono>
+            {projection.labels.length}
+          </PropertyRow>
+        </PropertyGrid>
+      </div>
+    </div>
+  );
 }
 
 export function SelectionInspector({
@@ -46,10 +103,8 @@ export function SelectionInspector({
   setError,
   onClose,
   onOpenInLibrary,
-  docked = false,
-  onCollapse,
   onCrossProbePcb,
-}: SelectionInspectorProps): ReactElement | null {
+}: SelectionInspectorProps): ReactElement {
   const [referenceDraft, setReferenceDraft] = useState("");
   const [referenceEditing, setReferenceEditing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -70,49 +125,7 @@ export function SelectionInspector({
     }
   }, [referenceEditing]);
 
-  const containerClass = docked
-    ? "relative flex h-full w-full flex-col overflow-hidden border-l border-slate-200 bg-white text-xs text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-    : "pointer-events-auto absolute right-4 top-4 z-40 flex max-h-[70vh] w-80 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white/95 text-xs text-slate-800 shadow-xl backdrop-blur dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100";
-
-  const dismissButton =
-    docked && onCollapse ? (
-      <button
-        type="button"
-        onClick={onCollapse}
-        aria-label="Collapse inspector"
-        className="ml-1 shrink-0 cursor-pointer rounded p-0.5 text-slate-500 hover:bg-slate-200 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-      >
-        <PanelRightClose className="h-3.5 w-3.5" />
-      </button>
-    ) : (
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="Close inspector"
-        className="ml-1 shrink-0 cursor-pointer rounded p-0.5 text-slate-500 hover:bg-slate-200 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-      >
-        <X className="h-3.5 w-3.5" />
-      </button>
-    );
-
-  // Docked mode keeps the column present with a placeholder so the layout is
-  // stable; floating mode simply disappears when nothing is selected.
-  if (!selection) {
-    if (!docked) return null;
-    return (
-      <div className={containerClass} data-testid="selection-inspector">
-        <div className="flex shrink-0 items-center gap-2 border-b border-slate-200 px-3 py-2 dark:border-slate-700">
-          <span className="min-w-0 flex-1 truncate text-xs font-semibold tracking-tight text-slate-500 dark:text-slate-400">
-            Inspector
-          </span>
-          {dismissButton}
-        </div>
-        <div className="flex min-h-0 flex-1 items-center justify-center px-4 py-6 text-center text-[11px] text-slate-400 dark:text-slate-500">
-          Select a part to inspect its properties.
-        </div>
-      </div>
-    );
-  }
+  if (!selection) return <SheetSummary projection={projection} />;
 
   const commitReference = async () => {
     if (!part) {
@@ -149,7 +162,7 @@ export function SelectionInspector({
       headerIcon = (
         <ComponentClassIcon
           part={selection.part}
-          className="h-3.5 w-3.5 shrink-0 text-violet-500 dark:text-violet-300"
+          className={HEADER_ICON_CLASS}
         />
       );
       headerPrimary = selection.part.reference || selection.part.id.slice(0, 6);
@@ -172,7 +185,7 @@ export function SelectionInspector({
     }
     case "multi": {
       headerIcon = (
-        <CircuitBoard className="h-3.5 w-3.5 text-violet-500 dark:text-violet-300" />
+        <CircuitBoard aria-hidden="true" className={HEADER_ICON_CLASS} />
       );
       headerPrimary = `${selection.parts.length} parts`;
       headerSecondary = "Multi-selection";
@@ -186,9 +199,7 @@ export function SelectionInspector({
       break;
     }
     case "label": {
-      headerIcon = (
-        <Tag className="h-3.5 w-3.5 text-violet-500 dark:text-violet-300" />
-      );
+      headerIcon = <Tag aria-hidden="true" className={HEADER_ICON_CLASS} />;
       headerPrimary = selection.label.text;
       headerSecondary = "Net label";
       body = (
@@ -205,9 +216,7 @@ export function SelectionInspector({
       const memberNet = projection.nets.find((net) =>
         net.wireIds.includes(selection.wire.id),
       );
-      headerIcon = (
-        <Network className="h-3.5 w-3.5 text-violet-500 dark:text-violet-300" />
-      );
+      headerIcon = <Network aria-hidden="true" className={HEADER_ICON_CLASS} />;
       headerPrimary = memberNet?.name ?? "Wire";
       headerSecondary = "Connection";
       body = (
@@ -225,8 +234,8 @@ export function SelectionInspector({
   const allowReferenceEdit = selection.kind === "part";
 
   return (
-    <div className={containerClass} data-testid="selection-inspector">
-      <div className="flex shrink-0 items-center gap-2 border-b border-slate-200 px-3 py-2 dark:border-slate-700">
+    <div className={PANEL_CLASS} data-testid="selection-inspector">
+      <div className={HEADER_CLASS}>
         {headerIcon}
         {allowReferenceEdit && referenceEditing ? (
           <input
@@ -244,7 +253,7 @@ export function SelectionInspector({
                 setReferenceEditing(false);
               }
             }}
-            className="min-w-0 flex-1 rounded border border-violet-400 bg-white px-1 py-0 text-xs font-semibold text-slate-800 outline-none dark:border-violet-600 dark:bg-slate-800 dark:text-slate-100"
+            className="h-[22px] min-w-0 flex-1 rounded-control border border-border-control bg-surface-input px-1.5 font-mono text-sm font-medium text-text-strong outline-none focus:border-selection"
           />
         ) : (
           <button
@@ -252,17 +261,25 @@ export function SelectionInspector({
             onClick={() => allowReferenceEdit && setReferenceEditing(true)}
             disabled={!allowReferenceEdit}
             title={allowReferenceEdit ? "Click to rename" : undefined}
-            className="min-w-0 flex-1 truncate text-left text-xs font-semibold tracking-tight text-slate-800 disabled:cursor-default dark:text-slate-100"
+            className="min-w-0 flex-1 truncate text-left font-mono text-sm font-medium text-text-strong disabled:cursor-default"
           >
             {headerPrimary}
           </button>
         )}
-        <span className="shrink-0 truncate text-[11px] text-slate-500 dark:text-slate-400">
+        <span className="shrink-0 truncate text-xs text-text-tertiary">
           {headerSecondary}
         </span>
-        {dismissButton}
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">{body}</div>
+      <div className="min-h-0 flex-1 overflow-y-auto">{body}</div>
+      <div className="flex h-[26px] shrink-0 items-center justify-end border-t border-border px-2">
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-2xs text-text-tertiary transition-colors hover:text-text-strong"
+        >
+          Deselect
+        </button>
+      </div>
     </div>
   );
 }

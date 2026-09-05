@@ -28,11 +28,13 @@ import {
 import { setComponentDragData } from "../lib/component-drag";
 
 /**
- * `24px 1.4fr 90px 1.1fr 60px 110px` — design D3 §2 minus the `44px` Pins
- * column: the list DTO carries no pin/pad count (it only exists on the detail
- * payload), so the column is omitted rather than faked.
+ * `24px 1.4fr 90px 1.1fr 110px` — design D3 §2 minus the `44px` Pins and the
+ * `60px` Mount columns: the list DTO carries neither a pin/pad count nor a
+ * mount type (the backend derives mount for the facet counts from footprint
+ * data that is not in the list payload), so both are omitted rather than
+ * rendered as "—" on every row.
  */
-const COLS = "24px 1.4fr 90px 1.1fr 60px 110px";
+const COLS = "24px 1.4fr 90px 1.1fr 110px";
 const COLS_WITH_SELECTION = `24px ${COLS}`;
 
 /** Family tag → 14px outline glyph. Falls back to a generic part box. */
@@ -161,7 +163,6 @@ export function LibraryTable({
         </button>
         <span>Family</span>
         <span>Package</span>
-        <span>Mount</span>
         <span>Source</span>
       </TableHeaderRow>
 
@@ -223,9 +224,6 @@ export function LibraryTable({
             </span>
             <span className="truncate font-mono text-2xs text-text-secondary">
               {tags.package ?? "—"}
-            </span>
-            <span className="truncate text-text-secondary">
-              {tags.mount ?? "—"}
             </span>
             <span className="truncate text-[9.5px] uppercase tracking-[.06em] text-text-tertiary">
               {source}

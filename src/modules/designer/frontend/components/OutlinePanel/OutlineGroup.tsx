@@ -21,7 +21,7 @@ export function OutlineGroup({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex items-center gap-1.5 px-2 py-1 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-900"
+        className="flex h-[22px] items-center gap-1.5 bg-surface-section px-2 text-left text-2xs uppercase tracking-[.04em] text-text-tertiary transition-colors hover:text-text"
       >
         {open ? (
           <ChevronDown className="h-3 w-3 shrink-0" />
@@ -29,13 +29,13 @@ export function OutlineGroup({
           <ChevronRight className="h-3 w-3 shrink-0" />
         )}
         <span>{label}</span>
-        <span className="ml-1 rounded bg-slate-200 px-1 text-[10px] font-medium tabular-nums text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+        <span className="ml-1 font-mono text-2xs tabular-nums text-text-tertiary">
           {count}
         </span>
       </button>
       {open && count > 0 && <div className="flex flex-col">{children}</div>}
       {open && count === 0 && (
-        <div className="px-3 pb-2 pt-0.5 text-[10px] italic text-slate-400 dark:text-slate-600">
+        <div className="px-2 pb-2 pt-0.5 text-2xs italic text-text-disabled">
           none
         </div>
       )}

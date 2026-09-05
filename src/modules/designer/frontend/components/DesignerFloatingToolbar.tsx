@@ -1,7 +1,6 @@
 import {
   ArrowRightFromLine,
   ChevronsDown,
-  Grid3X3,
   MessageSquarePlus,
   Minus,
   Plus,
@@ -12,9 +11,13 @@ import {
   Zap,
 } from "lucide-react";
 import type { ReactElement } from "react";
+import {
+  Toolbar,
+  ToolbarButton,
+  ToolbarSeparator,
+} from "@shared/frontend/ui/toolbar";
 
-interface DesignerFloatingToolbarProps {
-  gridVisible: boolean;
+interface SchematicToolbarProps {
   canUndo?: boolean;
   canRedo?: boolean;
   onUndo: () => void;
@@ -22,7 +25,6 @@ interface DesignerFloatingToolbarProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFit: () => void;
-  onToggleGrid: () => void;
   onPlaceComponent?: () => void;
   onPlaceGnd?: () => void;
   onPlacePwr?: () => void;
@@ -31,8 +33,12 @@ interface DesignerFloatingToolbarProps {
   onToggleCommentMode?: () => void;
 }
 
-export function DesignerFloatingToolbar({
-  gridVisible,
+/**
+ * The schematic editor's docked 30px tool row (design D2 §4). Accessible names
+ * and tooltips are frozen — "Fit schematic", "Undo" and "Redo" are e2e
+ * locators.
+ */
+export function SchematicToolbar({
   canUndo = false,
   canRedo = false,
   onUndo,
@@ -40,141 +46,102 @@ export function DesignerFloatingToolbar({
   onZoomIn,
   onZoomOut,
   onFit,
-  onToggleGrid,
   onPlaceComponent,
   onPlaceGnd,
   onPlacePwr,
   onPlaceNetPortal,
   commentMode = false,
   onToggleCommentMode,
-}: DesignerFloatingToolbarProps): ReactElement {
+}: SchematicToolbarProps): ReactElement {
   return (
-    <div className="inline-flex items-center gap-1 rounded-lg border border-slate-200/90 bg-white/95 px-2 py-1 shadow-sm backdrop-blur dark:border-slate-700/80 dark:bg-slate-900/90">
-      <button
-        type="button"
+    <Toolbar aria-label="Schematic tools">
+      <ToolbarButton
+        label="Undo"
+        icon={<Undo2 />}
         onClick={onUndo}
         disabled={!canUndo}
-        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 disabled:opacity-30 dark:text-slate-400 dark:hover:bg-slate-800"
-        title="Undo"
-        aria-label="Undo"
-      >
-        <Undo2 className="h-3.5 w-3.5" />
-      </button>
-      <button
-        type="button"
+      />
+      <ToolbarButton
+        label="Redo"
+        icon={<Redo2 />}
         onClick={onRedo}
         disabled={!canRedo}
-        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 disabled:opacity-30 dark:text-slate-400 dark:hover:bg-slate-800"
-        title="Redo"
-        aria-label="Redo"
-      >
-        <Redo2 className="h-3.5 w-3.5" />
-      </button>
+      />
 
-      <div className="mx-1 h-5 w-px bg-slate-200 dark:bg-slate-700" />
+      <ToolbarSeparator />
 
-      <button
-        type="button"
-        onClick={onZoomOut}
-        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-        title="Zoom out"
-        aria-label="Zoom out"
-      >
-        <Minus className="h-3.5 w-3.5" />
-      </button>
-      <button
-        type="button"
-        onClick={onZoomIn}
-        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-        title="Zoom in"
-        aria-label="Zoom in"
-      >
-        <Plus className="h-3.5 w-3.5" />
-      </button>
-      <button
-        type="button"
-        onClick={onFit}
-        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+      <ToolbarButton
+        label="Fit schematic"
         title="Fit"
-        aria-label="Fit schematic"
-      >
-        <ScanSearch className="h-3.5 w-3.5" />
-      </button>
+        icon={<ScanSearch />}
+        onClick={onFit}
+      />
+      <ToolbarButton label="Zoom out" icon={<Minus />} onClick={onZoomOut} />
+      <ToolbarButton label="Zoom in" icon={<Plus />} onClick={onZoomIn} />
 
       {onPlaceComponent || onPlaceGnd || onPlacePwr || onPlaceNetPortal ? (
-        <div className="mx-1 h-5 w-px bg-slate-200 dark:bg-slate-700" />
+        <ToolbarSeparator />
       ) : null}
 
       {onPlaceComponent ? (
-        <button
-          type="button"
-          onClick={onPlaceComponent}
-          className="inline-flex h-7 items-center gap-1 rounded-md border border-transparent px-2 text-xs font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+        <ToolbarButton
+          label="Place component"
           title="Place component (⌘/Ctrl K)"
-          aria-label="Place component"
+          icon={<Search />}
+          onClick={onPlaceComponent}
         >
-          <Search className="h-3.5 w-3.5" />
           Components
-        </button>
+        </ToolbarButton>
       ) : null}
-
       {onPlaceGnd ? (
-        <button
-          type="button"
-          onClick={onPlaceGnd}
-          className="inline-flex h-7 items-center gap-1 rounded-md border border-transparent px-2 text-xs font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+        <ToolbarButton
+          label="Place GND port"
           title="Place GND port (G)"
-          aria-label="Place GND port"
+          icon={<ChevronsDown />}
+          onClick={onPlaceGnd}
         >
-          <ChevronsDown className="h-3.5 w-3.5" />
           GND
-        </button>
+        </ToolbarButton>
       ) : null}
       {onPlacePwr ? (
-        <button
-          type="button"
-          onClick={onPlacePwr}
-          className="inline-flex h-7 items-center gap-1 rounded-md border border-transparent px-2 text-xs font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+        <ToolbarButton
+          label="Place power port"
           title="Place power port (P)"
-          aria-label="Place power port"
+          icon={<Zap />}
+          onClick={onPlacePwr}
         >
-          <Zap className="h-3.5 w-3.5" />
           PWR
-        </button>
+        </ToolbarButton>
       ) : null}
       {onPlaceNetPortal ? (
-        <button
-          type="button"
-          onClick={onPlaceNetPortal}
-          className="inline-flex h-7 items-center gap-1 rounded-md border border-transparent px-2 text-xs font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+        <ToolbarButton
+          label="Place net portal"
           title="Place net portal (H)"
-          aria-label="Place net portal"
+          icon={<ArrowRightFromLine />}
+          onClick={onPlaceNetPortal}
         >
-          <ArrowRightFromLine className="h-3.5 w-3.5" />
           Portal
-        </button>
+        </ToolbarButton>
       ) : null}
 
       {onToggleCommentMode ? (
         <>
-          <div className="mx-1 h-5 w-px bg-slate-200 dark:bg-slate-700" />
-          <button
-            type="button"
-            onClick={onToggleCommentMode}
-            className={`inline-flex h-7 items-center gap-1 rounded-md border px-2 text-xs font-medium transition-colors ${
-              commentMode
-                ? "border-violet-500 bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
-                : "border-transparent text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-            }`}
+          <ToolbarSeparator />
+          <ToolbarButton
+            label="Comment"
             title="Comment (C)"
-            aria-label="Comment"
-            aria-pressed={commentMode}
+            icon={<MessageSquarePlus />}
+            pressable
+            active={commentMode}
+            onClick={onToggleCommentMode}
           >
-            <MessageSquarePlus className="h-3.5 w-3.5" />
             Comment
-          </button>
+          </ToolbarButton>
         </>
       ) : null}
-    </div>
+    </Toolbar>
   );
 }
+
+/** Legacy name kept so existing imports keep resolving. */
+export const DesignerFloatingToolbar = SchematicToolbar;

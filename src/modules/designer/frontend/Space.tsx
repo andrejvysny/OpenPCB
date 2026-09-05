@@ -16,7 +16,7 @@ import { useCloudPrefs } from "@/cloud/cloud-prefs";
 import { useFeatureFlag } from "@/feature-flags";
 import { readCloudConfig } from "@/cloud/config";
 import { getSupabase } from "@/cloud/supabase";
-import { DesignerFloatingToolbar } from "./components/DesignerFloatingToolbar";
+import { SchematicToolbar } from "./components/DesignerFloatingToolbar";
 import { DesignerHeader } from "./components/DesignerHeader";
 import { CloudSyncBadge } from "./components/CloudSyncBadge";
 import { CloudPresenceIndicator } from "./components/CloudPresenceIndicator";
@@ -169,8 +169,6 @@ function SelectionInspectorMount({
   setError,
   onClose,
   onOpenInLibrary,
-  docked,
-  onCollapse,
   onCrossProbePcb,
 }: {
   projection: NonNullable<DesignerWorkspaceState["projection"]>;
@@ -184,10 +182,8 @@ function SelectionInspectorMount({
   setError: ReturnType<typeof useDesignerWorkspace>["actions"]["setError"];
   onClose(): void;
   onOpenInLibrary(componentId: string): void;
-  docked?: boolean;
-  onCollapse?(): void;
   onCrossProbePcb?(part: DesignerPlacedPart): void;
-}): ReactElement | null {
+}): ReactElement {
   const selectedIds = useMemo(() => {
     if (state.selectedPartIds.size > 0) {
       return Array.from(state.selectedPartIds);
@@ -263,10 +259,8 @@ function SelectionInspectorMount({
     };
   }, [partForVariants?.componentId, resolvePlacement]);
 
-  // Docked mode keeps the column mounted (with a placeholder) when nothing is
-  // selected; floating mode disappears.
-  if (!selection && !docked) return null;
-
+  // Nothing selected renders the idle "Sheet" summary rather than an empty
+  // dock body.
   return (
     <SelectionInspector
       selection={selection}
@@ -276,8 +270,6 @@ function SelectionInspectorMount({
       setError={setError}
       onClose={onClose}
       onOpenInLibrary={onOpenInLibrary}
-      docked={docked}
-      onCollapse={onCollapse}
       onCrossProbePcb={onCrossProbePcb}
     />
   );
@@ -440,7 +432,7 @@ function DesignerSpaceInner({
   const [dockWidth, setDockWidth] = useState(initialDockPrefs.width);
   const [dockTab, setDockTab] = useState<DockTab>(initialDockPrefs.tab);
   const [zoomPercent, setZoomPercent] = useState(20);
-  const [gridVisible, setGridVisible] = useState(false);
+  const [gridVisible] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   // Live in-progress-trace DRC conflict count while routing; `null` when idle so
   // the PCB status-bar chip falls back to the full-board batch count.
@@ -753,18 +745,49 @@ function DesignerSpaceInner({
     state.projection?.parts,
   ]);
 
+  // Schematic status-bar selection segment (design D2 §9): human-readable
+  // designators, never raw entity ids.
   const selectionSummary = useMemo(() => {
-    if (state.selectedPinId) {
-      return `Pin: ${state.selectedPinId}`;
+    const projection = state.projection;
+    if (state.selectedPartIds.size > 1) {
+      return `${state.selectedPartIds.size} parts selected`;
+    }
+    if (state.selectedPinId && projection) {
+      for (const part of projection.parts) {
+        const pin = part.pins.find((p) => p.id === state.selectedPinId);
+        if (pin) return `${part.reference}.${pin.number ?? pin.name}`;
+      }
     }
     if (state.selectedPartId) {
-      return `Part: ${state.selectedPartId}`;
+      const part = projection?.parts.find(
+        (p) => p.id === state.selectedPartId,
+      );
+      if (part) {
+        return part.value
+          ? `${part.reference} · ${part.value}`
+          : part.reference;
+      }
     }
     if (state.selectedLabelId) {
-      return `Label: ${state.selectedLabelId}`;
+      const label = projection?.labels.find(
+        (l) => l.id === state.selectedLabelId,
+      );
+      if (label) return label.text;
     }
-    return "Select";
-  }, [state.selectedLabelId, state.selectedPartId, state.selectedPinId]);
+    if (state.selectedWireId) {
+      const wireId = state.selectedWireId;
+      const net = projection?.nets.find((n) => n.wireIds.includes(wireId));
+      return net ? `Wire · ${net.name}` : "Wire";
+    }
+    return "No selection";
+  }, [
+    state.projection,
+    state.selectedLabelId,
+    state.selectedPartId,
+    state.selectedPartIds,
+    state.selectedPinId,
+    state.selectedWireId,
+  ]);
 
   const startResize = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -1163,6 +1186,28 @@ function DesignerSpaceInner({
         </>
       ) : null}
 
+      {/* The schematic toolbar is docked in the same row the PCB toolbar slot
+          occupies. */}
+      {!noTabsOpen && state.activeView === "schem" && state.projection ? (
+        <SchematicToolbar
+          canUndo={state.canUndo}
+          canRedo={state.canRedo}
+          onUndo={() => void actions.undo()}
+          onRedo={() => void actions.redo()}
+          onZoomIn={() => canvasRef.current?.zoomIn()}
+          onZoomOut={() => canvasRef.current?.zoomOut()}
+          onFit={() => canvasRef.current?.fit()}
+          onPlaceComponent={openComponentPalette}
+          onPlaceGnd={() => canvasRef.current?.armPrimitive("gnd")}
+          onPlacePwr={() => canvasRef.current?.armPrimitive("pwr")}
+          onPlaceNetPortal={() => canvasRef.current?.armPrimitive("net_portal")}
+          commentMode={comments.commentMode}
+          onToggleCommentMode={() =>
+            comments.setCommentMode(!comments.commentMode)
+          }
+        />
+      ) : null}
+
       <div className="relative flex min-h-0 flex-1">
         {state.activeView !== "bom" && state.activeView !== "drc" ? (
           <>
@@ -1304,34 +1349,6 @@ function DesignerSpaceInner({
           ) : (
             <DesignerPlaceholderView view={state.activeView} />
           )}
-
-          {!noTabsOpen && state.activeView === "schem" && state.projection ? (
-            <div className="pointer-events-none absolute left-1/2 top-2 z-20 -translate-x-1/2">
-              <div className="pointer-events-auto">
-                <DesignerFloatingToolbar
-                  gridVisible={gridVisible}
-                  onToggleGrid={() => setGridVisible((v) => !v)}
-                  canUndo={state.canUndo}
-                  canRedo={state.canRedo}
-                  onUndo={() => void actions.undo()}
-                  onRedo={() => void actions.redo()}
-                  onZoomIn={() => canvasRef.current?.zoomIn()}
-                  onZoomOut={() => canvasRef.current?.zoomOut()}
-                  onFit={() => canvasRef.current?.fit()}
-                  onPlaceComponent={openComponentPalette}
-                  onPlaceGnd={() => canvasRef.current?.armPrimitive("gnd")}
-                  onPlacePwr={() => canvasRef.current?.armPrimitive("pwr")}
-                  onPlaceNetPortal={() =>
-                    canvasRef.current?.armPrimitive("net_portal")
-                  }
-                  commentMode={comments.commentMode}
-                  onToggleCommentMode={() =>
-                    comments.setCommentMode(!comments.commentMode)
-                  }
-                />
-              </div>
-            </div>
-          ) : null}
         </div>
 
         {dockVisible ? (
@@ -1359,8 +1376,6 @@ function DesignerSpaceInner({
                 resolvePlacement={actions.resolvePlacement}
                 dispatchCommand={actions.dispatchCommand}
                 setError={actions.setError}
-                docked
-                onCollapse={() => setDockOpen(false)}
                 onCrossProbePcb={handleCrossProbePcb}
                 onClose={() => {
                   actions.setSelectedPartId(null);

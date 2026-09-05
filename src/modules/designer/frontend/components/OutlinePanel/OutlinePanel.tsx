@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactElement } from "react";
-import { Cable, ChevronDown, ChevronUp, Search, Tag, Zap } from "lucide-react";
+import { Cable, ChevronDown, ChevronUp, Tag, Zap } from "lucide-react";
 import type {
   DesignerDerivedNet,
   DesignerLabel,
@@ -20,6 +20,10 @@ import { classifyNet, isPowerNet } from "../../lib/net-class";
 import { ComponentClassIcon } from "../ComponentClassIcon";
 import { OutlineRow, type OutlineRowAction } from "./OutlineRow";
 import { OutlineEmptyState } from "./OutlineEmptyState";
+import { PanelSectionHeader } from "@shared/frontend/ui/panel-section-header";
+import { SearchField } from "@shared/frontend/ui/search-field";
+import { SegmentedControl } from "@shared/frontend/ui/segmented-control";
+import { TableHeaderRow } from "@shared/frontend/ui/data-table";
 
 const FRAME_PADDING_MM = 5;
 
@@ -136,8 +140,20 @@ const TABS: ReadonlyArray<{ key: TabKey; label: string }> = [
   { key: "labels", label: "Labels" },
 ];
 
-function headerColumns(tab: TabKey): { primary: string; secondary?: string } {
-  if (tab === "parts") return { primary: "Ref", secondary: "Value" };
+/** `grid-template-columns` per tab (design D2 §6). */
+const TAB_COLS: Record<TabKey, string> = {
+  parts: "40px 1fr 80px",
+  nets: "1fr 60px",
+  labels: "1fr",
+};
+
+function headerColumns(tab: TabKey): {
+  primary: string;
+  secondary?: string;
+  tertiary?: string;
+} {
+  if (tab === "parts")
+    return { primary: "Ref", secondary: "Value", tertiary: "Footprint" };
   if (tab === "nets") return { primary: "Net", secondary: "Pins" };
   return { primary: "Label" };
 }
@@ -464,6 +480,7 @@ export function OutlinePanel({
   ];
 
   const cols = headerColumns(activeTab);
+  const gridCols = TAB_COLS[activeTab];
   const SortArrow = ({ active }: { active: boolean }): ReactElement | null => {
     if (!active) return null;
     return sort.dir === "asc" ? (
@@ -481,45 +498,24 @@ export function OutlinePanel({
         : sortedLabels.length;
 
   return (
-    <aside className="flex h-full min-h-0 flex-col border-r border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950">
-      <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-3 py-2 dark:border-slate-800">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          Outline
-        </p>
-        <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-slate-600 dark:bg-slate-800 dark:text-slate-400">
-          {totalCount}
-        </span>
-      </div>
+    <aside className="flex h-full min-h-0 flex-col border-r border-border bg-surface-panel">
+      <PanelSectionHeader title="Outline" count={totalCount} />
 
-      <div className="shrink-0 border-b border-slate-200 px-2 py-2 dark:border-slate-800">
-        <label className="relative block">
-          <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-400" />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search designator, value, net…"
-            className="w-full rounded-md border border-slate-200 bg-white py-1 pl-7 pr-2 text-xs text-slate-800 outline-none placeholder:text-slate-400 focus:border-violet-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-          />
-        </label>
-        <div className="mt-2 inline-flex w-full rounded-md bg-slate-200/70 p-0.5 dark:bg-slate-800/70">
-          {TABS.map(({ key, label }) => {
-            const active = activeTab === key;
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => selectTab(key)}
-                className={`flex-1 cursor-pointer rounded px-2 py-0.5 text-[11px] font-medium transition-colors ${
-                  active
-                    ? "bg-violet-600 text-white shadow-sm"
-                    : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-                }`}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
+      <div className="flex h-[26px] shrink-0 items-center gap-1.5 border-b border-border px-2">
+        <SearchField
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Filter ref, value, net…"
+          aria-label="Filter outline"
+          containerClassName="h-[20px] min-w-0 flex-1"
+        />
+        <SegmentedControl
+          aria-label="Outline view"
+          size="sm"
+          options={TABS.map(({ key, label }) => ({ id: key, label }))}
+          value={activeTab}
+          onChange={selectTab}
+        />
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
@@ -531,29 +527,36 @@ export function OutlinePanel({
           />
         ) : (
           <>
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-slate-400 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-500">
+            <TableHeaderRow cols={gridCols} className="gap-1.5">
               <button
                 type="button"
                 onClick={() => toggleSort("primary")}
-                className="flex cursor-pointer items-center gap-0.5 hover:text-slate-600 dark:hover:text-slate-300"
+                className="flex cursor-pointer items-center gap-0.5 text-left uppercase hover:text-text-secondary"
               >
                 {cols.primary}
                 <SortArrow active={sort.key === "primary"} />
               </button>
-              {cols.secondary && (
+              {cols.secondary ? (
                 <button
                   type="button"
                   onClick={() => toggleSort("secondary")}
-                  className="flex cursor-pointer items-center gap-0.5 hover:text-slate-600 dark:hover:text-slate-300"
+                  className={`flex cursor-pointer items-center gap-0.5 uppercase hover:text-text-secondary ${
+                    activeTab === "nets"
+                      ? "justify-end pr-5 text-right"
+                      : "text-left"
+                  }`}
                 >
                   {cols.secondary}
                   <SortArrow active={sort.key === "secondary"} />
                 </button>
-              )}
-            </div>
+              ) : null}
+              {cols.tertiary ? (
+                <span className="text-right uppercase">{cols.tertiary}</span>
+              ) : null}
+            </TableHeaderRow>
 
             {activeCount === 0 && (
-              <p className="px-3 py-3 text-[11px] text-slate-400 dark:text-slate-600">
+              <p className="px-2.5 py-2 text-2xs text-text-tertiary">
                 No {activeTab} match “{query}”.
               </p>
             )}
@@ -563,15 +566,12 @@ export function OutlinePanel({
                 const selected =
                   state.selectedPartId === part.id ||
                   state.selectedPartIds.has(part.id);
+                const reference = part.reference || part.id.slice(0, 6);
                 return (
                   <OutlineRow
                     key={part.id}
-                    icon={
-                      <ComponentClassIcon part={part} className="h-3.5 w-3.5" />
-                    }
-                    primary={part.reference || part.id.slice(0, 6)}
-                    secondary={null}
-                    tertiary={partValueLabel(part)}
+                    cols={gridCols}
+                    renameValue={reference}
                     selected={selected}
                     onSelect={() => selectPart(part.id)}
                     onActivate={() => frameToPart(part)}
@@ -582,7 +582,32 @@ export function OutlinePanel({
                     }
                     onRenameCommit={(value) => void renamePart(part.id, value)}
                     onRenameCancel={() => setRenameTarget(null)}
-                  />
+                  >
+                    <span className="flex min-w-0 items-center gap-1">
+                      <ComponentClassIcon
+                        part={part}
+                        className="h-3 w-3 shrink-0 text-text-tertiary"
+                      />
+                      <span
+                        className="min-w-0 truncate font-mono text-text-strong"
+                        title={reference}
+                      >
+                        {reference}
+                      </span>
+                    </span>
+                    <span
+                      className="min-w-0 truncate"
+                      title={partValueLabel(part)}
+                    >
+                      {partValueLabel(part)}
+                    </span>
+                    <span
+                      className="min-w-0 truncate text-right font-mono text-2xs text-text-tertiary"
+                      title={part.footprint.name}
+                    >
+                      {part.footprint.name}
+                    </span>
+                  </OutlineRow>
                 );
               })}
 
@@ -598,21 +623,41 @@ export function OutlinePanel({
                 return (
                   <OutlineRow
                     key={net.id}
-                    icon={
-                      power ? (
-                        <Zap className="h-3 w-3" />
-                      ) : (
-                        <Cable className="h-3 w-3" />
-                      )
-                    }
-                    primary={net.name}
-                    secondary={null}
-                    tertiary={`${connectionCount} pin${connectionCount === 1 ? "" : "s"}${unconnected ? " · unconnected" : ""}`}
+                    cols={gridCols}
+                    renameValue={net.name}
                     selected={isSelected}
                     onSelect={() => selectNet(net)}
                     onActivate={() => frameToNet(net)}
                     actions={netActions(net)}
-                  />
+                  >
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      {power ? (
+                        <Zap className="h-3 w-3 shrink-0 text-text-tertiary" />
+                      ) : (
+                        <Cable className="h-3 w-3 shrink-0 text-text-tertiary" />
+                      )}
+                      <span
+                        className="min-w-0 truncate font-mono text-text-strong"
+                        title={net.name}
+                      >
+                        {net.name}
+                      </span>
+                    </span>
+                    <span
+                      className={`truncate pr-5 text-right font-mono text-2xs tabular-nums ${
+                        unconnected
+                          ? "text-status-warning"
+                          : "text-text-tertiary"
+                      }`}
+                      title={
+                        unconnected
+                          ? `${connectionCount} pins · unconnected`
+                          : `${connectionCount} pins`
+                      }
+                    >
+                      {connectionCount}
+                    </span>
+                  </OutlineRow>
                 );
               })}
 
@@ -622,10 +667,8 @@ export function OutlinePanel({
                 return (
                   <OutlineRow
                     key={label.id}
-                    icon={<Tag className="h-3 w-3" />}
-                    primary={label.text}
-                    secondary={null}
-                    tertiary={null}
+                    cols={gridCols}
+                    renameValue={label.text}
                     selected={selected}
                     onSelect={() => selectLabel(label.id)}
                     onActivate={() => frameToLabel(label)}
@@ -638,7 +681,17 @@ export function OutlinePanel({
                       void renameLabel(label.id, value)
                     }
                     onRenameCancel={() => setRenameTarget(null)}
-                  />
+                  >
+                    <span className="flex min-w-0 items-center gap-1.5 pr-5">
+                      <Tag className="h-3 w-3 shrink-0 text-text-tertiary" />
+                      <span
+                        className="min-w-0 truncate font-mono text-text-strong"
+                        title={label.text}
+                      >
+                        {label.text}
+                      </span>
+                    </span>
+                  </OutlineRow>
                 );
               })}
           </>
