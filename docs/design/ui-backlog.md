@@ -1,5 +1,9 @@
 # UI backlog
 
+> **Predates the neutral EDA redesign (2026-09).** The mockups and token values
+> referenced below describe the old violet-on-slate look, not the shipped chrome.
+> Where this file and [`design-tokens.md`](design-tokens.md) disagree, design-tokens.md wins.
+
 > Source note: this backlog was distilled from a UI/UX review that took place as a chat
 > transcript against screen mockups. **The mockups survive.** They are preserved under
 > [`mockups/`](mockups/): 13 standalone HTML mockups, plus the 17 PNG captures the review was
