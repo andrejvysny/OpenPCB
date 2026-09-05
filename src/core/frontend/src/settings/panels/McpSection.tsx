@@ -69,7 +69,7 @@ function CopyButton({ value }: { value: string }) {
       onClick={() => {
         void navigator.clipboard.writeText(value).then(() => setCopied(true));
       }}
-      className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-control border border-slate-200 px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+      className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-control border border-border px-2 py-1 text-[11px] text-text-secondary hover:bg-surface-hover"
     >
       {copied ? (
         <>
@@ -104,16 +104,16 @@ export function McpSection({ settings, onSave }: Props) {
 
   return (
     <section>
-      <div className="mb-2.5 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-slate-400">
+      <div className="mb-2.5 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-text-caps">
         <Plug className="h-3 w-3" /> MCP server
       </div>
 
-      <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
+      <p className="mb-2 text-xs text-text-tertiary">
         Lets Claude Code, Claude Desktop and Codex read and edit the design you
         have open. OpenPCB must be running.
       </p>
 
-      <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+      <label className="flex items-center gap-2 text-xs text-text-secondary">
         <input
           type="checkbox"
           checked={enabled}
@@ -126,8 +126,8 @@ export function McpSection({ settings, onSave }: Props) {
       <label
         className={`mt-2 flex items-center gap-2 text-xs ${
           enabled
-            ? "text-slate-600 dark:text-slate-300"
-            : "text-slate-400 dark:text-slate-600"
+            ? "text-text-secondary"
+            : "text-text-disabled"
         }`}
       >
         <input
@@ -144,7 +144,7 @@ export function McpSection({ settings, onSave }: Props) {
       </label>
 
       {enabled && (
-        <p className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+        <p className="mt-1.5 text-[11px] text-text-tertiary">
           {allowWrites
             ? "Place, wire and edit tools are advertised. Non-destructive edits apply immediately and are undoable; deletions wait for your approval in the chat panel."
             : "Read-only. Connected clients can inspect designs, run ERC/DRC and read the BOM, but cannot change anything."}
@@ -156,20 +156,20 @@ export function McpSection({ settings, onSave }: Props) {
           {snippets.map((snippet) => (
             <div
               key={snippet.id}
-              className="rounded-card border border-slate-200 p-2 dark:border-slate-700"
+              className="rounded-card border border-border p-2"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                  <div className="text-[11px] font-medium text-text-secondary">
                     {snippet.label}
                   </div>
-                  <div className="text-[10px] text-slate-400">
+                  <div className="text-[10px] text-text-tertiary">
                     {snippet.hint}
                   </div>
                 </div>
                 <CopyButton value={snippet.value} />
               </div>
-              <pre className="mt-1.5 overflow-x-auto rounded bg-slate-50 p-1.5 text-[10px] text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+              <pre className="mt-1.5 overflow-x-auto rounded bg-surface-panel p-1.5 text-[10px] text-text-secondary">
                 {snippet.value}
               </pre>
             </div>
@@ -178,7 +178,7 @@ export function McpSection({ settings, onSave }: Props) {
       )}
 
       {enabled && config && !config.shimAvailable && (
-        <p className="mt-2 text-[11px] text-slate-400">
+        <p className="mt-2 text-[11px] text-text-tertiary">
           The stdio bridge ships with packaged builds only, so the Claude
           Desktop snippet is unavailable in development.
         </p>

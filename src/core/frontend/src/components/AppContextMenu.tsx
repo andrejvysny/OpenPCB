@@ -152,8 +152,7 @@ export function AppContextMenu() {
       tabIndex={-1}
       role="menu"
       className={cn(
-        "fixed z-[60] min-w-[10rem] rounded-md border border-slate-200 bg-white py-1.5 shadow-lg outline-none",
-        "dark:border-slate-700 dark:bg-slate-900",
+        "fixed z-[60] min-w-[10rem] rounded-float border border-border bg-surface-panel py-1.5 shadow-lg outline-none",
       )}
       style={{
         left: clamped.x,
@@ -162,7 +161,7 @@ export function AppContextMenu() {
       }}
     >
       {title && (
-        <div className="px-3 py-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+        <div className="px-3 py-1 text-xs font-medium text-text-tertiary">
           {title}
         </div>
       )}
@@ -174,7 +173,7 @@ export function AppContextMenu() {
               <div
                 key={`${gi}-${ii}-sep`}
                 role="separator"
-                className="my-1 border-t border-slate-200 dark:border-slate-700"
+                className="my-1 border-t border-border"
               />
             );
           }
@@ -192,16 +191,16 @@ export function AppContextMenu() {
               onClick={item.disabled ? undefined : () => handleItemClick(idx)}
               className={cn(
                 "flex w-full items-center justify-between px-3 py-1.5 text-sm outline-none",
-                "text-slate-700 dark:text-slate-200",
+                "text-text",
                 item.disabled && "cursor-not-allowed opacity-50",
-                !item.disabled && "hover:bg-slate-100 dark:hover:bg-slate-800",
-                isFocused && !item.disabled && "bg-slate-100 dark:bg-slate-800",
-                item.destructive && "text-red-600 dark:text-red-400",
+                !item.disabled && "hover:bg-surface-hover",
+                isFocused && !item.disabled && "bg-surface-hover",
+                item.destructive && "text-status-danger",
               )}
             >
               <span>{item.label}</span>
               {item.shortcut && (
-                <span className="ml-4 text-xs text-slate-400 dark:text-slate-500">
+                <span className="ml-4 text-xs text-text-tertiary">
                   {item.shortcut}
                 </span>
               )}
@@ -212,7 +211,7 @@ export function AppContextMenu() {
         return (
           <div key={`group-${gi}-${group.id}`} role="group">
             {group.label && (
-              <div className="px-3 py-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+              <div className="px-3 py-1 text-xs font-medium text-text-tertiary">
                 {group.label}
               </div>
             )}

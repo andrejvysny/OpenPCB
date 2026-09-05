@@ -11,7 +11,7 @@ const isMac =
   typeof navigator !== "undefined" &&
   navigator.platform.toUpperCase().includes("MAC");
 
-// Mirrors index.css --surface-rail / --text-primary. Solid hex only — the
+// Mirrors index.css --surface-rail / --text-strong. Solid hex only — the
 // Window Controls Overlay rejects rgba() colors. Keyed on the resolved theme
 // mode rather than read from getComputedStyle, because this child effect fires
 // before ThemeProvider's .dark-class effect (React runs child effects first),
@@ -20,8 +20,8 @@ const OVERLAY: Record<
   "light" | "dark",
   { color: string; symbolColor: string }
 > = {
-  dark: { color: "#0b1018", symbolColor: "#f3f4f6" },
-  light: { color: "#ffffff", symbolColor: "#111827" },
+  dark: { color: "#0f0f10", symbolColor: "#f5f5f5" },
+  light: { color: "#ececee", symbolColor: "#111114" },
 };
 
 /**
@@ -55,9 +55,9 @@ export function TitleBar(): React.ReactElement | null {
           paddingLeft: isMac ? 80 : 8,
         } as React.CSSProperties
       }
-      className="flex shrink-0 select-none items-center justify-center border-b border-slate-200 bg-surface-rail dark:border-slate-700"
+      className="flex shrink-0 select-none items-center justify-center border-b border-border bg-surface-rail"
     >
-      <span className="text-xs font-medium tracking-wide text-text-secondary">
+      <span className="text-xs font-medium tracking-wide text-text-tertiary">
         OpenPCB
       </span>
     </div>

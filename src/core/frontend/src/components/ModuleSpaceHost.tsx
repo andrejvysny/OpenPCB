@@ -149,7 +149,7 @@ export function ModuleSpaceHost({
   }
 
   if (!Component) {
-    return <div className="m-6 text-sm text-slate-500">Loading module…</div>;
+    return <div className="m-6 text-sm text-text-tertiary">Loading module…</div>;
   }
 
   return (

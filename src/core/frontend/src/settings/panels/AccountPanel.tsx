@@ -9,24 +9,22 @@ function SignInCard() {
   const { enabled, beginCloudLogin, loginError } = useAuth();
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white px-4 py-[14px] dark:border-slate-800 dark:bg-slate-900">
-      <h3 className="mb-1 text-sm font-medium text-slate-900 dark:text-slate-100">
-        Sign in
-      </h3>
+    <section className="rounded-control border border-border bg-surface-panel px-4 py-[14px]">
+      <h3 className="mb-1 text-sm font-medium text-text-strong">Sign in</h3>
       {!enabled ? (
-        <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+        <p className="mt-2 rounded-control bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
           Cloud accounts aren't available in this build. The desktop app is
           fully usable offline.
         </p>
       ) : (
         <>
-          <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">
+          <p className="mb-3 text-sm text-text-tertiary">
             Opens your browser to sign in, then returns to the app.
           </p>
           <button
             type="button"
             onClick={() => void beginCloudLogin()}
-            className="h-9 w-full cursor-pointer rounded-md bg-violet-600 text-sm font-medium text-white transition-colors hover:bg-violet-500"
+            className="h-9 w-full cursor-pointer rounded-control bg-primary text-sm font-medium text-primary-foreground transition-colors hover:opacity-90"
           >
             Sign in to OpenPCB Cloud
           </button>
@@ -54,10 +52,8 @@ export function AccountPanel() {
   return (
     <div className="space-y-4">
       <header>
-        <h2 className="text-lg font-medium text-slate-900 dark:text-slate-100">
-          Account
-        </h2>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+        <h2 className="text-lg font-medium text-text-strong">Account</h2>
+        <p className="mt-1 text-sm text-text-tertiary">
           Sign in for OpenPCB Cloud. The desktop app stays free and works
           offline without an account.
         </p>
