@@ -2,26 +2,21 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownWideNarrow,
   ChevronDown,
-  Cloud,
-  CloudOff,
   FilePlus,
   LayoutGrid,
   List,
   Loader2,
   PenTool,
-  Search,
-  Star,
   Trash2,
   X,
 } from "lucide-react";
 import { useBootstrap } from "../providers/BootstrapProvider";
 import { useNavigationStore } from "../stores/navigation-store";
-import { useAuth } from "@/cloud/AuthProvider";
-import { useCloudPrefs } from "@/cloud/cloud-prefs";
-import { useFeatureFlag } from "@/feature-flags";
 import { Button } from "@shared/frontend/ui/button";
-import { Chip } from "@shared/frontend/ui/chip";
-import { Pill } from "@shared/frontend/ui/pill";
+import { SearchField } from "@shared/frontend/ui/search-field";
+import { SegmentedControl } from "@shared/frontend/ui/segmented-control";
+import { StatusBar, StatusSegment } from "@shared/frontend/ui/status-bar";
+import { TableHeaderRow } from "@shared/frontend/ui/data-table";
 import { TooltipProvider } from "@shared/frontend/ui/tooltip";
 import {
   DropdownMenu,
@@ -31,9 +26,12 @@ import {
 } from "@shared/frontend/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { DesignCard, type DesignSummary } from "./home/DesignCard";
+import { DesignDetailPanel } from "./home/DesignDetailPanel";
+import { DESIGN_LIST_COLS, DesignListRow } from "./home/DesignListRow";
+import { HomeSidebar, type HomeFilterKey } from "./home/HomeSidebar";
 import { useDesignUserState } from "./home/useDesignUserState";
 
-type FilterKey = "all" | "recent" | "starred" | "archived";
+type FilterKey = HomeFilterKey;
 type SortKey = "modified" | "created" | "name";
 
 const SORT_LABELS: Record<SortKey, string> = {
@@ -57,28 +55,26 @@ function DeleteConfirmationModal({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-700 dark:bg-slate-900">
+      <div className="w-full max-w-sm rounded-float border border-border bg-surface-raised p-4 shadow-lg">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+          <h3 className="text-sm font-medium text-text-strong">
             Delete Design
           </h3>
           <button
             type="button"
             onClick={onCancel}
             disabled={deleting}
-            className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-50 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+            className="rounded-control p-1 text-text-tertiary outline-none hover:bg-surface-hover hover:text-text-strong disabled:opacity-50"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3.5 w-3.5" />
           </button>
         </div>
-        <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+        <p className="mt-2 text-xs text-text-secondary">
           Are you sure you want to delete{" "}
-          <span className="font-medium text-slate-900 dark:text-slate-100">
-            {design.name}
-          </span>
-          ? This action cannot be undone.
+          <span className="font-medium text-text-strong">{design.name}</span>?
+          This action cannot be undone.
         </p>
-        <div className="mt-5 flex justify-end gap-2">
+        <div className="mt-4 flex justify-end gap-2">
           <Button variant="secondary" onClick={onCancel} disabled={deleting}>
             Cancel
           </Button>
@@ -88,9 +84,9 @@ function DeleteConfirmationModal({
             disabled={deleting}
             icon={
               deleting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
-                <Trash2 className="h-4 w-4" />
+                <Trash2 className="h-3 w-3" />
               )
             }
           >
@@ -99,55 +95,6 @@ function DeleteConfirmationModal({
         </div>
       </div>
     </div>
-  );
-}
-
-// Cloud-sync status pill — reflects real auth + the project-sync setting, and
-// opens Settings → Account on click. (Replaces the old hardcoded "coming soon"
-// placeholder.)
-function CloudSyncPill() {
-  const { enabled, session } = useAuth();
-  const syncOn = useCloudPrefs((s) => s.projectSyncEnabled);
-  const openSettings = useNavigationStore((s) => s.openSettings);
-  const syncFeatureEnabled = useFeatureFlag("cloud.sync");
-  if (!enabled || !syncFeatureEnabled) return null; // cloud off / gated → no badge
-  const open = () => openSettings("account");
-  if (!session) {
-    return (
-      <Pill
-        tone="warning"
-        icon={<CloudOff className="h-3 w-3" />}
-        className="cursor-pointer"
-        title="Sign in to enable cloud sync"
-        onClick={open}
-      >
-        Sign in to sync
-      </Pill>
-    );
-  }
-  if (!syncOn) {
-    return (
-      <Pill
-        tone="neutral"
-        icon={<CloudOff className="h-3 w-3" />}
-        className="cursor-pointer"
-        title="Project sync is off — manage in Settings → Account"
-        onClick={open}
-      >
-        Sync off
-      </Pill>
-    );
-  }
-  return (
-    <Pill
-      tone="success"
-      icon={<Cloud className="h-3 w-3" />}
-      className="cursor-pointer"
-      title="Cloud sync is on — manage in Settings → Account"
-      onClick={open}
-    >
-      Cloud sync on
-    </Pill>
   );
 }
 
@@ -168,7 +115,8 @@ export function HomeScreen() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
   const [sort, setSort] = useState<SortKey>("modified");
-  const [view, setView] = useState<"grid" | "list">("grid");
+  const [view, setView] = useState<"grid" | "list">("list");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const designerModule = moduleRegistry?.modules.find(
@@ -249,26 +197,6 @@ export function HomeScreen() {
     }
   }, [backendURL, deletingDesign, fetchDesigns]);
 
-  // Keyboard: ⌘K focus search, N new design (when not typing into a field).
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const typing =
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement;
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        searchRef.current?.focus();
-        return;
-      }
-      if (!typing && (e.key === "n" || e.key === "N") && designerAvailable) {
-        e.preventDefault();
-        void handleCreateDesign();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [handleCreateDesign, designerAvailable]);
-
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     const now = Date.now();
@@ -296,209 +224,267 @@ export function HomeScreen() {
     return sorted;
   }, [designs, query, filter, sort, userState]);
 
-  const filterChips: { key: FilterKey; label: string; count?: number }[] = [
-    { key: "all", label: "All" },
-    { key: "recent", label: "Recent" },
-    { key: "starred", label: "Starred", count: userState.starredCount },
-    { key: "archived", label: "Archived", count: userState.archivedCount },
-  ];
+  // Keep a selection inside the current result set (defaults to the first row).
+  useEffect(() => {
+    setSelectedId((current) =>
+      current && visible.some((d) => d.id === current)
+        ? current
+        : (visible[0]?.id ?? null),
+    );
+  }, [visible]);
+
+  const selectedDesign =
+    visible.find((d) => d.id === selectedId) ?? visible[0] ?? null;
+
+  const openDesign = useCallback(
+    (id: string) => navigateToModule("designer", id),
+    [navigateToModule],
+  );
+
+  // Keyboard: ⌘K focus search, N new design, Enter opens the selected design
+  // (when not typing into a field).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const typing =
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement;
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        searchRef.current?.focus();
+        return;
+      }
+      // Enter opens the selected design, but only when focus is not on a
+      // control that has its own Enter behaviour (buttons, menu items…).
+      const onControl = (e.target as HTMLElement | null)?.closest?.(
+        "input, textarea, select, button, a, [role='menuitem'], [contenteditable='true']",
+      );
+      if (!typing && !onControl && e.key === "Enter" && selectedId) {
+        e.preventDefault();
+        openDesign(selectedId);
+        return;
+      }
+      if (!typing && (e.key === "n" || e.key === "N") && designerAvailable) {
+        e.preventDefault();
+        void handleCreateDesign();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [handleCreateDesign, designerAvailable, openDesign, selectedId]);
+
+  const counts = useMemo(() => {
+    const now = Date.now();
+    const active = designs.filter((d) => !userState.isArchived(d.id));
+    return {
+      all: active.length,
+      recent: active.filter(
+        (d) => now - new Date(d.updatedAt).getTime() <= WEEK_MS,
+      ).length,
+      starred: userState.starredCount,
+      archived: userState.archivedCount,
+    } satisfies Record<FilterKey, number>;
+  }, [designs, userState]);
+
+  const emptyState = (
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-6">
+      <PenTool className="h-8 w-8 text-text-disabled" />
+      <p className="mt-3 text-sm font-medium text-text-strong">
+        {designs.length === 0 ? "No designs yet" : "No matching designs"}
+      </p>
+      <p className="mt-1 text-xs text-text-tertiary">
+        {designs.length === 0
+          ? "Create your first design to get started"
+          : "Try a different filter or search term"}
+      </p>
+      {designs.length === 0 && (
+        <Button
+          variant="primary"
+          className="mt-3"
+          onClick={handleCreateDesign}
+          disabled={creating || !designerAvailable}
+          icon={<FilePlus className="h-3 w-3" />}
+        >
+          New design
+        </Button>
+      )}
+    </div>
+  );
+
+  let body;
+  if (loading) {
+    body = (
+      <div className="flex min-h-0 flex-1 items-center justify-center">
+        <Loader2 className="h-5 w-5 animate-spin text-text-tertiary" />
+      </div>
+    );
+  } else if (visible.length === 0) {
+    body = emptyState;
+  } else if (view === "grid") {
+    body = (
+      <div className="min-h-0 flex-1 overflow-auto p-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+          {visible.map((design) => (
+            <DesignCard
+              key={design.id}
+              design={design}
+              view="grid"
+              starred={userState.isStarred(design.id)}
+              archived={userState.isArchived(design.id)}
+              onOpen={() => openDesign(design.id)}
+              onToggleStar={() => userState.toggleStar(design.id)}
+              onToggleArchive={() => userState.toggleArchive(design.id)}
+              onDelete={() => setDeletingDesign(design)}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  } else {
+    body = (
+      <div className="flex min-h-0 flex-1 flex-col">
+        <TableHeaderRow cols={DESIGN_LIST_COLS}>
+          <span>Preview</span>
+          <span>Name</span>
+          <span>Rev</span>
+          <span>DRC</span>
+          <span>Modified ▾</span>
+          <span />
+        </TableHeaderRow>
+        <div className="min-h-0 flex-1 overflow-auto">
+          {visible.map((design) => (
+            <DesignListRow
+              key={design.id}
+              design={design}
+              starred={userState.isStarred(design.id)}
+              selected={design.id === selectedDesign?.id}
+              onSelect={() => setSelectedId(design.id)}
+              onOpen={() => openDesign(design.id)}
+              onToggleStar={() => userState.toggleStar(design.id)}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="h-full w-full overflow-auto bg-slate-50 dark:bg-slate-950">
-        <div className="mx-auto max-w-7xl px-6 py-8">
-          {/* Header */}
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-baseline gap-2.5">
-              <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
-                Designs
-              </h1>
-              <span className="text-xs text-slate-500 dark:text-slate-400">
-                {designs.length} {designs.length === 1 ? "project" : "projects"}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CloudSyncPill />
+      <div className="flex h-full min-h-0 w-full flex-col bg-surface-app text-text">
+        {/* Header */}
+        <header className="flex h-[34px] shrink-0 items-center gap-2 border-b border-border bg-surface-rail px-3">
+          <h1 className="text-base font-medium text-text-strong">Designs</h1>
+          <span className="font-mono text-2xs text-text-tertiary">
+            {designs.length} local
+          </span>
+          <SearchField
+            ref={searchRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            autoComplete="off"
+            placeholder="Search designs…"
+            aria-label="Search designs"
+            shortcutHint="⌘K"
+            containerClassName="ml-2 w-[300px]"
+          />
+          <div className="flex-1" />
+          <SegmentedControl
+            aria-label="View"
+            options={[
+              {
+                id: "list" as const,
+                label: "List",
+                icon: <List aria-hidden="true" />,
+              },
+              {
+                id: "grid" as const,
+                label: "Grid",
+                icon: <LayoutGrid aria-hidden="true" />,
+              },
+            ]}
+            value={view}
+            onChange={setView}
+          />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button
-                variant="primary"
-                onClick={handleCreateDesign}
-                disabled={creating || !designerAvailable}
-                icon={
-                  creating ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <FilePlus className="h-4 w-4" />
-                  )
-                }
+                variant="secondary"
+                icon={<ArrowDownWideNarrow className="h-3 w-3" />}
               >
-                {creating ? "Creating…" : "New design"}
-                {!creating && (
-                  <span className="ml-1 rounded bg-white/20 px-1.5 text-[10px]">
-                    N
-                  </span>
-                )}
+                {SORT_LABELS[sort]}
+                <ChevronDown className="h-3 w-3 text-text-tertiary" />
               </Button>
-            </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              {(Object.keys(SORT_LABELS) as SortKey[]).map((k) => (
+                <DropdownMenuItem
+                  key={k}
+                  onSelect={() => setSort(k)}
+                  className={cn(sort === k && "text-text-strong")}
+                >
+                  {SORT_LABELS[k]}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button
+            variant="primary"
+            onClick={handleCreateDesign}
+            disabled={creating || !designerAvailable}
+            icon={
+              creating ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <FilePlus className="h-3 w-3" />
+              )
+            }
+          >
+            {creating ? "Creating…" : "New design"}
+            {!creating && (
+              <span className="ml-1 font-mono text-2xs opacity-60">N</span>
+            )}
+          </Button>
+        </header>
+
+        {error && (
+          <div className="shrink-0 border-b border-border bg-status-danger-soft px-3 py-1.5 text-xs text-status-danger">
+            {error}
           </div>
+        )}
 
-          {/* Controls */}
-          <div className="mt-5 flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1.5">
-              {filterChips.map((c) => (
-                <Chip
-                  key={c.key}
-                  active={filter === c.key}
-                  count={
-                    c.key === "all" || c.key === "recent" ? undefined : c.count
-                  }
-                  icon={
-                    c.key === "starred" ? (
-                      <Star className="h-3 w-3" />
-                    ) : undefined
-                  }
-                  onClick={() => setFilter(c.key)}
-                >
-                  {c.label}
-                </Chip>
-              ))}
-            </div>
-
-            <div className="flex min-w-[180px] flex-1 items-center gap-2 rounded-control border border-slate-200 bg-white px-3 py-1.5 dark:border-slate-700 dark:bg-slate-900">
-              <Search className="h-3.5 w-3.5 text-slate-400" />
-              <input
-                ref={searchRef}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                autoComplete="off"
-                placeholder="Search designs…"
-                className="min-w-0 flex-1 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-200"
-              />
-              <span className="rounded bg-slate-100 px-1.5 font-mono text-[10px] text-slate-400 dark:bg-slate-800">
-                ⌘K
-              </span>
-            </div>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1.5 rounded-control border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
-                >
-                  <ArrowDownWideNarrow className="h-3.5 w-3.5" />
-                  {SORT_LABELS[sort]}
-                  <ChevronDown className="h-3 w-3 text-slate-400" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                {(Object.keys(SORT_LABELS) as SortKey[]).map((k) => (
-                  <DropdownMenuItem
-                    key={k}
-                    onSelect={() => setSort(k)}
-                    className={cn(
-                      sort === k && "text-violet-600 dark:text-violet-300",
-                    )}
-                  >
-                    {SORT_LABELS[k]}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <div className="inline-flex rounded-control border border-slate-200 bg-white p-0.5 dark:border-slate-700 dark:bg-slate-900">
-              {(["grid", "list"] as const).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  aria-label={`${v} view`}
-                  aria-pressed={view === v}
-                  onClick={() => setView(v)}
-                  className={cn(
-                    "flex items-center rounded-md px-2 py-1",
-                    view === v
-                      ? "bg-accent-soft text-accent-text"
-                      : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300",
-                  )}
-                >
-                  {v === "grid" ? (
-                    <LayoutGrid className="h-3.5 w-3.5" />
-                  ) : (
-                    <List className="h-3.5 w-3.5" />
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {error && (
-            <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
-              {error}
-            </div>
-          )}
-
-          {/* Body */}
-          {loading ? (
-            <div className="mt-12 flex items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
-            </div>
-          ) : visible.length === 0 ? (
-            <div className="mt-12 flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white py-16 dark:border-slate-700 dark:bg-slate-900">
-              <PenTool className="h-10 w-10 text-slate-300 dark:text-slate-600" />
-              <p className="mt-4 text-sm font-medium text-slate-900 dark:text-slate-100">
-                {designs.length === 0
-                  ? "No designs yet"
-                  : "No matching designs"}
-              </p>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                {designs.length === 0
-                  ? "Create your first design to get started"
-                  : "Try a different filter or search term"}
-              </p>
-              {designs.length === 0 && (
-                <Button
-                  variant="primary"
-                  className="mt-4"
-                  onClick={handleCreateDesign}
-                  disabled={creating || !designerAvailable}
-                  icon={<FilePlus className="h-4 w-4" />}
-                >
-                  New design
-                </Button>
-              )}
-            </div>
-          ) : view === "grid" ? (
-            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
-              {visible.map((design) => (
-                <DesignCard
-                  key={design.id}
-                  design={design}
-                  view="grid"
-                  starred={userState.isStarred(design.id)}
-                  archived={userState.isArchived(design.id)}
-                  onOpen={() => navigateToModule("designer", design.id)}
-                  onToggleStar={() => userState.toggleStar(design.id)}
-                  onToggleArchive={() => userState.toggleArchive(design.id)}
-                  onDelete={() => setDeletingDesign(design)}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="mt-6 flex flex-col gap-2">
-              {visible.map((design) => (
-                <DesignCard
-                  key={design.id}
-                  design={design}
-                  view="list"
-                  starred={userState.isStarred(design.id)}
-                  archived={userState.isArchived(design.id)}
-                  onOpen={() => navigateToModule("designer", design.id)}
-                  onToggleStar={() => userState.toggleStar(design.id)}
-                  onToggleArchive={() => userState.toggleArchive(design.id)}
-                  onDelete={() => setDeletingDesign(design)}
-                />
-              ))}
-            </div>
-          )}
+        {/* Body */}
+        <div className="flex min-h-0 flex-1">
+          <HomeSidebar
+            filter={filter}
+            onFilterChange={setFilter}
+            counts={counts}
+          />
+          <div className="flex min-w-0 flex-1 flex-col">{body}</div>
+          <DesignDetailPanel
+            design={selectedDesign}
+            starred={
+              selectedDesign ? userState.isStarred(selectedDesign.id) : false
+            }
+            archived={
+              selectedDesign ? userState.isArchived(selectedDesign.id) : false
+            }
+            onOpen={() => selectedDesign && openDesign(selectedDesign.id)}
+            onToggleArchive={() =>
+              selectedDesign && userState.toggleArchive(selectedDesign.id)
+            }
+            onDelete={() =>
+              selectedDesign && setDeletingDesign(selectedDesign)
+            }
+          />
         </div>
+
+        {/* Footer */}
+        <StatusBar>
+          <StatusSegment>designs {visible.length}</StatusSegment>
+          <StatusSegment flex sans className="text-text-tertiary">
+            Enter to open · N new · ⌘K search
+          </StatusSegment>
+          <StatusSegment>Local</StatusSegment>
+        </StatusBar>
 
         {deletingDesign && (
           <DeleteConfirmationModal
