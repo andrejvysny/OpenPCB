@@ -146,10 +146,10 @@ export function TagTokenInput({
   return (
     <div className="relative">
       <div
-        className={`flex flex-wrap items-center gap-1.5 rounded-lg border bg-white px-2 py-1.5 text-sm dark:bg-slate-900 ${
+        className={`flex flex-wrap items-center gap-1.5 rounded-control border bg-surface-input px-2 py-1.5 text-xs ${
           disabled
-            ? "border-slate-200 opacity-60 dark:border-slate-700"
-            : "border-slate-300 focus-within:border-violet-500 focus-within:ring-1 focus-within:ring-violet-500/40 dark:border-slate-700"
+            ? "border-border opacity-60"
+            : "border-border-control focus-within:border-selection"
         }`}
         onClick={() => inputRef.current?.focus()}
       >
@@ -188,13 +188,13 @@ export function TagTokenInput({
           }}
           placeholder={value.length === 0 ? placeholder : ""}
           disabled={disabled}
-          className="min-w-[8rem] flex-1 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400 dark:text-slate-100"
+          className="min-w-[8rem] flex-1 bg-transparent text-xs text-text-strong outline-none placeholder:text-text-disabled"
         />
       </div>
       {focused && filteredSuggestions.length > 0 && (
         <ul
           role="listbox"
-          className="absolute left-0 right-0 top-full z-20 mt-1 max-h-56 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-900"
+          className="absolute left-0 right-0 top-full z-20 mt-1 max-h-56 overflow-y-auto rounded-float border border-border bg-surface-raised py-1 shadow-lg"
         >
           {filteredSuggestions.map((stat, index) => {
             const active = index === activeSuggestion;
@@ -207,14 +207,14 @@ export function TagTokenInput({
                   }}
                   onClick={() => commitTag(stat.tag)}
                   onMouseEnter={() => setActiveSuggestion(index)}
-                  className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-xs transition-colors ${
+                  className={`flex w-full items-center justify-between px-2 py-1 text-left text-xs outline-none transition-colors ${
                     active
-                      ? "bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-200"
-                      : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
+                      ? "bg-surface-selected text-text-strong"
+                      : "text-text hover:bg-surface-hover hover:text-text-strong"
                   }`}
                 >
                   <span className="truncate">{stat.tag}</span>
-                  <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">
+                  <span className="font-mono text-2xs tabular-nums text-text-disabled">
                     {stat.count}
                   </span>
                 </button>

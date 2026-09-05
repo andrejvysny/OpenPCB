@@ -107,10 +107,10 @@ export function CloudLibrarySyncButton({
         onClick={() => void sync()}
         disabled={busy || !backendURL}
         title={status ?? "Sync your custom components to OpenPCB Cloud"}
-        className="inline-flex h-9 items-center gap-2 rounded-l-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+        className="inline-flex h-[22px] items-center gap-1.5 rounded-l-control border border-border-control px-2 text-xs text-text outline-none transition-colors hover:bg-surface-hover hover:text-text-strong disabled:cursor-not-allowed disabled:opacity-60"
       >
-        <CloudUpload className="h-4 w-4" strokeWidth={1.8} />
-        <span className={failed ? "text-red-600 dark:text-red-400" : undefined}>
+        <CloudUpload className="h-3 w-3" strokeWidth={1.5} />
+        <span className={failed ? "text-status-danger" : undefined}>
           {busy ? "Syncing…" : (status ?? "Sync to Cloud")}
         </span>
       </button>
@@ -120,9 +120,9 @@ export function CloudLibrarySyncButton({
         disabled={busy || !backendURL}
         title="Pull custom components from OpenPCB Cloud"
         aria-label="Pull custom components from cloud"
-        className="inline-flex h-9 items-center rounded-r-lg border border-l-0 border-slate-300 bg-white px-2 text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+        className="inline-flex h-[22px] items-center rounded-r-control border border-l-0 border-border-control px-1.5 text-text outline-none transition-colors hover:bg-surface-hover hover:text-text-strong disabled:cursor-not-allowed disabled:opacity-60"
       >
-        <CloudDownload className="h-4 w-4" strokeWidth={1.8} />
+        <CloudDownload className="h-3 w-3" strokeWidth={1.5} />
       </button>
     </div>
   );

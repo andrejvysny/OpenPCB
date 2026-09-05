@@ -1,4 +1,5 @@
 import { useRef, type KeyboardEvent, type ReactElement } from "react";
+import { PanelSectionHeader } from "@shared/frontend/ui";
 import type { ComponentFootprintVariant } from "../types";
 
 interface FootprintOptionsListProps {
@@ -61,15 +62,12 @@ export function FootprintOptionsList({
   };
 
   return (
-    <section className="flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-      <header className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
-        <span className="font-mono text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-          Footprint options
-        </span>
-        <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 font-mono text-[11px] font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
-          {sorted.length}
-        </span>
-      </header>
+    <section className="flex h-full flex-col overflow-hidden rounded-control border border-border bg-surface-panel">
+      <PanelSectionHeader
+        variant="uppercase"
+        title="Footprint options"
+        count={sorted.length}
+      />
 
       {/* `relative flex-1` collapses to zero intrinsic height (the absolute
           child doesn't count), so the options count never dictates the row
@@ -97,13 +95,13 @@ export function FootprintOptionsList({
                   handleKeyDown(event, index, variant.footprintId)
                 }
                 data-testid={`component-footprint-variant-${variant.footprintId}`}
-                className={`group grid cursor-pointer grid-cols-[44px_1fr_auto] items-center gap-3 rounded-lg border px-2.5 py-2.5 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-violet-500 ${
+                className={`group grid cursor-pointer grid-cols-[44px_1fr_auto] items-center gap-3 rounded-control border px-2.5 py-2.5 outline-none transition-colors focus-visible:border-selection ${
                   selected
-                    ? "border-violet-300 bg-violet-50 dark:border-violet-700/60 dark:bg-violet-950/40"
-                    : "border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                    ? "border-selection bg-surface-selected"
+                    : "border-transparent hover:bg-surface-hover"
                 }`}
               >
-                <div className="flex h-8 w-11 items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
+                <div className="flex h-8 w-11 items-center justify-center overflow-hidden rounded-control border border-border bg-surface-canvas-well">
                   {backendURL ? (
                     <img
                       src={`${backendURL}/api/modules/${moduleId}/footprints/${encodeURIComponent(
@@ -117,19 +115,19 @@ export function FootprintOptionsList({
                   ) : null}
                 </div>
                 <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">
+                  <div className="truncate text-xs font-medium text-text-strong">
                     {variant.variantLabel}
                   </div>
-                  <div className="mt-0.5 truncate font-mono text-[11px] text-slate-400 dark:text-slate-500">
+                  <div className="mt-0.5 truncate font-mono text-2xs text-text-tertiary">
                     {variant.name}
                   </div>
                 </div>
-                <div className="text-right font-mono text-[11px] text-slate-500 dark:text-slate-400">
+                <div className="text-right font-mono text-2xs text-text-secondary">
                   <div className="whitespace-nowrap">
                     {variant.mountType ?? "—"} · {variant.padCount} pads
                   </div>
                   {variant.isDefault ? (
-                    <span className="mt-1 inline-block rounded-md border border-violet-300 bg-violet-50 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider text-violet-600 dark:border-violet-700/60 dark:bg-violet-950/50 dark:text-violet-300">
+                    <span className="mt-1 inline-block bg-surface-control px-1.5 text-2xs uppercase tracking-[.06em] text-text-strong">
                       Default
                     </span>
                   ) : null}
@@ -140,12 +138,10 @@ export function FootprintOptionsList({
         </div>
       </div>
 
-      <p className="border-t border-slate-200 px-4 py-3 text-[11.5px] leading-relaxed text-slate-400 dark:border-slate-800 dark:text-slate-500">
+      <p className="border-t border-border px-3 py-2 text-2xs leading-relaxed text-text-tertiary">
         Select an option to preview its footprint &amp; 3D model. The{" "}
-        <span className="font-semibold text-violet-600 dark:text-violet-300">
-          DEFAULT
-        </span>{" "}
-        is used when you place the part.
+        <span className="font-medium text-text-strong">DEFAULT</span> is used
+        when you place the part.
       </p>
     </section>
   );

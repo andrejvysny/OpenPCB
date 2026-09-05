@@ -136,13 +136,13 @@ test.describe("builtin footprints — Library UI", () => {
       .click();
     for (const componentId of BUILTIN_COMPONENT_IDS) {
       const card = page.locator(
-        `[data-testid="library-component-card-${componentId}"]`,
+        `[data-testid="library-component-row-${componentId}"]`,
       );
-      await expect(card, `card visible for ${componentId}`).toBeVisible({
+      await expect(card, `row visible for ${componentId}`).toBeVisible({
         timeout: 10_000,
       });
     }
-    await expect(page.locator(`[data-testid="library-component-card-openpcb.core.opto.led"]`)).toBeVisible();
+    await expect(page.locator(`[data-testid="library-component-row-openpcb.core.opto.led"]`)).toBeVisible();
   });
 
   test("Resistor detail page shows the 9-variant footprint list with default flagged", async ({
@@ -153,9 +153,10 @@ test.describe("builtin footprints — Library UI", () => {
       .getByRole("button", { name: /Library/ })
       .first()
       .click();
+    // Table view: double-click a row to open the detail page.
     await page
-      .locator(`[data-testid="library-component-card-${RESISTOR_ID}"]`)
-      .click();
+      .locator(`[data-testid="library-component-row-${RESISTOR_ID}"]`)
+      .dblclick();
     await expect(page.getByTestId("component-mount-type")).toHaveText("smd");
     await expect(page.getByTestId("component-pad-count")).toHaveText("2");
     await expect(page.getByTestId("footprint-preview-canvas")).toBeVisible();
@@ -182,9 +183,10 @@ test.describe("builtin footprints — Library UI", () => {
       .getByRole("button", { name: /Library/ })
       .first()
       .click();
+    // Table view: double-click a row to open the detail page.
     await page
-      .locator(`[data-testid="library-component-card-${CAPACITOR_ID}"]`)
-      .click();
+      .locator(`[data-testid="library-component-row-${CAPACITOR_ID}"]`)
+      .dblclick();
     await expect(
       page
         .getByTestId("component-footprint-variants")

@@ -59,25 +59,27 @@ export function ActiveFilterChips({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="flex min-w-0 shrink items-center gap-1.5 overflow-hidden">
       {chips.map((chip) => (
         <button
           key={chip.token}
           type="button"
           onClick={() => onRemove(chip.token)}
-          className="group inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 py-0.5 pl-2 pr-1 text-[11px] font-medium text-violet-700 transition-colors hover:bg-violet-100 dark:border-violet-900 dark:bg-violet-950/60 dark:text-violet-300 dark:hover:bg-violet-900/60"
+          aria-label={`Remove filter ${chip.bucket}: ${chip.label}`}
+          className="group inline-flex h-[18px] shrink-0 items-center gap-1 rounded-control border border-border-control px-1.5 text-2xs text-text outline-none transition-colors hover:bg-surface-hover hover:text-text-strong"
         >
-          <span className="text-violet-500 dark:text-violet-400">
-            {chip.bucket}:
-          </span>
-          <span>{chip.label}</span>
-          <X className="h-3 w-3 opacity-60 group-hover:opacity-100" />
+          <span className="text-text-tertiary">{chip.bucket}:</span>
+          <span className="max-w-[10rem] truncate">{chip.label}</span>
+          <X
+            aria-hidden="true"
+            className="h-2.5 w-2.5 text-text-tertiary group-hover:text-text-strong"
+          />
         </button>
       ))}
       <button
         type="button"
         onClick={onClearAll}
-        className="text-[11px] font-medium text-slate-500 underline-offset-2 hover:text-slate-700 hover:underline dark:text-slate-400 dark:hover:text-slate-200"
+        className="shrink-0 text-2xs text-text-secondary underline-offset-2 outline-none hover:text-text-strong hover:underline"
       >
         Clear all
       </button>

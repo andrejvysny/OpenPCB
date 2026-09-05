@@ -28,7 +28,7 @@ export function TagFilterChips({
 
   if (visibleGroups.length === 0) {
     return (
-      <div className="px-1 py-1.5 text-xs text-slate-400 dark:text-slate-500">
+      <div className="px-1 py-1.5 text-xs text-text-tertiary">
         No tags yet — import or edit components to add tags.
       </div>
     );
@@ -38,7 +38,7 @@ export function TagFilterChips({
     <div className="flex flex-col gap-2">
       {visibleGroups.map((group) => (
         <div key={group.group.id} className="flex items-start gap-2">
-          <span className="mt-1 w-16 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+          <span className="mt-1 w-16 shrink-0 text-2xs uppercase tracking-[.04em] text-text-caps">
             {group.group.label}
           </span>
           <div className="flex flex-wrap items-center gap-1.5">
@@ -58,7 +58,7 @@ export function TagFilterChips({
         <button
           type="button"
           onClick={onClear}
-          className="self-start text-[11px] font-medium text-slate-500 underline decoration-dotted underline-offset-2 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+          className="self-start text-2xs text-text-secondary underline decoration-dotted underline-offset-2 outline-none hover:text-text-strong"
         >
           Clear {active.size} filter{active.size === 1 ? "" : "s"}
         </button>
