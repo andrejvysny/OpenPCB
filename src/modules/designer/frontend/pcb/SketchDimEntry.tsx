@@ -33,18 +33,18 @@ function Field({
 }): ReactElement {
   return (
     <div className="flex items-center gap-1.5">
-      <span className="w-3 text-slate-400">{label}</span>
+      <span className="w-3 text-text-tertiary">{label}</span>
       <span
         className={
-          "min-w-[3.5rem] rounded px-1 py-0.5 text-right tabular-nums " +
+          "min-w-[3.5rem] rounded-control px-1 py-0.5 text-right tabular-nums " +
           (active
-            ? "bg-violet-500/25 text-white ring-1 ring-violet-400/70"
-            : "text-slate-200")
+            ? "bg-selection/25 text-text-strong ring-1 ring-selection/70"
+            : "text-text-strong")
         }
       >
         {value}
         {active && typed ? (
-          <span className="ml-0.5 inline-block w-px animate-pulse bg-violet-300">
+          <span className="ml-0.5 inline-block w-px animate-pulse bg-selection">
             &nbsp;
           </span>
         ) : null}
@@ -86,7 +86,7 @@ export function SketchDimEntry({
   return (
     <div
       data-testid="sketch-dim-entry"
-      className="pointer-events-none fixed z-30 flex flex-col gap-0.5 rounded-md border border-slate-700 bg-slate-950/95 px-2 py-1 text-[11px] font-medium shadow-lg backdrop-blur"
+      className="pointer-events-none fixed z-30 flex flex-col gap-0.5 rounded-control border border-border bg-surface-raised/95 px-2 py-1 text-[11px] font-medium shadow-lg backdrop-blur"
       style={{ left: cursorClientPx.x + 18, top: cursorClientPx.y + 18 }}
     >
       <Field
@@ -102,7 +102,7 @@ export function SketchDimEntry({
         typed={angleTyped}
       />
       {chip ? (
-        <div className="mt-0.5 self-start rounded bg-amber-500/20 px-1 py-px text-[10px] font-semibold text-amber-300">
+        <div className="mt-0.5 self-start rounded-control bg-status-warning-soft px-1 py-px text-[10px] font-semibold text-status-warning">
           {chip}
         </div>
       ) : null}

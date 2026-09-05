@@ -422,7 +422,6 @@ interface PcbCanvasProps {
     pointNm: { x: number; y: number },
   ) => void;
   commentAttachmentUrl?: (attachmentId: string) => string;
-  boardPanelTarget?: HTMLElement | null;
   layersPanelTarget?: HTMLElement | null;
   /** Docked 30px toolbar row (Space.tsx renders the empty slot). */
   toolbarTarget?: HTMLElement | null;
@@ -449,7 +448,7 @@ interface PcbCanvasProps {
 function RouteHintStrip({ active }: { active: boolean }): ReactElement {
   if (!active) {
     return (
-      <div className="rounded-full border border-slate-700/80 bg-slate-950/80 px-3 py-1 text-[11px] font-medium text-slate-300 shadow-lg backdrop-blur">
+      <div className="rounded-control border border-border bg-surface-raised/95 px-3 py-1 text-[11px] font-medium text-text-secondary shadow-lg backdrop-blur">
         Click a pad, trace, or via to start routing · Esc cancel
       </div>
     );
@@ -464,10 +463,10 @@ function RouteHintStrip({ active }: { active: boolean }): ReactElement {
     ["Esc", "Cancel"],
   ];
   return (
-    <div className="flex items-center gap-2 rounded-full border border-slate-700/80 bg-slate-950/90 px-3 py-1 text-[11px] text-slate-300 shadow-xl backdrop-blur">
+    <div className="flex items-center gap-2 rounded-control border border-border bg-surface-raised/95 px-3 py-1 text-[11px] text-text-secondary shadow-xl backdrop-blur">
       {keys.map(([key, label]) => (
         <span key={key} className="inline-flex items-center gap-1">
-          <kbd className="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-slate-100 shadow-inner">
+          <kbd className="rounded-control bg-surface-control px-1.5 py-0.5 font-mono text-[10px] font-semibold text-text-strong shadow-inner">
             {key}
           </kbd>
           <span>{label}</span>
@@ -479,12 +478,12 @@ function RouteHintStrip({ active }: { active: boolean }): ReactElement {
 
 function MeasureHintStrip({ active }: { active: boolean }): ReactElement {
   return (
-    <div className="flex items-center gap-2 rounded-full border border-slate-700/80 bg-slate-950/90 px-3 py-1 text-[11px] text-slate-300 shadow-xl backdrop-blur">
+    <div className="flex items-center gap-2 rounded-control border border-border bg-surface-raised/95 px-3 py-1 text-[11px] text-text-secondary shadow-xl backdrop-blur">
       <span>{active ? "Click endpoint to lock" : "Click start point"}</span>
       <span>·</span>
       <span>
         Hold{" "}
-        <kbd className="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-slate-100 shadow-inner">
+        <kbd className="rounded-control bg-surface-control px-1.5 py-0.5 font-mono text-[10px] font-semibold text-text-strong shadow-inner">
           Shift
         </kbd>{" "}
         for ΔX/ΔY
@@ -497,7 +496,7 @@ function MeasureHintStrip({ active }: { active: boolean }): ReactElement {
 function SketchHintStrip({ active }: { active: boolean }): ReactElement {
   if (!active) {
     return (
-      <div className="rounded-full border border-slate-700/80 bg-slate-950/80 px-3 py-1 text-[11px] font-medium text-slate-300 shadow-lg backdrop-blur">
+      <div className="rounded-control border border-border bg-surface-raised/95 px-3 py-1 text-[11px] font-medium text-text-secondary shadow-lg backdrop-blur">
         Click to place the first corner · Esc exit
       </div>
     );
@@ -511,10 +510,10 @@ function SketchHintStrip({ active }: { active: boolean }): ReactElement {
     ["Esc", "Cancel"],
   ];
   return (
-    <div className="flex items-center gap-2 rounded-full border border-slate-700/80 bg-slate-950/90 px-3 py-1 text-[11px] text-slate-300 shadow-xl backdrop-blur">
+    <div className="flex items-center gap-2 rounded-control border border-border bg-surface-raised/95 px-3 py-1 text-[11px] text-text-secondary shadow-xl backdrop-blur">
       {keys.map(([key, label]) => (
         <span key={key} className="inline-flex items-center gap-1">
-          <kbd className="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-slate-100 shadow-inner">
+          <kbd className="rounded-control bg-surface-control px-1.5 py-0.5 font-mono text-[10px] font-semibold text-text-strong shadow-inner">
             {key}
           </kbd>
           <span>{label}</span>
@@ -5044,8 +5043,8 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
   }, [displayedCopperLayer, onActiveLayerChange]);
 
   /**
-   * Board settings body. Rendered inside the right dock's Properties tab (its
-   * idle state) and, for callers that still pass one, into `boardPanelTarget`.
+   * Board settings body. Rendered inside the right dock's Properties tab
+   * (its idle state).
    */
   const boardPanelElement = (
     <PcbBoardPanel
@@ -5311,7 +5310,7 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
 
   if (!props.designId) {
     return (
-      <div className="flex h-full items-center justify-center bg-slate-950 text-sm text-slate-500">
+      <div className="flex h-full items-center justify-center bg-surface-canvas-well text-sm text-text-tertiary">
         Select or create a design to open PCB layout
       </div>
     );
@@ -5324,7 +5323,7 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
   return (
     <div
       ref={wrapperRef}
-      className="relative h-full w-full bg-slate-950"
+      className="relative h-full w-full bg-surface-canvas-well"
       style={canvasCursor ? { cursor: canvasCursor } : undefined}
     >
       {workspace.projection ? (
@@ -5482,13 +5481,13 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
               DOM overlay only — does not affect R3F clear color. */}
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-0 z-10 bg-blue-500/[0.04]"
+            className="pointer-events-none absolute inset-0 z-10 bg-status-info/[0.04]"
             data-testid="pcb-flip-tint"
           />
           {/* Status badge — always visible when flipped, even if toolbar is
               occluded. */}
           <div
-            className="pointer-events-none absolute left-3 top-3 z-20 inline-flex items-center gap-1.5 rounded-full border border-violet-500/60 bg-violet-100/95 px-2 py-0.5 text-[11px] font-medium text-violet-700 shadow-sm backdrop-blur dark:bg-violet-900/60 dark:text-violet-200"
+            className="pointer-events-none absolute left-3 top-3 z-20 inline-flex items-center gap-1.5 rounded-control border border-selection/60 bg-selection-soft px-2 py-0.5 text-[11px] font-medium text-selection shadow-sm backdrop-blur"
             data-testid="pcb-viewing-bottom-badge"
           >
             <FlipHorizontal2 className="h-3 w-3" />
@@ -5525,7 +5524,6 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
               onZoomOut={() => cameraControlsRef.current?.zoomOut()}
               onFit={() => cameraControlsRef.current?.fit()}
               routeMode={toolMode === "route"}
-              routeSessionActive={routeState.kind === "routing"}
               onToggleRouteMode={() => {
                 setToolMode((prev) => (prev === "route" ? "select" : "route"));
                 if (toolMode === "route") dispatchRoute({ kind: "cancel" });
@@ -5541,43 +5539,6 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
                   prev === "boardShape" ? "select" : "boardShape",
                 );
               }}
-              measureMode={toolMode === "measure"}
-              onToggleMeasureMode={() => {
-                setToolMode((prev) => {
-                  if (prev === "measure") {
-                    dispatchMeasure({ kind: "clear" });
-                    return "select";
-                  }
-                  return "measure";
-                });
-                dispatchRoute({ kind: "cancel" });
-              }}
-              {...(lengthTuningEnabled
-                ? {
-                    tuneMode: toolMode === "tune",
-                    onToggleTuneMode: () => {
-                      setToolMode((prev) =>
-                        prev === "tune" ? "select" : "tune",
-                      );
-                      dispatchTune({ kind: "cancel" });
-                      dispatchRoute({ kind: "cancel" });
-                      dispatchMeasure({ kind: "clear" });
-                    },
-                  }
-                : {})}
-              {...(bundleRoutingEnabled
-                ? {
-                    bundleMode: toolMode === "bundle",
-                    onToggleBundleMode: () => {
-                      setToolMode((prev) =>
-                        prev === "bundle" ? "select" : "bundle",
-                      );
-                      dispatchBundle({ kind: "cancel" });
-                      dispatchRoute({ kind: "cancel" });
-                      dispatchMeasure({ kind: "clear" });
-                    },
-                  }
-                : {})}
               commentMode={props.commentMode ?? false}
               onToggleCommentMode={
                 props.onToggleCommentMode
@@ -5602,80 +5563,12 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
                 dispatchRoute({ kind: "cancel" });
                 dispatchMeasure({ kind: "clear" });
               }}
-              layerCount={workspace.projection?.board.layerCount ?? 2}
-              segmentMode={
-                routeState.kind === "routing"
-                  ? routeState.session.segmentMode
-                  : "manhattan-45"
-              }
-              onToggleSegmentMode={() => {
-                if (routeState.kind === "routing") {
-                  dispatchRoute({
-                    kind: "set-mode",
-                    mode:
-                      routeState.session.segmentMode === "manhattan-90"
-                        ? "manhattan-45"
-                        : "manhattan-90",
-                  });
-                }
-              }}
-              activeWidthMm={
-                routeState.kind === "routing"
-                  ? routeState.session.widthMm
-                  : (defaultNetClass?.traceWidthMm ?? 0.25)
-              }
-              tracePresets={tracePresets}
-              onPickWidth={(w) => void setSessionWidth(w, "preset")}
-              viaDiameterMm={
-                routeState.kind === "routing" &&
-                routeState.session.viaDiameterMmOverride !== undefined
-                  ? routeState.session.viaDiameterMmOverride
-                  : (defaultNetClass?.viaDiameterMm ?? 0.6)
-              }
-              viaDrillMm={
-                routeState.kind === "routing" &&
-                routeState.session.viaDrillMmOverride !== undefined
-                  ? routeState.session.viaDrillMmOverride
-                  : (defaultNetClass?.viaDrillMm ?? 0.3)
-              }
-              viaDiameterDefaultMm={defaultNetClass?.viaDiameterMm ?? 0.6}
-              viaDrillDefaultMm={defaultNetClass?.viaDrillMm ?? 0.3}
-              viaDiameterPresets={VIA_DIAMETER_PRESETS_MM}
-              viaDrillPresets={VIA_DRILL_PRESETS_MM}
-              onPickViaDiameter={(mm) =>
-                dispatchRoute({
-                  kind: "set-via-diameter",
-                  diameterMmOverride: mm,
-                })
-              }
-              onPickViaDrill={(mm) =>
-                dispatchRoute({
-                  kind: "set-via-drill",
-                  drillMmOverride: mm,
-                })
-              }
-              onPickViaPreset={(preset) => {
-                dispatchRoute({
-                  kind: "set-via-diameter",
-                  diameterMmOverride: preset.diameterMm,
-                });
-                dispatchRoute({
-                  kind: "set-via-drill",
-                  drillMmOverride: preset.drillMm,
-                });
-              }}
-              posture={
-                routeState.kind === "routing"
-                  ? routeState.session.posture
-                  : "auto"
-              }
-              onCyclePosture={() => dispatchRoute({ kind: "cycle-posture" })}
             />,
             props.toolbarTarget,
           )
         : null}
       {!workspace.projection ? (
-        <div className="flex h-full items-center justify-center text-sm text-slate-500">
+        <div className="flex h-full items-center justify-center text-sm text-text-tertiary">
           {workspace.loading ? "Loading PCB..." : "PCB projection unavailable"}
         </div>
       ) : null}
@@ -5687,7 +5580,7 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
             onClick={() => setExportDialogOpen(true)}
             title="Export manufacturing files (Gerber + Drill + BOM + PnP)"
             data-testid="pcb-export-button"
-            className="absolute bottom-3 right-3 z-20 inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white/95 px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm backdrop-blur hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-200 dark:hover:bg-slate-800"
+            className="absolute bottom-3 right-3 z-20 inline-flex items-center gap-1.5 rounded-control border border-border bg-surface-raised px-2.5 py-1 text-xs font-medium text-text shadow-sm hover:bg-surface-hover"
           >
             Export…
           </button>
@@ -5707,7 +5600,7 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
                     onClick={() => setAutoLayoutOpen(true)}
                     title="Place and route the whole board in OpenPCB Cloud, then pick from complete candidates"
                     data-testid="pcb-autolayout-button"
-                    className="inline-flex items-center gap-1.5 rounded-md border border-violet-300 bg-white/95 px-2.5 py-1 text-xs font-medium text-violet-700 shadow-sm backdrop-blur hover:bg-violet-50 dark:border-violet-800 dark:bg-slate-900/90 dark:text-violet-300 dark:hover:bg-slate-800"
+                    className="inline-flex items-center gap-1.5 rounded-control border border-selection bg-surface-raised px-2.5 py-1 text-xs font-medium text-selection shadow-sm hover:bg-selection-soft"
                   >
                     Auto Layout…
                   </button>
@@ -5716,7 +5609,7 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
                     onClick={() => setRouteBoardOpen(true)}
                     title="Route the board as placed — components are never moved"
                     data-testid="pcb-route-board-button"
-                    className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white/95 px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm backdrop-blur hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-200 dark:hover:bg-slate-800"
+                    className="inline-flex items-center gap-1.5 rounded-control border border-border bg-surface-raised px-2.5 py-1 text-xs font-medium text-text shadow-sm hover:bg-surface-hover"
                   >
                     Route Board…
                   </button>
@@ -5725,7 +5618,7 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
                     onClick={() => setAutoPlaceOpen(true)}
                     title="Advanced: optimize placement only, then review the ghost before applying"
                     data-testid="pcb-autoplace-button"
-                    className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white/95 px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm backdrop-blur hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-200 dark:hover:bg-slate-800"
+                    className="inline-flex items-center gap-1.5 rounded-control border border-border bg-surface-raised px-2.5 py-1 text-xs font-medium text-text shadow-sm hover:bg-surface-hover"
                   >
                     Auto Place…
                   </button>
@@ -5792,8 +5685,8 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
                   role="status"
                   className={
                     placeAppliedNote.issues
-                      ? "absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-[11px] text-amber-800 shadow-lg dark:border-amber-800 dark:bg-amber-950/80 dark:text-amber-200"
-                      : "absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-md border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-[11px] text-emerald-800 shadow-lg dark:border-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-200"
+                      ? "absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-control border border-status-warning bg-status-warning-soft px-3 py-1.5 text-[11px] text-status-warning shadow-lg"
+                      : "absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-control border border-status-success bg-status-success-soft px-3 py-1.5 text-[11px] text-status-success shadow-lg"
                   }
                 >
                   {placeAppliedNote.text}
@@ -5807,13 +5700,13 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
           {workspaceErrorVisible && workspace.error ? (
             <div
               role="alert"
-              className="absolute top-3 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-md border border-red-300 bg-red-50 px-3 py-1.5 text-[11px] text-red-700 shadow-lg dark:border-red-900 dark:bg-red-950/90 dark:text-red-300"
+              className="absolute top-3 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-control border border-status-danger bg-status-danger-soft px-3 py-1.5 text-[11px] text-status-danger shadow-lg"
             >
               {workspace.error}
               <button
                 type="button"
                 aria-label="Dismiss error"
-                className="rounded px-1 hover:bg-red-100 dark:hover:bg-red-900"
+                className="rounded-control px-1 hover:bg-status-danger-soft"
                 onClick={() => setWorkspaceErrorVisible(false)}
               >
                 ×
@@ -5825,7 +5718,7 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
 
       {boardResizeSession && cursorClientPx ? (
         <div
-          className="pointer-events-none fixed z-30 flex items-center gap-2 rounded-full border border-violet-500/60 bg-slate-950/95 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-slate-100 shadow-lg backdrop-blur"
+          className="pointer-events-none fixed z-30 flex items-center gap-2 rounded-control border border-selection/60 bg-surface-raised/95 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-text-strong shadow-lg backdrop-blur"
           style={{
             left: cursorClientPx.x + 14,
             top: cursorClientPx.y + 14,
@@ -5847,7 +5740,7 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
             if (dw === 0 && dh === 0) return null;
             const fmt = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
             return (
-              <span className="text-slate-400">
+              <span className="text-text-tertiary">
                 Δ {fmt(dw)}, {fmt(dh)}
               </span>
             );
@@ -5865,7 +5758,7 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
             if (!v) return null;
             return (
               <div
-                className="pointer-events-none fixed z-30 rounded-full border border-violet-500/60 bg-slate-950/95 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-slate-100 shadow-lg backdrop-blur"
+                className="pointer-events-none fixed z-30 rounded-control border border-selection/60 bg-surface-raised/95 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-text-strong shadow-lg backdrop-blur"
                 style={{ left: cursorClientPx.x + 14, top: cursorClientPx.y + 14 }}
               >
                 {roundDimMm(v.x)}, {roundDimMm(v.y)} mm
@@ -5876,7 +5769,7 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
 
       {toolMode === "route" && cursorClientPx ? (
         <div
-          className="pointer-events-none fixed z-30 flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-950/90 px-2 py-0.5 text-[10px] font-medium text-slate-100 shadow-lg backdrop-blur"
+          className="pointer-events-none fixed z-30 flex items-center gap-1.5 rounded-control border border-border bg-surface-raised/95 px-2 py-0.5 text-[10px] font-medium text-text-strong shadow-lg backdrop-blur"
           style={{
             left: cursorClientPx.x + 14,
             top: cursorClientPx.y + 14,
@@ -5904,7 +5797,7 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
             const sev = DRC_SEVERITY[v.severity];
             return (
               <div
-                className="pointer-events-none fixed z-40 max-w-[280px] rounded-md border border-slate-700 bg-slate-950/95 px-2.5 py-1.5 text-[11px] text-slate-100 shadow-lg backdrop-blur"
+                className="pointer-events-none fixed z-40 max-w-[280px] rounded-float border border-border bg-surface-raised/95 px-2.5 py-1.5 text-[11px] text-text-strong shadow-lg backdrop-blur"
                 style={{
                   left: cursorClientPx.x + 14,
                   top: cursorClientPx.y + 14,
@@ -5918,7 +5811,7 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
                   />
                   {CODE_LABEL[v.code] ?? v.code}
                 </div>
-                <div className="mt-0.5 text-slate-300">
+                <div className="mt-0.5 text-text-secondary">
                   {v.anchors
                     .map((a) =>
                       resolveAnchorLabel(a, workspace.projection ?? null),
@@ -5927,14 +5820,14 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
                 </div>
                 {v.layer ||
                 (v.measuredMm !== undefined && v.requiredMm !== undefined) ? (
-                  <div className="mt-0.5 text-[10px] text-slate-400">
+                  <div className="mt-0.5 text-[10px] text-text-tertiary">
                     {v.layer ? <span className="mr-2">{v.layer}</span> : null}
                     {v.measuredMm !== undefined && v.requiredMm !== undefined
                       ? `${v.measuredMm.toFixed(3)} / ${v.requiredMm.toFixed(3)} mm`
                       : null}
                   </div>
                 ) : null}
-                <div className="mt-1 text-[10px] leading-snug text-slate-400">
+                <div className="mt-1 text-[10px] leading-snug text-text-tertiary">
                   {v.message}
                 </div>
               </div>
@@ -6054,9 +5947,6 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
             />,
             props.layersPanelTarget,
           )
-        : null}
-      {workspace.projection && props.boardPanelTarget
-        ? createPortal(boardPanelElement, props.boardPanelTarget)
         : null}
       {/* Contextual 28px parameter row. Renders nothing while no tool is
           active so the slot collapses to zero height. */}

@@ -65,12 +65,12 @@ export function AutoLayoutCandidateCard({
   return (
     <li
       className={[
-        "rounded border px-3 py-2 transition-colors",
+        "rounded-control border px-3 py-2 transition-colors",
         failed
-          ? "border-slate-200 bg-slate-50 opacity-70 dark:border-slate-800 dark:bg-slate-900/60"
+          ? "border-border bg-surface-panel opacity-70"
           : selected
-            ? "border-violet-400 bg-violet-50 dark:border-violet-500 dark:bg-violet-950/30"
-            : "border-slate-200 hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700",
+            ? "border-selection bg-selection-soft"
+            : "border-border hover:border-border-control",
       ].join(" ")}
     >
       <button
@@ -84,25 +84,25 @@ export function AutoLayoutCandidateCard({
         <span className="min-w-0">
           <span className="flex items-center gap-1.5">
             {candidate.recommended ? (
-              <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-500" />
+              <Star className="h-3.5 w-3.5 fill-status-warning text-status-warning" />
             ) : null}
-            <span className="text-xs font-semibold text-slate-900 dark:text-slate-100">
+            <span className="text-xs font-semibold text-text-strong">
               {candidateTitle(candidate, index)}
             </span>
             {candidate.recommended ? (
-              <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+              <span className="rounded-control bg-status-warning-soft px-1.5 py-0.5 text-[10px] font-medium text-status-warning">
                 Recommended
               </span>
             ) : null}
             {failed ? (
-              <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-medium text-rose-700 dark:bg-rose-900/40 dark:text-rose-200">
+              <span className="rounded-control bg-status-danger-soft px-1.5 py-0.5 text-[10px] font-medium text-status-danger">
                 Failed
               </span>
             ) : null}
           </span>
 
           {chips.length > 0 ? (
-            <span className="mt-1 block text-[11px] text-slate-600 dark:text-slate-300">
+            <span className="mt-1 block text-[11px] text-text-secondary">
               {chips.join(" · ")}
             </span>
           ) : null}
@@ -112,7 +112,7 @@ export function AutoLayoutCandidateCard({
               {candidate.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                  className="rounded-control bg-surface-control px-1.5 py-0.5 text-[10px] text-text-secondary"
                 >
                   {tagLabel(tag)}
                 </span>
@@ -123,14 +123,14 @@ export function AutoLayoutCandidateCard({
           {/* Rendered verbatim: the service generates this from the first differing
               objective field, and paraphrasing it would change what it claims. */}
           {candidate.explanation ? (
-            <span className="mt-1 block text-[11px] text-slate-500 dark:text-slate-400">
+            <span className="mt-1 block text-[11px] text-text-tertiary">
               {candidate.explanation}
             </span>
           ) : null}
         </span>
 
         {selected && !failed ? (
-          <span className="shrink-0 rounded bg-violet-600 px-1.5 py-0.5 text-[10px] font-medium text-white">
+          <span className="shrink-0 rounded-control bg-selection px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">
             {disabled ? "Previewing" : "Selected"}
           </span>
         ) : null}
@@ -140,7 +140,7 @@ export function AutoLayoutCandidateCard({
         <button
           type="button"
           onClick={() => setExpanded((value) => !value)}
-          className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+          className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-text-tertiary hover:text-text-strong"
         >
           {expanded ? (
             <ChevronDown className="h-3 w-3" />
@@ -152,10 +152,10 @@ export function AutoLayoutCandidateCard({
       ) : null}
 
       {expanded ? (
-        <div className="mt-1 space-y-1 rounded bg-slate-100 px-2 py-1.5 text-[11px] text-slate-600 dark:bg-slate-800/60 dark:text-slate-300">
+        <div className="mt-1 space-y-1 rounded-control bg-surface-panel px-2 py-1.5 text-[11px] text-text-secondary">
           {candidate.failure ? (
             <p className="flex items-start gap-1.5">
-              <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-rose-500" />
+              <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-status-danger" />
               <span>
                 <strong>{candidate.failure.code}</strong> at stage{" "}
                 {candidate.failure.stage}

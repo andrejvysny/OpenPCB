@@ -77,10 +77,10 @@ export function PcbDisambiguationPopup({
       ref={ref}
       role="listbox"
       aria-label="Disambiguation chooser"
-      className="pointer-events-auto absolute z-50 min-w-[220px] rounded-md border border-slate-700 bg-slate-900/95 py-1 text-xs text-slate-100 shadow-xl backdrop-blur"
+      className="pointer-events-auto absolute z-50 min-w-[220px] rounded-float border border-border bg-surface-raised py-1 text-xs text-text-strong shadow-xl"
       style={{ left: screenX + 6, top: screenY + 6 }}
     >
-      <div className="border-b border-slate-700 px-2 py-1 text-[10px] uppercase tracking-wide text-slate-400">
+      <div className="border-b border-border px-2 py-1 text-[10px] uppercase tracking-wide text-text-caps">
         {items.length} items · Alt+click cycles · ↑↓ + Enter
       </div>
       {items.map((item, index) => (
@@ -92,8 +92,8 @@ export function PcbDisambiguationPopup({
           onClick={() => onPick(index)}
           className={`flex w-full items-center gap-2 px-2 py-1 text-left transition-colors ${
             index === activeIndex
-              ? "bg-violet-600 text-white"
-              : "hover:bg-slate-800"
+              ? "bg-surface-selected text-text-strong"
+              : "hover:bg-surface-hover"
           }`}
         >
           <span

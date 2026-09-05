@@ -102,46 +102,11 @@ interface PcbTopToolbarProps {
   onZoomOut: () => void;
   onFit: () => void;
   routeMode: boolean;
-  routeSessionActive: boolean;
   onToggleRouteMode: () => void;
   boardShapeMode: boolean;
   onToggleBoardShape: () => void;
-  measureMode: boolean;
-  onToggleMeasureMode: () => void;
-  /** Length-Tune tool (pcb.lengthTuning). Button hidden when not provided. */
-  tuneMode?: boolean;
-  onToggleTuneMode?: () => void;
-  /** Bundle routing (pcb.bundleRouting). Button hidden when not provided. */
-  bundleMode?: boolean;
-  onToggleBundleMode?: () => void;
   commentMode?: boolean;
   onToggleCommentMode?: () => void;
-  segmentMode: PcbTraceSegmentMode;
-  onToggleSegmentMode: () => void;
-  /** Copper layer count; the V-key layer-pair selector shows on 4-layer boards. */
-  layerCount?: PcbLayerCount;
-  activeWidthMm: number;
-  tracePresets: ReadonlyArray<number>;
-  onPickWidth: (widthMm: number) => void;
-  /** Active via diameter (mm). When `viaDiameterOverride` is undefined this is the net-class default. */
-  viaDiameterMm: number;
-  /** Active via drill (mm). Same fallback semantics as diameter. */
-  viaDrillMm: number;
-  /** Net-class default; surfaced in the dropdown so the user can revert. */
-  viaDiameterDefaultMm: number;
-  viaDrillDefaultMm: number;
-  /** Optional preset list for diameter/drill cycling. */
-  viaDiameterPresets: ReadonlyArray<number>;
-  viaDrillPresets: ReadonlyArray<number>;
-  onPickViaDiameter: (mm: number | undefined) => void;
-  onPickViaDrill: (mm: number | undefined) => void;
-  /**
-   * Apply a paired via preset (drill + diameter together). Net-class default
-   * remains the implicit fallback when both overrides are cleared.
-   */
-  onPickViaPreset: (preset: PcbViaPreset) => void;
-  posture: RoutePosture;
-  onCyclePosture: () => void;
   /** F5 mounting-hole drop tool. Click on canvas drops a free hole. */
   holeMode: boolean;
   onToggleHoleMode: () => void;

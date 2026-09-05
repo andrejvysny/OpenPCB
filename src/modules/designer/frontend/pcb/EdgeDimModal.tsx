@@ -21,7 +21,7 @@ function round3(n: number): string {
 }
 
 const INPUT_CLASS =
-  "h-8 w-full rounded-control border border-slate-300 bg-surface-input pl-2 pr-8 text-sm text-text-primary outline-none focus:border-accent dark:border-slate-700";
+  "h-8 w-full rounded-control border border-border-control bg-surface-input pl-2 pr-8 text-sm text-text-primary outline-none focus:border-accent";
 const SUFFIX_CLASS =
   "pointer-events-none absolute inset-y-0 right-2 flex items-center text-[11px] text-text-tertiary";
 
@@ -99,7 +99,7 @@ export function EdgeDimModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-[300px] rounded-card border border-slate-200 bg-surface-raised p-4 shadow-xl dark:border-slate-700">
+      <div className="w-[300px] rounded-card border border-border bg-surface-raised p-4 shadow-xl">
         <h2 className="mb-3 text-sm font-semibold text-text-primary">{title}</h2>
         {target.kind === "edge-length" ? (
           <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-wide text-text-tertiary">

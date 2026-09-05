@@ -145,12 +145,12 @@ export function AutoLayoutDialog({
       role="dialog"
       aria-modal="true"
       aria-labelledby="pcb-autolayout-dialog-title"
-      className="pointer-events-auto absolute right-4 top-4 z-30 flex max-h-[80vh] w-[26rem] flex-col rounded-lg border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-950"
+      className="pointer-events-auto absolute right-4 top-4 z-30 flex max-h-[80vh] w-[26rem] flex-col rounded-float border border-border bg-surface-raised shadow-xl"
     >
-      <header className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+      <header className="flex items-center justify-between border-b border-border px-4 py-3">
         <h2
           id="pcb-autolayout-dialog-title"
-          className="text-sm font-semibold text-slate-900 dark:text-slate-100"
+          className="text-sm font-semibold text-text-strong"
         >
           Auto Layout
         </h2>
@@ -158,22 +158,22 @@ export function AutoLayoutDialog({
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="rounded p-1 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+          className="rounded-control p-1 text-text-tertiary hover:bg-surface-hover"
         >
           <X className="h-4 w-4" />
         </button>
       </header>
 
-      <section className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4 text-sm text-slate-700 dark:text-slate-200">
+      <section className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4 text-sm text-text">
         {!signedIn ? (
           // The feature stays VISIBLE signed out and explains itself; hiding it entirely
           // is how users conclude a feature does not exist. No request is issued.
           <div className="space-y-2">
-            <p className="text-xs text-slate-600 dark:text-slate-300">
+            <p className="text-xs text-text-secondary">
               Auto Layout places and routes your board in OpenPCB Cloud, then lets you pick
               from several complete candidates.
             </p>
-            <p className="rounded border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-800 dark:border-violet-900/50 dark:bg-violet-950/40 dark:text-violet-200">
+            <p className="rounded-control border border-selection/40 bg-selection-soft px-3 py-2 text-xs text-selection">
               Sign in to OpenPCB Cloud to run Auto Layout.
             </p>
           </div>
@@ -182,7 +182,7 @@ export function AutoLayoutDialog({
         {signedIn && state.type === "idle" ? (
           <div className="space-y-3">
             <fieldset>
-              <legend className="text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              <legend className="text-[11px] font-medium uppercase tracking-wide text-text-caps">
                 Scope
               </legend>
               <div className="mt-1 flex gap-2">
@@ -205,7 +205,7 @@ export function AutoLayoutDialog({
             </fieldset>
 
             <fieldset>
-              <legend className="text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              <legend className="text-[11px] font-medium uppercase tracking-wide text-text-caps">
                 Priority
               </legend>
               <div className="mt-1 flex flex-wrap gap-2">
@@ -224,7 +224,7 @@ export function AutoLayoutDialog({
             </fieldset>
 
             <fieldset>
-              <legend className="text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              <legend className="text-[11px] font-medium uppercase tracking-wide text-text-caps">
                 Effort
               </legend>
               <div className="mt-1 flex gap-2">
@@ -243,14 +243,14 @@ export function AutoLayoutDialog({
               </div>
             </fieldset>
 
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            <p className="text-[11px] text-text-tertiary">
               The number of candidates is chosen by the service.
             </p>
           </div>
         ) : null}
 
         {state.type === "submitting" ? (
-          <p className="text-xs text-slate-500 dark:text-slate-400">
+          <p className="text-xs text-text-tertiary">
             Submitting board to OpenPCB Cloud…
           </p>
         ) : null}
@@ -278,8 +278,8 @@ export function AutoLayoutDialog({
           <div
             className={
               state.drcErrors > 0
-                ? "rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200"
-                : "rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200"
+                ? "rounded-control border border-status-warning bg-status-warning-soft px-3 py-2 text-xs text-status-warning"
+                : "rounded-control border border-status-success bg-status-success-soft px-3 py-2 text-xs text-status-success"
             }
           >
             <p className="font-medium">Auto Layout applied</p>
@@ -296,7 +296,7 @@ export function AutoLayoutDialog({
         ) : null}
 
         {state.type === "cancelled" ? (
-          <p className="text-xs text-slate-500 dark:text-slate-400">
+          <p className="text-xs text-text-tertiary">
             Auto Layout was cancelled.
           </p>
         ) : null}
@@ -304,11 +304,11 @@ export function AutoLayoutDialog({
         {state.type === "failed" ? <FailureNotice error={state.error} /> : null}
       </section>
 
-      <footer className="flex justify-end gap-2 border-t border-slate-200 px-4 py-3 dark:border-slate-800">
+      <footer className="flex justify-end gap-2 border-t border-border px-4 py-3">
         <button
           type="button"
           onClick={onClose}
-          className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+          className="rounded-control border border-border-control px-3 py-1.5 text-xs font-medium text-text hover:bg-surface-hover hover:text-text-strong"
         >
           {state.type === "completed" ? "Done" : "Close"}
         </button>
@@ -319,7 +319,7 @@ export function AutoLayoutDialog({
             onClick={() =>
               void job.run(toLayoutRequest(config, selectedPlacementIds))
             }
-            className="rounded-md bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-700"
+            className="rounded-control bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90"
           >
             {state.type === "idle" ? "Run Auto Layout" : "Try again"}
           </button>
@@ -330,7 +330,7 @@ export function AutoLayoutDialog({
             type="button"
             onClick={() => void job.cancel()}
             disabled={state.type === "running" && state.cancelling}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+            className="rounded-control border border-border-control px-3 py-1.5 text-xs font-medium text-text hover:bg-surface-hover hover:text-text-strong disabled:opacity-50"
           >
             {state.type === "running" && state.cancelling ? "Cancelling…" : "Cancel run"}
           </button>
@@ -346,7 +346,7 @@ export function AutoLayoutDialog({
               (state.type === "review" && state.stale) ||
               Boolean(candidate?.failure)
             }
-            className="rounded-md bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-control bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {state.type === "applying" ? "Applying…" : "Apply candidate"}
           </button>
@@ -358,16 +358,16 @@ export function AutoLayoutDialog({
 
 function chipClass(active: boolean): string {
   return [
-    "rounded-md border px-2 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+    "rounded-control border px-2 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40",
     active
-      ? "border-violet-500 bg-violet-600 text-white"
-      : "border-slate-300 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800",
+      ? "border-selection bg-selection text-primary-foreground"
+      : "border-border-control text-text hover:bg-surface-hover hover:text-text-strong",
   ].join(" ");
 }
 
 function SnapshotWarnings({ warnings }: { warnings: string[] }): ReactElement {
   return (
-    <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200">
+    <div className="rounded-control border border-status-warning bg-status-warning-soft px-3 py-2 text-[11px] text-status-warning">
       <p className="flex items-center gap-1.5 font-medium">
         <AlertTriangle className="h-3.5 w-3.5" />
         {warnings.length} warning{warnings.length === 1 ? "" : "s"}
@@ -416,7 +416,7 @@ function FailureNotice({ error }: { error: AutoLayoutClientError }): ReactElemen
     : null;
 
   return (
-    <div className="rounded border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-200">
+    <div className="rounded-control border border-status-danger bg-status-danger-soft px-3 py-2 text-xs text-status-danger">
       <p>{message}</p>
       {diagnostics && diagnostics.length > 0 ? (
         <ul className="mt-1 list-disc space-y-0.5 pl-4 text-[11px]">

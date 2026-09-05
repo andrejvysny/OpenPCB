@@ -57,7 +57,7 @@ function NumberField({
   onChange: (v: number) => void;
 }): ReactElement {
   return (
-    <label className="flex items-center justify-between gap-2 text-xs text-slate-600 dark:text-slate-300">
+    <label className="flex items-center justify-between gap-2 text-xs text-text-secondary">
       <span>{label}</span>
       <span className="flex items-center gap-1">
         <input
@@ -66,9 +66,9 @@ function NumberField({
           min={0}
           value={value}
           onChange={(e) => onChange(Number.parseFloat(e.target.value) || 0)}
-          className="w-20 rounded border border-slate-300 bg-white px-1.5 py-0.5 text-right font-mono text-xs dark:border-slate-700 dark:bg-slate-900"
+          className="w-20 rounded-control border border-border-control bg-surface-input px-1.5 py-0.5 text-right font-mono text-xs"
         />
-        <span className="text-[10px] text-slate-400">mm</span>
+        <span className="text-[10px] text-text-tertiary">mm</span>
       </span>
     </label>
   );
@@ -165,21 +165,21 @@ export function PcbDesignRulesDialog({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="flex max-h-[85vh] w-[560px] max-w-[92vw] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-950">
-        <header className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
-          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+      <div className="flex max-h-[85vh] w-[560px] max-w-[92vw] flex-col overflow-hidden rounded-float border border-border bg-surface-raised shadow-2xl">
+        <header className="flex items-center justify-between border-b border-border px-4 py-3">
+          <h2 className="text-sm font-semibold text-text-strong">
             Design rules
           </h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="cursor-pointer rounded p-1 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+            className="cursor-pointer rounded-control p-1 text-text-tertiary hover:bg-surface-hover"
           >
             <X className="h-4 w-4" />
           </button>
@@ -187,7 +187,7 @@ export function PcbDesignRulesDialog({
 
         <div className="grid min-h-0 flex-1 grid-cols-2 gap-x-6 gap-y-4 overflow-y-auto p-4">
           <section className="space-y-1.5">
-            <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+            <h3 className="text-xs font-semibold text-text-strong">
               Clearances
             </h3>
             {CLEARANCE_FIELDS.map((f) => (
@@ -201,7 +201,7 @@ export function PcbDesignRulesDialog({
           </section>
 
           <section className="space-y-1.5">
-            <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+            <h3 className="text-xs font-semibold text-text-strong">
               Minimums
             </h3>
             {MINIMUM_FIELDS.map((f) => (
@@ -220,16 +220,16 @@ export function PcbDesignRulesDialog({
           </section>
 
           <section className="col-span-2 space-y-2">
-            <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+            <h3 className="text-xs font-semibold text-text-strong">
               Net classes
             </h3>
             <div className="space-y-1.5">
               {netClasses.map((nc, i) => (
                 <div
                   key={nc.id}
-                  className="flex items-center gap-3 rounded border border-slate-200 px-2 py-1.5 text-xs dark:border-slate-800"
+                  className="flex items-center gap-3 rounded-control border border-border px-2 py-1.5 text-xs"
                 >
-                  <span className="w-20 shrink-0 font-medium text-slate-700 dark:text-slate-200">
+                  <span className="w-20 shrink-0 font-medium text-text-strong">
                     {nc.name}
                   </span>
                   <NumberField
@@ -262,7 +262,7 @@ export function PcbDesignRulesDialog({
           {lengthTuningEnabled ? (
             <section className="col-span-2 space-y-2">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                <h3 className="text-xs font-semibold text-text-strong">
                   Length match groups
                 </h3>
                 <button
@@ -279,12 +279,12 @@ export function PcbDesignRulesDialog({
                       },
                     ])
                   }
-                  className="flex cursor-pointer items-center gap-1 rounded border border-slate-300 px-1.5 py-0.5 text-[11px] text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                  className="flex cursor-pointer items-center gap-1 rounded-control border border-border-control px-1.5 py-0.5 text-[11px] text-text-secondary hover:bg-surface-hover"
                 >
                   <Plus className="h-3 w-3" /> Add group
                 </button>
               </div>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[11px] text-text-tertiary">
                 Member nets must match the longest member (or an absolute
                 length) within tolerance. DRC reports out-of-range nets; the
                 Tune tool adds serpentine length.
@@ -292,7 +292,7 @@ export function PcbDesignRulesDialog({
               {lengthGroups.map((group, i) => (
                 <div
                   key={group.id}
-                  className="space-y-1.5 rounded border border-slate-200 px-2 py-1.5 text-xs dark:border-slate-800"
+                  className="space-y-1.5 rounded-control border border-border px-2 py-1.5 text-xs"
                 >
                   <div className="flex items-center gap-2">
                     <input
@@ -300,7 +300,7 @@ export function PcbDesignRulesDialog({
                       value={group.name}
                       aria-label="Group name"
                       onChange={(e) => patchGroup(i, { name: e.target.value })}
-                      className="w-32 rounded border border-slate-300 bg-white px-1.5 py-0.5 text-xs dark:border-slate-700 dark:bg-slate-900"
+                      className="w-32 rounded-control border border-border-control bg-surface-input px-1.5 py-0.5 text-xs"
                     />
                     <select
                       value={group.target.kind}
@@ -313,7 +313,7 @@ export function PcbDesignRulesDialog({
                               : { kind: "longest" },
                         })
                       }
-                      className="cursor-pointer rounded border border-slate-300 bg-white px-1.5 py-0.5 text-xs dark:border-slate-700 dark:bg-slate-900"
+                      className="cursor-pointer rounded-control border border-border-control bg-surface-input px-1.5 py-0.5 text-xs"
                     >
                       <option value="longest">Match longest</option>
                       <option value="absolute">Absolute</option>
@@ -340,7 +340,7 @@ export function PcbDesignRulesDialog({
                           arr.filter((_, j) => j !== i),
                         )
                       }
-                      className="ml-auto cursor-pointer rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-red-500 dark:hover:bg-slate-800"
+                      className="ml-auto cursor-pointer rounded-control p-1 text-text-tertiary hover:bg-surface-hover hover:text-status-danger"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -356,8 +356,8 @@ export function PcbDesignRulesDialog({
                             onClick={() => toggleGroupNet(i, netId)}
                             className={
                               member
-                                ? "cursor-pointer rounded-full border border-violet-400 bg-violet-50 px-2 py-0.5 font-mono text-[11px] text-violet-700 dark:border-violet-700 dark:bg-violet-950 dark:text-violet-300"
-                                : "cursor-pointer rounded-full border border-slate-200 px-2 py-0.5 font-mono text-[11px] text-slate-500 hover:border-slate-400 dark:border-slate-700 dark:text-slate-400"
+                                ? "cursor-pointer rounded-control border border-selection bg-selection-soft px-2 py-0.5 font-mono text-[11px] text-selection"
+                                : "cursor-pointer rounded-control border border-border px-2 py-0.5 font-mono text-[11px] text-text-tertiary hover:border-border-control"
                             }
                           >
                             {name}
@@ -366,7 +366,7 @@ export function PcbDesignRulesDialog({
                       })}
                     </div>
                   ) : (
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-[11px] text-text-tertiary">
                       No named nets on this board yet.
                     </p>
                   )}
@@ -377,10 +377,10 @@ export function PcbDesignRulesDialog({
 
           {netEntries.length > 0 ? (
             <section className="col-span-2 space-y-2">
-              <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+              <h3 className="text-xs font-semibold text-text-strong">
                 Net assignments
               </h3>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[11px] text-text-tertiary">
                 Override the auto net-class for a net. New traces &amp; vias on
                 the net adopt the assigned class.
               </p>
@@ -388,15 +388,15 @@ export function PcbDesignRulesDialog({
                 {netEntries.map(([netId, name]) => (
                   <div
                     key={netId}
-                    className="flex items-center justify-between gap-3 rounded border border-slate-200 px-2 py-1 text-xs dark:border-slate-800"
+                    className="flex items-center justify-between gap-3 rounded-control border border-border px-2 py-1 text-xs"
                   >
-                    <span className="truncate font-mono text-slate-700 dark:text-slate-200">
+                    <span className="truncate font-mono text-text-strong">
                       {name}
                     </span>
                     <select
                       value={assignments[netId] ?? ""}
                       onChange={(e) => setNetAssignment(netId, e.target.value)}
-                      className="w-32 shrink-0 cursor-pointer rounded border border-slate-300 bg-white px-1.5 py-0.5 text-xs dark:border-slate-700 dark:bg-slate-900"
+                      className="w-32 shrink-0 cursor-pointer rounded-control border border-border-control bg-surface-input px-1.5 py-0.5 text-xs"
                     >
                       <option value="">Auto</option>
                       {netClasses.map((nc) => (
@@ -412,11 +412,11 @@ export function PcbDesignRulesDialog({
           ) : null}
         </div>
 
-        <footer className="flex justify-end gap-2 border-t border-slate-200 px-4 py-3 dark:border-slate-800">
+        <footer className="flex justify-end gap-2 border-t border-border px-4 py-3">
           <button
             type="button"
             onClick={onClose}
-            className="cursor-pointer rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+            className="cursor-pointer rounded-control border border-border-control px-3 py-1.5 text-xs font-medium text-text hover:bg-surface-hover hover:text-text-strong"
           >
             Cancel
           </button>
@@ -424,7 +424,7 @@ export function PcbDesignRulesDialog({
             type="button"
             onClick={() => void save()}
             disabled={saving}
-            className="cursor-pointer rounded-md bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+            className="cursor-pointer rounded-control bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
           >
             {saving ? "Saving…" : "Save & re-run DRC"}
           </button>
