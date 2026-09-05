@@ -19,6 +19,7 @@ import type {
   PcbBoardContour,
   PcbBoardOutline,
   PcbCopperLayerId,
+  PcbLayerId,
   PcbOverlayText,
   PcbPlacedPart,
   PcbPointMm,
@@ -90,10 +91,9 @@ import {
   type CommentDraft,
 } from "../components/comments/CanvasCommentLayer";
 import { useCanvasProjection } from "../components/comments/useCanvasProjection";
-import {
-  PcbSelectionInspector,
-  type PcbInspectorSelection,
-} from "./PcbSelectionInspector";
+import type { PcbInspectorSelection } from "./PcbSelectionInspector";
+import { PcbPropertiesPanel } from "./PcbPropertiesPanel";
+import { PcbLayerTabStrip } from "./PcbLayerTabStrip";
 import { useMarqueeSelection } from "../../../../shared/frontend/canvas/selection";
 import {
   PcbScene,
@@ -101,7 +101,7 @@ import {
   type PcbCameraControls,
 } from "./PcbScene";
 import type { ViewportState } from "../types";
-import { PcbTopToolbar } from "./PcbTopToolbar";
+import { PcbRouteParamRow, PcbTopToolbar } from "./PcbTopToolbar";
 import { PcbExportDialog } from "./PcbExportDialog";
 import { PcbAutorouteDialog } from "./PcbAutorouteDialog";
 import { PcbAutoplaceDialog } from "./PcbAutoplaceDialog";
@@ -211,7 +211,7 @@ import {
   PCB_LAYER_PRESETS,
   PCB_TRACE_COLORS,
 } from "../../../../shared/frontend/canvas/layers";
-import { RouteHud } from "./RouteHud";
+import { RouteHudRows, RouteHudStatus } from "./RouteHud";
 import { buildRouteHudModel, routeLengthMm } from "./tools/route-hud-model";
 import { buildPcbSpatialIndex, pointQueryBox } from "./spatial-index";
 import { nextRouteLayer } from "./tools/route-layer";
@@ -424,6 +424,18 @@ interface PcbCanvasProps {
   commentAttachmentUrl?: (attachmentId: string) => string;
   boardPanelTarget?: HTMLElement | null;
   layersPanelTarget?: HTMLElement | null;
+  /** Docked 30px toolbar row (Space.tsx renders the empty slot). */
+  toolbarTarget?: HTMLElement | null;
+  /** 28px contextual parameter row; empty (collapsed) while no tool is active. */
+  paramRowTarget?: HTMLElement | null;
+  /** 22px layer tab strip under the canvas. */
+  layerStripTarget?: HTMLElement | null;
+  /** Right dock → Properties tab body. */
+  propertiesTarget?: HTMLElement | null;
+  /** Board-space cursor position for the status bar; `null` when off-canvas. */
+  onCursorChange?: (point: { xMm: number; yMm: number } | null) => void;
+  /** Effective copper layer (routing layer, else the board's active layer). */
+  onActiveLayerChange?: (layer: PcbLayerId) => void;
   selectionRequest?: {
     placementIds: readonly string[];
     /** Cross-probe by refdes (resolved against loaded placements). */
@@ -5014,6 +5026,91 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
     onSelectionCountChange?.(selectionCount);
   }, [selectionCount, onSelectionCountChange]);
 
+  // Board-space cursor for the status bar (X / Y readout).
+  const onCursorChange = props.onCursorChange;
+  useEffect(() => {
+    onCursorChange?.(
+      cursorMm ? { xMm: cursorMm.x, yMm: cursorMm.y } : null,
+    );
+  }, [cursorMm, onCursorChange]);
+  useEffect(() => {
+    return () => onCursorChange?.(null);
+  }, [onCursorChange]);
+
+  // Effective copper layer for the status-bar chip + layer tab strip.
+  const onActiveLayerChange = props.onActiveLayerChange;
+  useEffect(() => {
+    onActiveLayerChange?.(displayedCopperLayer);
+  }, [displayedCopperLayer, onActiveLayerChange]);
+
+  /**
+   * Board settings body. Rendered inside the right dock's Properties tab (its
+   * idle state) and, for callers that still pass one, into `boardPanelTarget`.
+   */
+  const boardPanelElement = (
+    <PcbBoardPanel
+      workspace={workspace}
+      widthText={widthText}
+      setWidthText={setWidthText}
+      heightText={heightText}
+      setHeightText={setHeightText}
+      widthMm={widthMm}
+      heightMm={heightMm}
+      valid={valid}
+      currentOutline={workspace.projection?.board.outline ?? null}
+      outsideCount={outsideCount}
+      onApplyOutline={(outline) =>
+        void workspace
+          .updateBoardOutline(outline)
+          .then(() => cameraControlsRef.current?.fit())
+      }
+      onFitToParts={() =>
+        void workspace
+          .fitBoardToParts()
+          .then(() => cameraControlsRef.current?.fit())
+      }
+      editMode={boardDimMode}
+      onToggleEditMode={() =>
+        setBoardDimMode((prev) => {
+          // Entering edit mode forces the select tool so the edge handles are
+          // interactive (route/measure would intercept).
+          if (!prev) setToolMode("select");
+          return !prev;
+        })
+      }
+      onDrawShape={() => {
+        dispatchSketch({ kind: "cancel" });
+        dispatchRoute({ kind: "cancel" });
+        dispatchMeasure({ kind: "clear" });
+        setBoardDimMode(false);
+        setToolMode("boardShape");
+      }}
+      onImportDxf={() => {
+        setBoardDimMode(false);
+        setDxfImportOpen(true);
+      }}
+    />
+  );
+
+  /**
+   * Single entry point for "make this the active layer" — shared by the Layers
+   * panel rows and the layer tab strip so both follow the same path.
+   */
+  const handleSetActiveLayer = useCallback(
+    (layer: PcbLayerId) => {
+      if (
+        layer === "F.Cu" ||
+        layer === "B.Cu" ||
+        layer === "In1.Cu" ||
+        layer === "In2.Cu"
+      ) {
+        setFocusedLayer((prev) => (prev === layer ? null : layer));
+        void setActiveCopperLayer(layer);
+      }
+    },
+    [setActiveCopperLayer],
+  );
+
   const routeStartPadId =
     routeState.kind === "routing" ? routeState.session.startPadId : undefined;
   const routeGuideExcludePadIds = useMemo(
@@ -5352,32 +5449,6 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
           }
         />
       ) : null}
-      {inspectorSelection ? (
-        <PcbSelectionInspector
-          selection={inspectorSelection}
-          onClose={() => setSelection(emptyPcbSelection())}
-          onUpdateFreeHole={(id, patch) => workspace.updateFreeHole(id, patch)}
-          onDeleteFreeHole={(id) =>
-            workspace
-              .deleteFreeHole(id)
-              .then(() => setSelection(emptyPcbSelection()))
-          }
-          onUpdateFreePad={(id, patch) => workspace.updateFreePad(id, patch)}
-          onDeleteFreePad={(id) =>
-            workspace
-              .deleteFreePad(id)
-              .then(() => setSelection(emptyPcbSelection()))
-          }
-          onUpdateOverlayText={(id, patch) =>
-            workspace.updateOverlayText(id, patch)
-          }
-          onDeleteOverlayText={(id) =>
-            workspace
-              .deleteOverlayText(id)
-              .then(() => setSelection(emptyPcbSelection()))
-          }
-        />
-      ) : null}
       {disambigPopup ? (
         <PcbDisambiguationPopup
           items={disambigPopup.candidates.map((candidate) => ({
@@ -5425,9 +5496,8 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
           </div>
         </>
       ) : null}
-      {workspace.projection ? (
-        <div className="pointer-events-none absolute left-1/2 top-2 z-20 -translate-x-1/2">
-          <div className="pointer-events-auto">
+      {workspace.projection && props.toolbarTarget
+        ? createPortal(
             <PcbTopToolbar
               selectedPlacementCount={selection.placementIds.size}
               onFlipSelection={() => {
@@ -5600,10 +5670,10 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
                   : "auto"
               }
               onCyclePosture={() => dispatchRoute({ kind: "cycle-posture" })}
-            />
-          </div>
-        </div>
-      ) : null}
+            />,
+            props.toolbarTarget,
+          )
+        : null}
       {!workspace.projection ? (
         <div className="flex h-full items-center justify-center text-sm text-slate-500">
           {workspace.loading ? "Loading PCB..." : "PCB projection unavailable"}
@@ -5749,55 +5819,6 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
                 ×
               </button>
             </div>
-          ) : null}
-          {toolMode === "route" && !previewActive ? (
-            <RouteHud
-              model={routeHudModel}
-              layerColor={copperLayerColor(
-                routeState.kind === "routing"
-                  ? routeState.session.layer
-                  : activeCopperLayer,
-              )}
-              widthInputOpen={widthInputOpen}
-              onOpenWidthInput={() => setWidthInputOpen(true)}
-              onWidthInputSubmit={(w) => void setSessionWidth(w, "manual")}
-              onWidthInputClose={() => setWidthInputOpen(false)}
-              onResetWidthToNetClass={resetSessionWidthToNetClass}
-              blockedConflictCount={blockedConflictCount}
-              allowDrcViolations={allowDrcViolations}
-              onToggleAllowDrcViolations={() => {
-                setAllowDrcViolations((prev) => !prev);
-                setBlockedConflictCount(null);
-              }}
-              autoFinishProposal={
-                autoFinishProposal
-                  ? {
-                      lengthMm: routeLengthMm(autoFinishProposal.pathNm),
-                      targetName: autoFinishProposal.targetName,
-                    }
-                  : null
-              }
-              onAcceptAutoFinish={acceptAutoFinish}
-              onDismissAutoFinish={() => setAutoFinishProposal(null)}
-              autoFinishNotice={autoFinishNotice}
-            />
-          ) : null}
-          {toolMode === "tune" && !previewActive ? (
-            <TuneHud
-              model={tuneHudModel}
-              targetInputOpen={tuneTargetInputOpen}
-              onOpenTargetInput={() => setTuneTargetInputOpen(true)}
-              onTargetInputSubmit={(t) =>
-                dispatchTune({ kind: "set-target-override", targetMm: t })
-              }
-              onTargetInputClose={() => setTuneTargetInputOpen(false)}
-              onClearTargetOverride={() =>
-                dispatchTune({ kind: "set-target-override", targetMm: undefined })
-              }
-            />
-          ) : null}
-          {toolMode === "bundle" && !previewActive ? (
-            <BundleHud model={bundleHudModel} notice={bundleBlocked} />
           ) : null}
         </>
       ) : null}
@@ -5953,17 +5974,7 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
               routingLayer={
                 routeState.kind === "routing" ? routeState.session.layer : null
               }
-              onSetActiveLayer={(layer) => {
-                if (
-                  layer === "F.Cu" ||
-                  layer === "B.Cu" ||
-                  layer === "In1.Cu" ||
-                  layer === "In2.Cu"
-                ) {
-                  setFocusedLayer((prev) => (prev === layer ? null : layer));
-                  void setActiveCopperLayer(layer);
-                }
-              }}
+              onSetActiveLayer={handleSetActiveLayer}
               visibleLayers={workspace.projection.board.visibleLayers}
               onSetVisibleLayers={(layers) =>
                 void workspace.setVisibleLayers(layers)
@@ -5985,8 +5996,6 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
                 // see `pcb-projection.ts`); no per-layer net/connection picker.
               }}
               onCleanupPourTraces={() => void workspace.cleanupPourTraces()}
-              viewSide={workspace.viewSide}
-              onToggleViewSide={handleToggleViewSide}
               onSelectLayerPreset={(preset) => {
                 if (preset === "custom") return;
                 // Resolve the preset spec, then apply via workspace methods
@@ -6047,50 +6056,186 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
           )
         : null}
       {workspace.projection && props.boardPanelTarget
+        ? createPortal(boardPanelElement, props.boardPanelTarget)
+        : null}
+      {/* Contextual 28px parameter row. Renders nothing while no tool is
+          active so the slot collapses to zero height. */}
+      {workspace.projection && props.paramRowTarget
         ? createPortal(
-            <PcbBoardPanel
-              workspace={workspace}
-              widthText={widthText}
-              setWidthText={setWidthText}
-              heightText={heightText}
-              setHeightText={setHeightText}
-              widthMm={widthMm}
-              heightMm={heightMm}
-              valid={valid}
-              currentOutline={workspace.projection?.board.outline ?? null}
-              outsideCount={outsideCount}
-              onApplyOutline={(outline) =>
-                void workspace
-                  .updateBoardOutline(outline)
-                  .then(() => cameraControlsRef.current?.fit())
-              }
-              onFitToParts={() =>
-                void workspace
-                  .fitBoardToParts()
-                  .then(() => cameraControlsRef.current?.fit())
-              }
-              editMode={boardDimMode}
-              onToggleEditMode={() =>
-                setBoardDimMode((prev) => {
-                  // Entering edit mode forces the select tool so the edge
-                  // handles are interactive (route/measure would intercept).
-                  if (!prev) setToolMode("select");
-                  return !prev;
-                })
-              }
-              onDrawShape={() => {
-                dispatchSketch({ kind: "cancel" });
-                dispatchRoute({ kind: "cancel" });
-                dispatchMeasure({ kind: "clear" });
-                setBoardDimMode(false);
-                setToolMode("boardShape");
-              }}
-              onImportDxf={() => {
-                setBoardDimMode(false);
-                setDxfImportOpen(true);
-              }}
+            toolMode === "route" && !previewActive ? (
+              <>
+                <PcbRouteParamRow
+                  segmentMode={
+                    routeState.kind === "routing"
+                      ? routeState.session.segmentMode
+                      : "manhattan-45"
+                  }
+                  onToggleSegmentMode={() => {
+                    if (routeState.kind === "routing") {
+                      dispatchRoute({
+                        kind: "set-mode",
+                        mode:
+                          routeState.session.segmentMode === "manhattan-90"
+                            ? "manhattan-45"
+                            : "manhattan-90",
+                      });
+                    }
+                  }}
+                  posture={
+                    routeState.kind === "routing"
+                      ? routeState.session.posture
+                      : "auto"
+                  }
+                  onCyclePosture={() => dispatchRoute({ kind: "cycle-posture" })}
+                  activeWidthMm={
+                    routeState.kind === "routing"
+                      ? routeState.session.widthMm
+                      : (defaultNetClass?.traceWidthMm ?? 0.25)
+                  }
+                  tracePresets={tracePresets}
+                  onPickWidth={(w) => void setSessionWidth(w, "preset")}
+                  layerCount={workspace.projection?.board.layerCount ?? 2}
+                  routeSessionActive={routeState.kind === "routing"}
+                  viaDiameterMm={
+                    routeState.kind === "routing" &&
+                    routeState.session.viaDiameterMmOverride !== undefined
+                      ? routeState.session.viaDiameterMmOverride
+                      : (defaultNetClass?.viaDiameterMm ?? 0.6)
+                  }
+                  viaDrillMm={
+                    routeState.kind === "routing" &&
+                    routeState.session.viaDrillMmOverride !== undefined
+                      ? routeState.session.viaDrillMmOverride
+                      : (defaultNetClass?.viaDrillMm ?? 0.3)
+                  }
+                  viaDiameterDefaultMm={defaultNetClass?.viaDiameterMm ?? 0.6}
+                  viaDrillDefaultMm={defaultNetClass?.viaDrillMm ?? 0.3}
+                  viaDiameterPresets={VIA_DIAMETER_PRESETS_MM}
+                  viaDrillPresets={VIA_DRILL_PRESETS_MM}
+                  onPickViaDiameter={(mm) =>
+                    dispatchRoute({
+                      kind: "set-via-diameter",
+                      diameterMmOverride: mm,
+                    })
+                  }
+                  onPickViaDrill={(mm) =>
+                    dispatchRoute({
+                      kind: "set-via-drill",
+                      drillMmOverride: mm,
+                    })
+                  }
+                  onPickViaPreset={(preset) => {
+                    dispatchRoute({
+                      kind: "set-via-diameter",
+                      diameterMmOverride: preset.diameterMm,
+                    });
+                    dispatchRoute({
+                      kind: "set-via-drill",
+                      drillMmOverride: preset.drillMm,
+                    });
+                  }}
+                  layer={displayedCopperLayer}
+                  layerColor={copperLayerColor(displayedCopperLayer)}
+                  netClassName={routeHudModel?.netClassName ?? null}
+                  status={
+                    <RouteHudStatus
+                      model={routeHudModel}
+                      widthInputOpen={widthInputOpen}
+                      onOpenWidthInput={() => setWidthInputOpen(true)}
+                      onWidthInputSubmit={(w) =>
+                        void setSessionWidth(w, "manual")
+                      }
+                      onWidthInputClose={() => setWidthInputOpen(false)}
+                      onResetWidthToNetClass={resetSessionWidthToNetClass}
+                    />
+                  }
+                />
+                <RouteHudRows
+                  model={routeHudModel}
+                  blockedConflictCount={blockedConflictCount}
+                  allowDrcViolations={allowDrcViolations}
+                  onToggleAllowDrcViolations={() => {
+                    setAllowDrcViolations((prev) => !prev);
+                    setBlockedConflictCount(null);
+                  }}
+                  autoFinishProposal={
+                    autoFinishProposal
+                      ? {
+                          lengthMm: routeLengthMm(autoFinishProposal.pathNm),
+                          targetName: autoFinishProposal.targetName,
+                        }
+                      : null
+                  }
+                  onAcceptAutoFinish={acceptAutoFinish}
+                  onDismissAutoFinish={() => setAutoFinishProposal(null)}
+                  autoFinishNotice={autoFinishNotice}
+                />
+              </>
+            ) : toolMode === "tune" && !previewActive ? (
+              <TuneHud
+                model={tuneHudModel}
+                targetInputOpen={tuneTargetInputOpen}
+                onOpenTargetInput={() => setTuneTargetInputOpen(true)}
+                onTargetInputSubmit={(t) =>
+                  dispatchTune({ kind: "set-target-override", targetMm: t })
+                }
+                onTargetInputClose={() => setTuneTargetInputOpen(false)}
+                onClearTargetOverride={() =>
+                  dispatchTune({
+                    kind: "set-target-override",
+                    targetMm: undefined,
+                  })
+                }
+              />
+            ) : toolMode === "bundle" && !previewActive ? (
+              <BundleHud model={bundleHudModel} notice={bundleBlocked} />
+            ) : null,
+            props.paramRowTarget,
+          )
+        : null}
+      {workspace.projection && props.layerStripTarget
+        ? createPortal(
+            <PcbLayerTabStrip
+              activeLayer={displayedCopperLayer}
+              onSetActiveLayer={handleSetActiveLayer}
+              layerCount={workspace.projection.board.layerCount}
+              viewSide={workspace.viewSide}
+              onToggleViewSide={handleToggleViewSide}
             />,
-            props.boardPanelTarget,
+            props.layerStripTarget,
+          )
+        : null}
+      {workspace.projection && props.propertiesTarget
+        ? createPortal(
+            <PcbPropertiesPanel
+              selection={selection}
+              projection={workspace.projection}
+              boardPanel={boardPanelElement}
+              inspectorSelection={inspectorSelection}
+              onUpdateFreeHole={(id, patch) =>
+                workspace.updateFreeHole(id, patch)
+              }
+              onDeleteFreeHole={(id) =>
+                workspace
+                  .deleteFreeHole(id)
+                  .then(() => setSelection(emptyPcbSelection()))
+              }
+              onUpdateFreePad={(id, patch) => workspace.updateFreePad(id, patch)}
+              onDeleteFreePad={(id) =>
+                workspace
+                  .deleteFreePad(id)
+                  .then(() => setSelection(emptyPcbSelection()))
+              }
+              onUpdateOverlayText={(id, patch) =>
+                workspace.updateOverlayText(id, patch)
+              }
+              onDeleteOverlayText={(id) =>
+                workspace
+                  .deleteOverlayText(id)
+                  .then(() => setSelection(emptyPcbSelection()))
+              }
+            />,
+            props.propertiesTarget,
           )
         : null}
       {dxfImportOpen ? (

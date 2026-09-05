@@ -2,7 +2,12 @@ import { AlertTriangle, Pencil } from "lucide-react";
 import { useEffect, useRef, useState, type ReactElement } from "react";
 import type { PcbBoardOutline, PcbPointMm } from "../../../../sdks";
 import { Button } from "../../../../shared/frontend/ui/button";
-import { Pill } from "../../../../shared/frontend/ui/pill";
+import { PanelSectionHeader } from "../../../../shared/frontend/ui/panel-section-header";
+import {
+  PropertyGrid,
+  PropertyRow,
+} from "../../../../shared/frontend/ui/property-grid";
+import { SegmentedControl } from "../../../../shared/frontend/ui/segmented-control";
 import type { usePcbWorkspace } from "./usePcbWorkspace";
 
 type PcbWorkspace = ReturnType<typeof usePcbWorkspace>;
@@ -24,6 +29,12 @@ const SIZE_PRESETS: ReadonlyArray<{ w: number; h: number }> = [
   { w: 100, h: 80 },
   { w: 100, h: 100 },
 ];
+
+const INPUT_CLASS =
+  "h-[18px] w-full min-w-0 rounded-control border border-border-control bg-surface-input px-1 text-right text-xs text-text-strong outline-none focus:border-selection disabled:opacity-50";
+
+const DASHED_BUTTON =
+  "h-[22px] flex-1 cursor-pointer rounded-control border border-dashed border-border-control px-2 text-2xs text-text-secondary transition-colors hover:border-selection hover:text-text-strong disabled:opacity-50";
 
 interface PcbBoardPanelProps {
   workspace: PcbWorkspace;
@@ -52,7 +63,7 @@ interface PcbBoardPanelProps {
   onImportDxf: () => void;
 }
 
-function DimensionInput(props: {
+function DimensionRow(props: {
   label: string;
   value: string;
   onChange: (value: string) => void;
@@ -60,22 +71,17 @@ function DimensionInput(props: {
   inputRef?: React.Ref<HTMLInputElement>;
 }): ReactElement {
   return (
-    <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-wide text-text-tertiary">
-      {props.label}
-      <div className="relative">
-        <input
-          ref={props.inputRef}
-          value={props.value}
-          disabled={props.disabled}
-          inputMode="decimal"
-          onChange={(event) => props.onChange(event.target.value)}
-          className="h-8 w-full rounded-control border border-slate-300 bg-surface-input pl-2 pr-8 text-sm font-normal text-text-primary outline-none focus:border-accent disabled:opacity-50 dark:border-slate-700"
-        />
-        <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-[11px] normal-case text-text-tertiary">
-          mm
-        </span>
-      </div>
-    </label>
+    <PropertyRow label={props.label} mono hint="mm">
+      <input
+        ref={props.inputRef}
+        value={props.value}
+        disabled={props.disabled}
+        inputMode="decimal"
+        aria-label={props.label}
+        onChange={(event) => props.onChange(event.target.value)}
+        className={INPUT_CLASS}
+      />
+    </PropertyRow>
   );
 }
 
@@ -193,16 +199,18 @@ export function PcbBoardPanel({
     currentOutline?.kind === "polygon" || currentOutline?.kind === "contour";
 
   return (
-    <div className="flex flex-col gap-3 p-3">
+    <div className="flex flex-col">
+      <PanelSectionHeader variant="uppercase" title="Outline" />
+
       {editMode ? (
         isCustom ? (
           <>
-            <div className="flex gap-1">
+            <div className="flex gap-1 px-2 py-1.5">
               <button
                 type="button"
                 disabled={workspace.saving || !canEdit}
                 onClick={onDrawShape}
-                className="flex-1 cursor-pointer rounded-control border border-dashed border-slate-300 px-2 py-1.5 text-[11px] font-medium text-text-secondary transition-colors hover:border-accent hover:text-accent disabled:opacity-50 dark:border-slate-700"
+                className={DASHED_BUTTON}
               >
                 ✏ Redraw shape
               </button>
@@ -210,26 +218,24 @@ export function PcbBoardPanel({
                 type="button"
                 disabled={workspace.saving || !canEdit}
                 onClick={onImportDxf}
-                className="flex-1 cursor-pointer rounded-control border border-dashed border-slate-300 px-2 py-1.5 text-[11px] font-medium text-text-secondary transition-colors hover:border-accent hover:text-accent disabled:opacity-50 dark:border-slate-700"
+                className={DASHED_BUTTON}
               >
                 ⭳ Import DXF…
               </button>
             </div>
-            <div className="rounded-control border border-slate-200 px-2 py-1.5 dark:border-slate-700">
-              <div className="text-[10px] font-semibold uppercase tracking-wide text-text-tertiary">
-                {shapeLabel(currentOutline)} · bounding box
-              </div>
-              <div className="text-sm font-semibold tabular-nums text-text-primary">
-                {widthText} × {heightText} mm
-              </div>
-            </div>
-            <p className="text-[11px] leading-snug text-text-secondary">
+            <PropertyGrid>
+              <PropertyRow label="Shape">{shapeLabel(currentOutline)}</PropertyRow>
+              <PropertyRow label="Bounding box" mono hint="mm">
+                {widthText} × {heightText}
+              </PropertyRow>
+            </PropertyGrid>
+            <p className="px-2 py-1.5 text-2xs leading-snug text-text-tertiary">
               Edit on the canvas: drag a corner, or right-click an edge →{" "}
-              <span className="font-semibold">Set length…</span> · a corner →{" "}
-              <span className="font-semibold">Set position…</span> /{" "}
-              <span className="font-semibold">Fillet</span>.
+              <span className="font-medium text-text">Set length…</span> · a
+              corner → <span className="font-medium text-text">Set position…</span>{" "}
+              / <span className="font-medium text-text">Fillet</span>.
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 px-2 pb-2">
               <Button
                 variant="secondary"
                 size="sm"
@@ -266,187 +272,183 @@ export function PcbBoardPanel({
           </>
         ) : (
           <>
-          <div className="flex flex-wrap gap-1">
-            {SHAPE_OPTIONS.map((opt) => (
+            <div className="flex items-center px-2 py-1.5">
+              <SegmentedControl
+                size="sm"
+                aria-label="Board shape"
+                options={SHAPE_OPTIONS.map((opt) => ({
+                  id: opt.id,
+                  label: opt.label,
+                  disabled: workspace.saving,
+                }))}
+                value={shapeType}
+                onChange={setShapeType}
+              />
+            </div>
+
+            <div className="flex gap-1 px-2 pb-1.5">
               <button
-                key={opt.id}
                 type="button"
-                disabled={workspace.saving}
-                onClick={() => setShapeType(opt.id)}
-                className={`rounded px-2 py-0.5 text-[11px] transition-colors disabled:opacity-50 ${
-                  shapeType === opt.id
-                    ? "bg-accent text-white"
-                    : "text-slate-700 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-700"
-                }`}
+                disabled={workspace.saving || !canEdit}
+                onClick={onDrawShape}
+                className={DASHED_BUTTON}
               >
-                {opt.label}
+                ✏ Draw custom shape
               </button>
-            ))}
-          </div>
-
-          <div className="flex gap-1">
-            <button
-              type="button"
-              disabled={workspace.saving || !canEdit}
-              onClick={onDrawShape}
-              className="flex-1 cursor-pointer rounded-control border border-dashed border-slate-300 px-2 py-1.5 text-[11px] font-medium text-text-secondary transition-colors hover:border-accent hover:text-accent disabled:opacity-50 dark:border-slate-700"
-            >
-              ✏ Draw custom shape
-            </button>
-            <button
-              type="button"
-              disabled={workspace.saving || !canEdit}
-              onClick={onImportDxf}
-              className="flex-1 cursor-pointer rounded-control border border-dashed border-slate-300 px-2 py-1.5 text-[11px] font-medium text-text-secondary transition-colors hover:border-accent hover:text-accent disabled:opacity-50 dark:border-slate-700"
-            >
-              ⭳ Import DXF…
-            </button>
-          </div>
-
-          {isCircle ? (
-            <DimensionInput
-              label="Diameter"
-              value={widthText}
-              onChange={(v) => {
-                setWidthText(v);
-                setHeightText(v);
-              }}
-              disabled={workspace.saving}
-              inputRef={widthRef}
-            />
-          ) : (
-            <div className="grid grid-cols-2 gap-2">
-              <DimensionInput
-                label="Width"
-                value={widthText}
-                onChange={setWidthText}
-                disabled={workspace.saving}
-                inputRef={widthRef}
-              />
-              <DimensionInput
-                label="Height"
-                value={heightText}
-                onChange={setHeightText}
-                disabled={workspace.saving}
-              />
+              <button
+                type="button"
+                disabled={workspace.saving || !canEdit}
+                onClick={onImportDxf}
+                className={DASHED_BUTTON}
+              >
+                ⭳ Import DXF…
+              </button>
             </div>
-          )}
 
-          {shapeType === "roundrect" ? (
-            <DimensionInput
-              label="Corner radius"
-              value={radiusText}
-              onChange={setRadiusText}
-              disabled={workspace.saving}
-            />
-          ) : null}
-
-          {!isCircle ? (
-            <div className="flex flex-wrap gap-1">
-              {SIZE_PRESETS.map((preset) => (
-                <button
-                  key={`${preset.w}x${preset.h}`}
-                  type="button"
-                  disabled={workspace.saving}
-                  onClick={() => {
-                    setWidthText(String(preset.w));
-                    setHeightText(String(preset.h));
-                    onApplyOutline(buildOutline(shapeType, preset.w, preset.h));
+            <PropertyGrid>
+              {isCircle ? (
+                <DimensionRow
+                  label="Diameter"
+                  value={widthText}
+                  onChange={(v) => {
+                    setWidthText(v);
+                    setHeightText(v);
                   }}
-                  className="rounded px-2 py-0.5 text-[11px] text-slate-700 transition-colors hover:bg-slate-200 disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-700"
-                >
-                  {preset.w} × {preset.h}
-                </button>
-              ))}
+                  disabled={workspace.saving}
+                  inputRef={widthRef}
+                />
+              ) : (
+                <>
+                  <DimensionRow
+                    label="Width"
+                    value={widthText}
+                    onChange={setWidthText}
+                    disabled={workspace.saving}
+                    inputRef={widthRef}
+                  />
+                  <DimensionRow
+                    label="Height"
+                    value={heightText}
+                    onChange={setHeightText}
+                    disabled={workspace.saving}
+                  />
+                </>
+              )}
+              {shapeType === "roundrect" ? (
+                <DimensionRow
+                  label="Corner radius"
+                  value={radiusText}
+                  onChange={setRadiusText}
+                  disabled={workspace.saving}
+                />
+              ) : null}
+            </PropertyGrid>
+
+            {!isCircle ? (
+              <div className="flex flex-wrap gap-1 px-2 py-1.5">
+                {SIZE_PRESETS.map((preset) => (
+                  <button
+                    key={`${preset.w}x${preset.h}`}
+                    type="button"
+                    disabled={workspace.saving}
+                    onClick={() => {
+                      setWidthText(String(preset.w));
+                      setHeightText(String(preset.h));
+                      onApplyOutline(
+                        buildOutline(shapeType, preset.w, preset.h),
+                      );
+                    }}
+                    className="h-[18px] rounded-control border border-border-control px-1.5 font-mono text-2xs text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-strong disabled:opacity-50"
+                  >
+                    {preset.w} × {preset.h}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            <div className="flex items-center gap-1.5 px-2 pb-2">
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={!valuesValid || workspace.saving || !canEdit}
+                onClick={applyCurrent}
+              >
+                {workspace.saving ? "Saving" : "Apply"}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={workspace.saving || !canEdit}
+                onClick={onFitToParts}
+              >
+                Fit to parts
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-auto"
+                onClick={onToggleEditMode}
+              >
+                Done
+              </Button>
             </div>
-          ) : null}
 
-          <div className="flex items-center gap-2">
-            <Button
-              variant="primary"
-              size="sm"
-              disabled={!valuesValid || workspace.saving || !canEdit}
-              onClick={applyCurrent}
-            >
-              {workspace.saving ? "Saving" : "Apply"}
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={workspace.saving || !canEdit}
-              onClick={onFitToParts}
-            >
-              Fit to parts
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="ml-auto"
-              onClick={onToggleEditMode}
-            >
-              Done
-            </Button>
-          </div>
-
-          <p className="text-[10px] text-text-tertiary">
-            Drag the board edges to resize
-          </p>
+            <p className="px-2 pb-2 text-2xs text-text-disabled">
+              Drag the board edges to resize
+            </p>
           </>
         )
       ) : (
         <>
-          <div className="flex items-center justify-between gap-2">
-            <button
-              type="button"
-              disabled={!canEdit}
-              onClick={onToggleEditMode}
-              title="Click to edit dimensions"
-              className="text-lg font-semibold tabular-nums text-text-primary transition-colors hover:text-accent disabled:cursor-default disabled:hover:text-text-primary"
-            >
-              {widthText} × {heightText}
-              <span className="ml-1 text-sm font-normal text-text-tertiary">
-                mm
-              </span>
-            </button>
+          <PropertyGrid>
+            <PropertyRow label="Shape">{shapeLabel(currentOutline)}</PropertyRow>
+            <PropertyRow label="Width" mono hint="mm">
+              {widthText}
+            </PropertyRow>
+            <PropertyRow label="Height" mono hint="mm">
+              {heightText}
+            </PropertyRow>
+            <PropertyRow label="Layers" mono>
+              {workspace.projection?.board.layerCount ?? 2}
+            </PropertyRow>
+          </PropertyGrid>
+          <div className="flex items-center gap-1.5 px-2 py-2">
             <Button
               variant="secondary"
               size="sm"
-              icon={<Pencil className="h-3.5 w-3.5" />}
+              icon={<Pencil className="h-3 w-3" />}
               disabled={!canEdit}
               onClick={onToggleEditMode}
             >
               Edit
             </Button>
-          </div>
-
-          <div className="flex items-center gap-1.5 text-[11px] text-text-tertiary">
-            <span>{shapeLabel(currentOutline)}</span>
-            <span aria-hidden>·</span>
-            <Pill tone="neutral">
-              {workspace.projection?.board.layerCount ?? 2}-layer
-            </Pill>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={!canEdit || workspace.saving}
+              onClick={onFitToParts}
+            >
+              Fit to parts
+            </Button>
           </div>
         </>
       )}
 
       {outsideCount > 0 ? (
-        <Pill
-          tone="warning"
-          icon={<AlertTriangle className="h-3 w-3" />}
-          className="self-start"
-        >
+        <p className="mx-2 mb-2 flex items-center gap-1.5 rounded-control border border-status-warning/40 bg-status-warning-soft px-2 py-1 text-2xs text-status-warning">
+          <AlertTriangle className="h-3 w-3 shrink-0" />
           {outsideCount} {outsideCount === 1 ? "item" : "items"} outside outline
-        </Pill>
+        </p>
       ) : null}
 
       {workspace.error ? (
-        <p className="rounded-control border border-status-danger/40 bg-status-danger-soft px-2 py-1.5 text-xs text-status-danger">
+        <p className="mx-2 mb-2 rounded-control border border-status-danger/40 bg-status-danger-soft px-2 py-1 text-2xs text-status-danger">
           {workspace.error}
         </p>
       ) : null}
 
       {workspace.projection?.warnings.length ? (
-        <ul className="max-h-40 list-disc space-y-0.5 overflow-y-auto rounded-control border border-status-warning/30 bg-status-warning-soft px-4 py-1.5 text-xs text-status-warning">
+        <ul className="mx-2 mb-2 max-h-40 list-disc space-y-0.5 overflow-y-auto rounded-control border border-status-warning/30 bg-status-warning-soft py-1 pl-5 pr-2 text-2xs text-status-warning">
           {workspace.projection.warnings.map((warning, i) => (
             <li key={i} className="break-words">
               {warning}

@@ -13,7 +13,6 @@ interface DesignerSidebarProps {
   state: DesignerWorkspaceState;
   actions: DesignerWorkspaceActions;
   activeView: DesignerView;
-  pcbSlotRef?: (el: HTMLDivElement | null) => void;
   pcbLayersSlotRef?: (el: HTMLDivElement | null) => void;
   threeDSlotRef?: (el: HTMLDivElement | null) => void;
   onPlaceComponent(): void;
@@ -32,11 +31,13 @@ interface DesignerSidebarProps {
   }): void;
 }
 
+const ASIDE_CLASS =
+  "flex h-full min-h-0 flex-col border-r border-border bg-surface-panel";
+
 export function DesignerSidebar({
   state,
   actions,
   activeView,
-  pcbSlotRef,
   pcbLayersSlotRef,
   threeDSlotRef,
   onPlaceComponent,
@@ -46,11 +47,10 @@ export function DesignerSidebar({
   onSelectOnCanvas,
 }: DesignerSidebarProps): ReactElement {
   if (activeView === "pcb") {
+    // Board settings moved into the right dock's Properties tab (its idle
+    // state), so the PCB sidebar hosts Layers alone.
     return (
-      <aside className="flex h-full min-h-0 flex-col overflow-y-auto border-r border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950">
-        <CollapsibleSection id="pcb.sidebar.board" title="Board" defaultOpen>
-          <div ref={pcbSlotRef} />
-        </CollapsibleSection>
+      <aside className={`${ASIDE_CLASS} overflow-y-auto`}>
         <CollapsibleSection id="pcb.sidebar.layers" title="Layers" defaultOpen>
           <div ref={pcbLayersSlotRef} />
         </CollapsibleSection>
@@ -60,16 +60,14 @@ export function DesignerSidebar({
 
   if (activeView === "3d") {
     return (
-      <aside className="flex h-full min-h-0 flex-col overflow-hidden border-r border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950">
+      <aside className={`${ASIDE_CLASS} overflow-hidden`}>
         <div ref={threeDSlotRef} className="min-h-0 flex-1" />
       </aside>
     );
   }
 
   if (activeView !== "schem") {
-    return (
-      <aside className="flex h-full min-h-0 flex-col border-r border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950" />
-    );
+    return <aside className={ASIDE_CLASS} />;
   }
 
   return (

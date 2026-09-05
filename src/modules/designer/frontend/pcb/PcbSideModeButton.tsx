@@ -3,9 +3,9 @@ import type { ReactElement } from "react";
 import type { PcbViewSide } from "../../../../sdks";
 
 /**
- * Side-mode toolbar toggle: `Top↓` / `Bottom↑`. Mirrors Flux's bottom-bar
- * affordance (spec §10). Clicking flips both the X-mirror (handled by
- * PcbScene) and the physical-layer z-order (via `effectiveRenderOrder`).
+ * Side-mode toggle: `Viewing Top` / `Viewing Bot`. Clicking flips both the
+ * X-mirror (handled by PcbScene) and the physical-layer z-order (via
+ * `effectiveRenderOrder`).
  */
 export function PcbSideModeButton({
   viewSide,
@@ -26,9 +26,9 @@ export function PcbSideModeButton({
       aria-label={aria}
       aria-pressed={!isTop}
       data-testid="pcb-flip-view-button"
-      className="inline-flex h-7 items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-900/80 px-2 text-xs font-medium text-zinc-100 transition-colors hover:bg-zinc-800"
+      className="inline-flex h-[18px] items-center gap-1 rounded-control border border-border-control px-1.5 text-2xs text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-strong"
     >
-      <Icon className="size-3.5" strokeWidth={2.25} />
+      <Icon className="h-3 w-3" strokeWidth={1.5} />
       {label}
     </button>
   );

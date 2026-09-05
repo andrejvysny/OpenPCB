@@ -1,4 +1,3 @@
-import { ChevronDown, ChevronRight } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -6,6 +5,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from "react";
+import { PanelSectionHeader } from "@shared/frontend/ui/panel-section-header";
 
 interface CollapsibleSectionProps {
   /** Stable id used as the localStorage key (e.g. "pcb.sidebar.board"). */
@@ -31,7 +31,7 @@ function readStored(id: string, fallback: boolean): boolean {
 }
 
 /**
- * Collapsible section with chevron + title. Content stays mounted while
+ * Collapsible section with a 24px panel header. Content stays mounted while
  * collapsed (via `hidden`) so React portal targets remain valid.
  */
 export function CollapsibleSection({
@@ -55,25 +55,13 @@ export function CollapsibleSection({
   const toggle = useCallback(() => setOpen((v) => !v), []);
 
   return (
-    <section
-      className={`flex min-h-0 flex-col border-b border-slate-200 dark:border-slate-800 ${className ?? ""}`}
-    >
-      <div className="flex items-center gap-2 px-2 py-1.5">
-        <button
-          type="button"
-          onClick={toggle}
-          aria-expanded={open}
-          className="inline-flex flex-1 items-center gap-1 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-        >
-          {open ? (
-            <ChevronDown className="h-3 w-3 shrink-0" />
-          ) : (
-            <ChevronRight className="h-3 w-3 shrink-0" />
-          )}
-          <span className="truncate">{title}</span>
-        </button>
-        {trailing}
-      </div>
+    <section className={`flex min-h-0 flex-col ${className ?? ""}`}>
+      <PanelSectionHeader
+        title={title}
+        collapsed={!open}
+        onToggle={toggle}
+        trailing={trailing}
+      />
       <div hidden={!open} className="min-h-0 flex-1">
         {children}
       </div>

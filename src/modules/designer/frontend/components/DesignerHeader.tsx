@@ -21,6 +21,7 @@ interface DesignerHeaderProps {
   trailing?: ReactNode;
 }
 
+/** 34px designer header: design tabs | view tabs | trailing status + actions. */
 export function DesignerHeader({
   activeView,
   designs,
@@ -38,8 +39,8 @@ export function DesignerHeader({
   trailing,
 }: DesignerHeaderProps): ReactElement {
   return (
-    <header className="grid h-11 grid-cols-[1fr_auto_1fr] items-center border-b border-slate-200 bg-slate-50 px-3 dark:border-slate-800 dark:bg-slate-950">
-      <div className="min-w-0">
+    <header className="grid h-[34px] shrink-0 grid-cols-[1fr_auto_1fr] items-stretch border-b border-border bg-surface-rail">
+      <div className="flex min-w-0 items-stretch">
         <DesignTabs
           designs={designs}
           openDesignIds={openDesignIds}
@@ -58,43 +59,32 @@ export function DesignerHeader({
       <Tabs
         value={activeView}
         onValueChange={(value) => onViewChange(value as DesignerView)}
+        className="flex items-stretch"
       >
-        <TabsList className="h-8 bg-transparent p-0.5 ">
-          <TabsTrigger
-            value="schem"
-            className="cursor-pointer rounded-sm px-3 py-1 text-xs data-[state=active]:bg-slate-200 dark:data-[state=active]:bg-violet-900 dark:data-[state=active]:text-white data-[state=active]:text-black "
-          >
+        <TabsList className="h-[34px]">
+          <TabsTrigger value="schem" className="cursor-pointer px-3.5">
             Schem
           </TabsTrigger>
-          <TabsTrigger
-            value="pcb"
-            className="cursor-pointer rounded-sm px-3 py-1 text-xs data-[state=active]:bg-slate-200 dark:data-[state=active]:bg-violet-900 dark:data-[state=active]:text-white data-[state=active]:text-black"
-          >
+          <TabsTrigger value="pcb" className="cursor-pointer px-3.5">
             PCB
           </TabsTrigger>
           <TabsTrigger
             value="3d"
-            className="cursor-pointer rounded-sm px-3 py-1 text-xs data-[state=active]:bg-slate-200 dark:data-[state=active]:bg-violet-900 dark:data-[state=active]:text-white data-[state=active]:text-black"
+            className="cursor-pointer px-3.5"
             data-testid="designer-view-3d"
           >
             3D
           </TabsTrigger>
-          <TabsTrigger
-            value="bom"
-            className="cursor-pointer rounded-sm px-3 py-1 text-xs data-[state=active]:bg-slate-200 dark:data-[state=active]:bg-violet-900 dark:data-[state=active]:text-white data-[state=active]:text-black"
-          >
+          <TabsTrigger value="bom" className="cursor-pointer px-3.5">
             BOM
           </TabsTrigger>
-          <TabsTrigger
-            value="drc"
-            className="cursor-pointer rounded-sm px-3 py-1 text-xs data-[state=active]:bg-slate-200 dark:data-[state=active]:bg-violet-900 dark:data-[state=active]:text-white data-[state=active]:text-black"
-          >
+          <TabsTrigger value="drc" className="cursor-pointer px-3.5">
             DRC
           </TabsTrigger>
         </TabsList>
       </Tabs>
 
-      <div className="flex items-center justify-end gap-2 pr-1">{trailing}</div>
+      <div className="flex items-center justify-end gap-2 px-2">{trailing}</div>
     </header>
   );
 }

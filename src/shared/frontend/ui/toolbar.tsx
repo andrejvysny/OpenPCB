@@ -22,6 +22,11 @@ export interface ToolbarButtonProps
   extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "title"> {
   icon?: React.ReactNode;
   /**
+   * Tooltip text. Defaults to the accessible name; pass a longer string (e.g.
+   * with a modifier hotkey) without changing `aria-label`.
+   */
+  title?: string;
+  /**
    * Accessible name. With `hotkey` the button's `title` and `aria-label` become
    * exactly `${label} (${hotkey})` — e2e locators depend on these strings.
    */
@@ -40,10 +45,11 @@ export const ToolbarButton = React.forwardRef<
   ToolbarButtonProps
 >(
   (
-    { icon, label, hotkey, active = false, pressable = false, className, children, ...props },
+    { icon, label, hotkey, title, active = false, pressable = false, className, children, ...props },
     ref,
   ) => {
     const name = hotkey ? `${label} (${hotkey})` : label;
+    const tooltip = title ?? name;
     return (
       <button
         ref={ref}
@@ -62,7 +68,7 @@ export const ToolbarButton = React.forwardRef<
         )}
         {...props}
         aria-pressed={pressable ? active : undefined}
-        title={name}
+        title={tooltip}
         aria-label={name}
       >
         {icon}

@@ -20,7 +20,6 @@ import type {
   PcbLayerCount,
   PcbLayerId,
   PcbLayerPreset,
-  PcbViewSide,
 } from "../../../../sdks";
 import {
   PCB_LAYER_COLORS,
@@ -30,7 +29,7 @@ import {
   type LayerTreeNode,
   type PcbLayerPresetId,
 } from "../../../../shared/frontend/canvas/layers";
-import { PcbSideModeButton } from "./PcbSideModeButton";
+import { SegmentedControl } from "@shared/frontend/ui/segmented-control";
 
 interface PcbLayersPanelProps {
   activeLayer: PcbLayerId | null;
@@ -49,9 +48,6 @@ interface PcbLayersPanelProps {
   onToggleCopperFillLayer?: (layer: PcbCopperLayerId) => void;
   /** Delete same-net traces already fully covered by a pour (redundant routing). */
   onCleanupPourTraces?: () => void;
-  /** Side-mode toolbar state + handlers. When omitted the chip is hidden. */
-  viewSide?: PcbViewSide;
-  onToggleViewSide?: () => void;
   /** Preset chip handler. Receives the preset id; "custom" should be ignored. */
   onSelectLayerPreset?: (preset: PcbLayerPreset) => void;
   /**
@@ -88,11 +84,14 @@ function isCopperLayer(layer: PcbLayerId): layer is PcbCopperLayerId {
   );
 }
 
+const ROW_ICON_BUTTON =
+  "shrink-0 rounded-control p-0.5 transition-colors [&_svg]:h-3 [&_svg]:w-3";
+
 /**
- * Hybrid layer panel — Flux-style grouped tree with KiCad-style display mode
- * cycle. Group headers ("Top Layers", "Bottom Layers") toggle every child
- * layer at once; per-layer eye icons toggle individuals. Copper layers may
- * be set as the active layer.
+ * Hybrid layer panel — grouped tree with a KiCad-style display-mode cycle.
+ * Group headers ("Top Layers", "Bottom Layers") toggle every child layer at
+ * once; per-layer eye icons toggle individuals. Copper layers may be set as
+ * the active layer.
  */
 export function PcbLayersPanel({
   activeLayer,
@@ -107,8 +106,6 @@ export function PcbLayersPanel({
   copperFillLayers = [],
   onToggleCopperFillLayer,
   onCleanupPourTraces,
-  viewSide,
-  onToggleViewSide,
   onSelectLayerPreset,
   perLayerOpacity,
   onSetLayerOpacity,
@@ -116,9 +113,10 @@ export function PcbLayersPanel({
   onToggleSoloLayer,
 }: PcbLayersPanelProps): ReactElement {
   const activePresetId = useMemo(
-    () => detectLayerPreset(
-    visibleLayers as Parameters<typeof detectLayerPreset>[0],
-  ),
+    () =>
+      detectLayerPreset(
+        visibleLayers as Parameters<typeof detectLayerPreset>[0],
+      ),
     [visibleLayers],
   );
   const visibleSet = useMemo(() => new Set(visibleLayers), [visibleLayers]);
@@ -227,13 +225,8 @@ export function PcbLayersPanel({
 
   return (
     <div className="flex flex-col">
-      {viewSide && onToggleViewSide ? (
-        <div className="flex justify-end px-2 py-1">
-          <PcbSideModeButton viewSide={viewSide} onToggle={onToggleViewSide} />
-        </div>
-      ) : null}
       {onSelectLayerPreset ? (
-        <div className="flex flex-wrap gap-1 border-b border-slate-200 px-2 py-2 dark:border-slate-800">
+        <div className="flex flex-wrap gap-1 border-b border-border px-2 py-1.5">
           {PCB_LAYER_PRESETS.map((preset) => {
             const active = activePresetId === preset.id;
             return (
@@ -242,10 +235,11 @@ export function PcbLayersPanel({
                 type="button"
                 onClick={() => handlePresetClick(preset.id)}
                 title={preset.description}
-                className={`rounded px-2 py-0.5 text-[11px] transition-colors ${
+                aria-pressed={active}
+                className={`h-[18px] rounded-control border px-1.5 text-2xs transition-colors ${
                   active
-                    ? "bg-violet-600 text-white"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                    ? "border-border-control bg-surface-control font-medium text-text-strong"
+                    : "border-border-control text-text-secondary hover:bg-surface-hover hover:text-text-strong"
                 }`}
               >
                 {preset.label}
@@ -254,7 +248,7 @@ export function PcbLayersPanel({
           })}
         </div>
       ) : null}
-      <div className="flex-1 overflow-y-auto py-1">
+      <div className="flex-1 overflow-y-auto">
         {filteredNodes.map((node) => {
           if (isHidden(node)) return null;
           if (node.kind === "group") {
@@ -264,7 +258,7 @@ export function PcbLayersPanel({
             return (
               <div
                 key={node.id}
-                className="group flex items-center gap-1 px-2 py-1 hover:bg-slate-100 dark:hover:bg-slate-800/60"
+                className="group flex h-[22px] items-center gap-1.5 px-2 hover:bg-surface-hover"
               >
                 <button
                   type="button"
@@ -273,29 +267,22 @@ export function PcbLayersPanel({
                       ? setTopOpen((v) => !v)
                       : setBottomOpen((v) => !v)
                   }
-                  className="shrink-0 rounded p-0.5 text-slate-500 hover:text-slate-800 dark:hover:text-slate-100"
+                  className={`${ROW_ICON_BUTTON} text-text-tertiary hover:text-text-strong`}
                   title={open ? "Collapse group" : "Expand group"}
+                  aria-expanded={open}
                 >
-                  {open ? (
-                    <ChevronDown className="h-3 w-3" />
-                  ) : (
-                    <ChevronRight className="h-3 w-3" />
-                  )}
+                  {open ? <ChevronDown /> : <ChevronRight />}
                 </button>
-                <span className="flex-1 truncate text-xs font-semibold text-slate-700 dark:text-slate-200">
+                <span className="flex-1 truncate text-xs font-medium text-text-strong">
                   {node.label}
                 </span>
                 <button
                   type="button"
                   onClick={() => toggleGroup(node.children)}
-                  className="shrink-0 rounded p-0.5 text-slate-500 hover:text-slate-800 dark:hover:text-slate-100"
+                  className={`${ROW_ICON_BUTTON} text-text-tertiary hover:text-text-strong`}
                   title={allVisible ? "Hide all" : "Show all"}
                 >
-                  {anyVisible ? (
-                    <Eye className="h-3 w-3" />
-                  ) : (
-                    <EyeOff className="h-3 w-3" />
-                  )}
+                  {anyVisible ? <Eye /> : <EyeOff />}
                 </button>
               </div>
             );
@@ -304,7 +291,7 @@ export function PcbLayersPanel({
           const isActive = node.id === activeLayer;
           const isRouting = routingLayer !== null && node.id === routingLayer;
           const isVisible = visibleSet.has(node.id);
-          const color = PCB_LAYER_COLORS[node.id] ?? "#64748b";
+          const color = PCB_LAYER_COLORS[node.id];
           const isChild =
             TOP_CHILDREN.includes(node.id) || BOTTOM_CHILDREN.includes(node.id);
           const copperLayer = isCopperLayer(node.id) ? node.id : null;
@@ -326,20 +313,18 @@ export function PcbLayersPanel({
           return (
             <div key={node.id}>
               <div
-                className={`group relative flex items-center gap-2 py-1 pr-2 ${
-                  isChild ? "pl-7" : "pl-3"
+                className={`group relative flex h-[22px] items-center gap-1.5 pr-2 ${
+                  isChild ? "pl-6" : "pl-2"
                 } ${
-                  isActive
-                    ? "bg-slate-200/70 dark:bg-slate-800/80"
-                    : isSoloed
-                      ? "bg-violet-100/70 dark:bg-violet-900/40"
-                      : "hover:bg-slate-100 dark:hover:bg-slate-800/60"
+                  isActive || isSoloed
+                    ? "bg-surface-selected"
+                    : "hover:bg-surface-hover"
                 }`}
               >
                 {isActive ? (
                   <span
                     aria-hidden
-                    className="absolute left-0 top-0 h-full w-1 rounded-r"
+                    className="absolute left-0 top-0 h-full w-0.5"
                     style={{ backgroundColor: color }}
                   />
                 ) : null}
@@ -347,7 +332,7 @@ export function PcbLayersPanel({
                   type="button"
                   onClick={handleRowClick}
                   data-testid={`pcb-layer-row-${node.id}`}
-                  className="flex min-w-0 flex-1 items-center gap-2 text-left disabled:cursor-default"
+                  className="flex h-full min-w-0 flex-1 items-center gap-1.5 text-left disabled:cursor-default"
                   title={
                     onToggleSoloLayer
                       ? `${
@@ -366,35 +351,31 @@ export function PcbLayersPanel({
                 >
                   <span
                     aria-hidden
-                    className="inline-block h-3 w-3 shrink-0 rounded-sm ring-1 ring-black/20"
+                    className="inline-block h-3 w-3 shrink-0 ring-1 ring-black/40"
                     style={{ backgroundColor: color }}
                   />
                   <span
                     className={`truncate text-xs ${
                       isActive
-                        ? "font-semibold text-slate-950 dark:text-slate-50"
+                        ? "font-medium text-text-strong"
                         : isVisible
-                          ? "text-slate-700 dark:text-slate-300"
-                          : "text-slate-400 dark:text-slate-500"
+                          ? "text-text"
+                          : "text-text-disabled"
                     }`}
                   >
                     {node.label}
                   </span>
+                  <span className="shrink-0 font-mono text-2xs text-text-disabled">
+                    {node.id}
+                  </span>
                   {isRouting ? (
-                    <span className="ml-auto inline-flex items-center rounded bg-emerald-500 px-1 py-px text-[10px] font-semibold uppercase tracking-wide text-emerald-950">
+                    <span className="ml-auto shrink-0 rounded-control bg-status-success-soft px-1 text-2xs font-medium uppercase tracking-[.04em] text-status-success">
                       Routing
-                    </span>
-                  ) : isActive ? (
-                    <span
-                      className="ml-auto rounded px-1 py-px text-[10px] font-semibold uppercase tracking-wide text-slate-950 ring-1 ring-black/10 dark:text-white"
-                      style={{ backgroundColor: `${color}55` }}
-                    >
-                      Focus
                     </span>
                   ) : null}
                   {isSoloed ? (
                     <span
-                      className="ml-auto inline-flex items-center gap-1 rounded bg-violet-600 px-1 py-px text-[10px] font-semibold uppercase tracking-wide text-white"
+                      className="ml-auto inline-flex shrink-0 items-center gap-0.5 rounded-control bg-surface-control px-1 text-2xs font-medium uppercase tracking-[.04em] text-text-strong"
                       title="Soloed (Alt+click to exit)"
                     >
                       <Focus className="h-2.5 w-2.5" />
@@ -413,15 +394,13 @@ export function PcbLayersPanel({
                     }
                     aria-label="Toggle opacity slider"
                     aria-expanded={opacityExpanded}
-                    className={`shrink-0 rounded p-0.5 transition-colors ${
-                      opacityExpanded
-                        ? "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-white"
-                        : opacityValue < 1
-                          ? "text-violet-500 hover:text-violet-700"
-                          : "text-slate-400 hover:text-slate-700 dark:hover:text-slate-100"
+                    className={`${ROW_ICON_BUTTON} ${
+                      opacityExpanded || opacityValue < 1
+                        ? "bg-surface-control text-text-strong"
+                        : "text-text-tertiary hover:text-text-strong"
                     }`}
                   >
-                    <SlidersHorizontal className="h-3 w-3" />
+                    <SlidersHorizontal />
                   </button>
                 ) : null}
                 {copperLayer !== null && onToggleCopperFillLayer ? (
@@ -433,13 +412,13 @@ export function PcbLayersPanel({
                         ? "Hide copper fills"
                         : "Show copper fills"
                     }
-                    className={`relative shrink-0 rounded p-0.5 transition-colors ${
+                    className={`relative ${ROW_ICON_BUTTON} ${
                       copperFillActive
-                        ? "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-white"
-                        : "text-slate-400 hover:text-slate-700 dark:hover:text-slate-100"
+                        ? "bg-surface-control text-text-strong"
+                        : "text-text-tertiary hover:text-text-strong"
                     }`}
                   >
-                    <Droplet className="h-3 w-3" />
+                    <Droplet />
                     {!copperFillActive ? (
                       <span
                         aria-hidden
@@ -453,22 +432,18 @@ export function PcbLayersPanel({
                   onClick={() => toggleLayer(node.id)}
                   disabled={node.id === lockedVisibleLayer}
                   title={isVisible ? "Hide layer" : "Show layer"}
-                  className="shrink-0 rounded p-0.5 text-slate-400 transition-opacity hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:text-slate-100"
+                  className={`${ROW_ICON_BUTTON} text-text-tertiary hover:text-text-strong disabled:cursor-not-allowed disabled:opacity-30`}
                 >
-                  {isVisible ? (
-                    <Eye className="h-3 w-3" />
-                  ) : (
-                    <EyeOff className="h-3 w-3" />
-                  )}
+                  {isVisible ? <Eye /> : <EyeOff />}
                 </button>
               </div>
               {onSetLayerOpacity && opacityExpanded ? (
                 <div
-                  className={`flex items-center gap-2 pb-1 pr-2 ${
-                    isChild ? "pl-7" : "pl-3"
+                  className={`flex h-[22px] items-center gap-2 pr-2 ${
+                    isChild ? "pl-6" : "pl-2"
                   }`}
                 >
-                  <span className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  <span className="text-2xs uppercase tracking-[.04em] text-text-caps">
                     Opacity
                   </span>
                   <input
@@ -481,9 +456,9 @@ export function PcbLayersPanel({
                       onSetLayerOpacity(node.id, Number(e.target.value))
                     }
                     aria-label={`${node.label} opacity`}
-                    className="flex-1 accent-violet-600"
+                    className="flex-1 accent-[var(--selection)]"
                   />
-                  <span className="w-8 text-right text-[10px] font-mono text-slate-500 dark:text-slate-400">
+                  <span className="w-8 text-right font-mono text-2xs text-text-tertiary">
                     {Math.round(opacityValue * 100)}%
                   </span>
                 </div>
@@ -493,39 +468,32 @@ export function PcbLayersPanel({
         })}
       </div>
       {onCleanupPourTraces && copperFillLayers.length > 0 ? (
-        <div className="border-t border-slate-200 px-2 py-2 dark:border-slate-800">
+        <div className="border-t border-border px-2 py-1.5">
           <button
             type="button"
             onClick={onCleanupPourTraces}
             title="Delete same-net traces already fully covered by a copper pour"
-            className="w-full rounded border border-slate-300 px-2 py-1 text-[11px] text-slate-600 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+            className="h-[22px] w-full rounded-control border border-border-control px-2 text-2xs text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-strong"
           >
             Remove redundant pour traces
           </button>
         </div>
       ) : null}
       {onSetDisplayMode ? (
-        <div className="border-t border-slate-200 px-2 py-2 dark:border-slate-800">
-          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            Display Mode
-          </p>
-          <div className="flex overflow-hidden rounded border border-slate-300 dark:border-slate-700">
-            {DISPLAY_MODES.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => onSetDisplayMode(m.id)}
-                className={`flex-1 px-1.5 py-1 text-[11px] ${
-                  displayMode === m.id
-                    ? "bg-violet-600 text-white"
-                    : "bg-slate-50 text-slate-700 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
-                }`}
-                title={`Display mode: ${m.label} (Ctrl+H)`}
-              >
-                {m.label}
-              </button>
-            ))}
-          </div>
+        <div className="flex h-[24px] items-center gap-2 border-t border-border px-2">
+          <span className="text-2xs text-text-tertiary">Inactive layers</span>
+          <SegmentedControl
+            size="sm"
+            className="ml-auto"
+            aria-label="Display mode"
+            options={DISPLAY_MODES.map((m) => ({
+              id: m.id,
+              label: m.label,
+              title: `Display mode: ${m.label} (Ctrl+H)`,
+            }))}
+            value={displayMode}
+            onChange={onSetDisplayMode}
+          />
         </div>
       ) : null}
     </div>

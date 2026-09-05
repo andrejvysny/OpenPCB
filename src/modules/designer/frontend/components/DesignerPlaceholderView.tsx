@@ -1,11 +1,17 @@
 import type { ReactElement } from "react";
 
-export function DesignerPlaceholderView({ view }: { view: "pcb" | "3d" | "bom" }): ReactElement {
+export function DesignerPlaceholderView({
+  view,
+}: {
+  view: "pcb" | "3d" | "bom";
+}): ReactElement {
   return (
-    <div className="flex h-full items-center justify-center bg-slate-950 text-center text-slate-300">
+    <div className="flex h-full items-center justify-center bg-surface-app text-center text-text-secondary">
       <div>
-        <h3 className="text-lg font-semibold uppercase tracking-wide">{view}</h3>
-        <p className="mt-2 text-sm text-slate-400">Coming soon</p>
+        <h3 className="text-lg font-medium uppercase tracking-[.04em] text-text-strong">
+          {view}
+        </h3>
+        <p className="mt-2 text-xs text-text-tertiary">Coming soon</p>
       </div>
     </div>
   );

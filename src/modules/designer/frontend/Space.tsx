@@ -9,7 +9,7 @@ import {
 } from "react";
 import { useShallow } from "zustand/react/shallow";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { Bot, PanelRightOpen } from "lucide-react";
+import { PanelRight } from "lucide-react";
 import { useNavigationStore } from "@/stores/navigation-store";
 import { useAuth } from "@/cloud/AuthProvider";
 import { useCloudPrefs } from "@/cloud/cloud-prefs";
@@ -29,7 +29,18 @@ import { DesignerBomView } from "./components/DesignerBomView";
 import { DesignerDrcView } from "./components/DesignerDrcView";
 import { DesignerStatusBar } from "./components/DesignerStatusBar";
 import { DesignerSidebar } from "./components/DesignerSidebar";
+import { DesignerRightDock } from "./components/DesignerRightDock";
 import { useDrcStore } from "./pcb/drc/drc-store";
+import { usePcbViewStore } from "./pcb/pcb-view-store";
+import { setPcbCursorPoint } from "./pcb/pcb-cursor-store";
+import {
+  MAX_DOCK_WIDTH,
+  MIN_DOCK_WIDTH,
+  clampDockWidth,
+  readDockPrefs,
+  writeDockPrefs,
+  type DockTab,
+} from "./stores/designer-dock-prefs";
 import {
   SchematicCanvas,
   type SchematicCanvasHandle,
@@ -56,23 +67,19 @@ import type {
 import type { DesignerWorkspaceState } from "./hooks/useDesignerWorkspace";
 import type { ModuleSpaceProps, ViewportState } from "./types";
 import { isEditableShortcutTarget } from "../../../shared/frontend/canvas/utils/keyboard-shortcuts";
+import type { PcbLayerId } from "../../../sdks";
+import { IconButton } from "@shared/frontend/ui/icon-button";
+import { TooltipProvider } from "@shared/frontend/ui/tooltip";
+import type { DockTabItem } from "@shared/frontend/ui/dock-tabs";
 
 const MIN_LEFT = 240;
 const MAX_LEFT = 520;
-const MIN_CHAT = 320;
-const MAX_CHAT = 560;
+const DEFAULT_LEFT = 260;
 // Placeholder grid spacing for the PCB/DRC status bar (50 mil). The PCB editor
 // has no grid-snap state yet; surface a sensible default until one exists.
 const PCB_STATUS_GRID_MM = 1.27;
-const MIN_INSPECTOR = 260;
-const MAX_INSPECTOR = 440;
-const MIN_DRC = 280;
-const MAX_DRC = 560;
-const CHAT_OPEN_KEY = "openpcb:designer:chat-open";
-const CHAT_WIDTH_KEY = "openpcb:designer:chat-width";
-const INSPECTOR_OPEN_KEY = "openpcb:designer:inspector-open";
-const INSPECTOR_WIDTH_KEY = "openpcb:designer:inspector-width";
-const DRC_WIDTH_KEY = "openpcb:designer:drc-width";
+/** Schematic grid pitch (100 mil) shown in the status bar. */
+const SCHEM_STATUS_GRID_MM = 2.54;
 const DEFAULT_COMPONENT_LIMIT = 8;
 const RECENT_PLACEMENTS_KEY = "openpcb:designer:recents";
 const RECENT_PLACEMENTS_CAP = 20;
@@ -102,20 +109,6 @@ function writePersistedRecents(componentId: string): void {
   } catch {
     // localStorage unavailable / quota — recents are best-effort, fall through.
   }
-}
-
-function readPersistedBoolean(key: string, fallback: boolean): boolean {
-  if (typeof window === "undefined") return fallback;
-  const raw = window.localStorage.getItem(key);
-  if (raw === "true") return true;
-  if (raw === "false") return false;
-  return fallback;
-}
-
-function readPersistedNumber(key: string, fallback: number): number {
-  if (typeof window === "undefined") return fallback;
-  const value = Number(window.localStorage.getItem(key));
-  return Number.isFinite(value) ? value : fallback;
 }
 
 function commonComponentRank(component: LibraryComponent): number {
@@ -162,8 +155,8 @@ function nextUntitledName(existingNames: readonly string[]): string {
 
 function CanvasEmptyState({ message }: { message: string }): ReactElement {
   return (
-    <div className="flex h-full w-full items-center justify-center bg-slate-50 dark:bg-slate-950">
-      <p className="text-sm text-slate-500 dark:text-slate-400">{message}</p>
+    <div className="flex h-full w-full items-center justify-center bg-surface-app">
+      <p className="text-xs text-text-tertiary">{message}</p>
     </div>
   );
 }
@@ -439,26 +432,13 @@ function DesignerSpaceInner({
   // to "the design the user is looking at".
   useActiveDesignSync(cloudBadgeApi, activeDesignId);
 
-  const [leftWidth, setLeftWidth] = useState(300);
-  const [chatOpen, setChatOpen] = useState(() =>
-    readPersistedBoolean(CHAT_OPEN_KEY, false),
-  );
-  const [chatWidth, setChatWidth] = useState(() =>
-    clamp(readPersistedNumber(CHAT_WIDTH_KEY, 380), MIN_CHAT, MAX_CHAT),
-  );
-  const [inspectorOpen, setInspectorOpen] = useState(() =>
-    readPersistedBoolean(INSPECTOR_OPEN_KEY, true),
-  );
-  const [inspectorWidth, setInspectorWidth] = useState(() =>
-    clamp(
-      readPersistedNumber(INSPECTOR_WIDTH_KEY, 300),
-      MIN_INSPECTOR,
-      MAX_INSPECTOR,
-    ),
-  );
-  const [drcWidth, setDrcWidth] = useState(() =>
-    clamp(readPersistedNumber(DRC_WIDTH_KEY, 360), MIN_DRC, MAX_DRC),
-  );
+  const [leftWidth, setLeftWidth] = useState(DEFAULT_LEFT);
+  // One tabbed right dock replaces the three stacked docks; open/width/tab are
+  // persisted (migrating the legacy chat/inspector/drc keys on first read).
+  const [initialDockPrefs] = useState(readDockPrefs);
+  const [dockOpen, setDockOpen] = useState(initialDockPrefs.open);
+  const [dockWidth, setDockWidth] = useState(initialDockPrefs.width);
+  const [dockTab, setDockTab] = useState<DockTab>(initialDockPrefs.tab);
   const [zoomPercent, setZoomPercent] = useState(20);
   const [gridVisible, setGridVisible] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -483,11 +463,24 @@ function DesignerSpaceInner({
     references?: string[];
     nonce: number;
   } | null>(null);
-  const [pcbBoardSlot, setPcbBoardSlot] = useState<HTMLDivElement | null>(null);
   const [pcbLayersSlot, setPcbLayersSlot] = useState<HTMLDivElement | null>(
     null,
   );
+  // Docked PCB chrome: PcbCanvas portals its toolbar / parameter row / layer
+  // strip / properties panel into these slots (the pcbLayersSlot pattern).
+  const [pcbToolbarSlot, setPcbToolbarSlot] = useState<HTMLDivElement | null>(
+    null,
+  );
+  const [pcbParamRowSlot, setPcbParamRowSlot] = useState<HTMLDivElement | null>(
+    null,
+  );
+  const [pcbLayerStripSlot, setPcbLayerStripSlot] =
+    useState<HTMLDivElement | null>(null);
+  const [pcbPropertiesSlot, setPcbPropertiesSlot] =
+    useState<HTMLDivElement | null>(null);
   const [threeDSlot, setThreeDSlot] = useState<HTMLDivElement | null>(null);
+  const [pcbActiveLayer, setPcbActiveLayer] = useState<PcbLayerId | null>(null);
+  const pcbViewSide = usePcbViewStore((s) => s.viewState.viewSide);
   const canvasRef = useRef<SchematicCanvasHandle | null>(null);
   const viewportRef = useRef<Map<string, ViewportState>>(new Map());
   const designsLoadedRef = useRef(false);
@@ -871,26 +864,94 @@ function DesignerSpaceInner({
     [state.designs, state.selectedDesignId],
   );
 
+  const drcIssueCount = drcSummary
+    ? drcSummary.errors + drcSummary.warnings
+    : 0;
+
+  // Which tabs this view offers. BOM and the full-screen DRC view get no dock.
+  const dockTabs = useMemo<ReadonlyArray<DockTabItem<DockTab>>>(() => {
+    if (noTabsOpen) return [];
+    switch (state.activeView) {
+      case "pcb":
+        return [
+          { id: "properties", label: "Properties" },
+          {
+            id: "drc",
+            label: "DRC",
+            badge: drcIssueCount > 0 ? drcIssueCount : undefined,
+            badgeClassName: drcIssueCount > 0 ? "text-status-danger" : undefined,
+          },
+          { id: "assistant", label: "Assistant" },
+        ];
+      case "schem":
+        return [
+          { id: "properties", label: "Properties" },
+          { id: "assistant", label: "Assistant" },
+        ];
+      case "3d":
+        return [{ id: "assistant", label: "Assistant" }];
+      default:
+        return [];
+    }
+  }, [drcIssueCount, noTabsOpen, state.activeView]);
+
+  // The persisted tab may not exist in this view (e.g. DRC while on 3D).
+  const activeDockTab: DockTab =
+    dockTabs.find((tab) => tab.id === dockTab)?.id ??
+    dockTabs[0]?.id ??
+    "properties";
+  const dockVisible = dockOpen && dockTabs.length > 0;
+
+  // The DRC dock request lives in the shared DRC store (PCB toolbar button,
+  // status-bar counter, cross-view jumps). Mirror it onto the dock in both
+  // directions, edge-triggered so the two never ping-pong.
+  const drcRequestPrevRef = useRef(drcPanelOpen);
   useEffect(() => {
-    window.localStorage.setItem(CHAT_OPEN_KEY, String(chatOpen));
-  }, [chatOpen]);
+    if (drcRequestPrevRef.current === drcPanelOpen) return;
+    drcRequestPrevRef.current = drcPanelOpen;
+    if (drcPanelOpen) {
+      setDockOpen(true);
+      setDockTab("drc");
+    } else if (dockTab === "drc") {
+      setDockTab("properties");
+    }
+  }, [dockTab, drcPanelOpen]);
+
+  const drcDockShown =
+    dockVisible && activeDockTab === "drc" && state.activeView === "pcb";
+  // Seeded false so a dock that restores onto the DRC tab pushes the store
+  // open on mount (keeping the toolbar button's pressed state honest).
+  const drcShownPrevRef = useRef(false);
+  useEffect(() => {
+    if (drcShownPrevRef.current === drcDockShown) return;
+    drcShownPrevRef.current = drcDockShown;
+    drcRequestPrevRef.current = drcDockShown;
+    setDrcPanelOpen(drcDockShown);
+  }, [drcDockShown, setDrcPanelOpen]);
+
+  // Selecting on the PCB canvas surfaces the Properties tab. A closed dock is
+  // opened (the retired floating inspector appeared unconditionally, and free
+  // holes/pads/text have no other editor), but an Assistant conversation is
+  // never interrupted — unmounting the chat would drop its draft and run state.
+  const pcbSelectionPrevRef = useRef(pcbSelectionCount);
+  useEffect(() => {
+    const previous = pcbSelectionPrevRef.current;
+    pcbSelectionPrevRef.current = pcbSelectionCount;
+    if (previous !== 0 || pcbSelectionCount === 0) return;
+    if (!dockOpen) {
+      setDockOpen(true);
+      setDockTab("properties");
+    } else if (dockTab !== "assistant") {
+      setDockTab("properties");
+    }
+  }, [dockOpen, dockTab, pcbSelectionCount]);
 
   useEffect(() => {
-    window.localStorage.setItem(CHAT_WIDTH_KEY, String(chatWidth));
-  }, [chatWidth]);
+    writeDockPrefs({ open: dockOpen, width: dockWidth, tab: dockTab });
+  }, [dockOpen, dockWidth, dockTab]);
 
-  useEffect(() => {
-    window.localStorage.setItem(INSPECTOR_OPEN_KEY, String(inspectorOpen));
-  }, [inspectorOpen]);
-
-  useEffect(() => {
-    window.localStorage.setItem(INSPECTOR_WIDTH_KEY, String(inspectorWidth));
-  }, [inspectorWidth]);
-
-  useEffect(() => {
-    window.localStorage.setItem(DRC_WIDTH_KEY, String(drcWidth));
-  }, [drcWidth]);
-
+  // Cmd/Ctrl+I opens the dock on Assistant (was: toggle chat dock);
+  // Cmd/Ctrl+. toggles the dock (was: toggle inspector dock).
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (isEditableShortcutTarget(event.target)) return;
@@ -898,61 +959,26 @@ function DesignerSpaceInner({
       const key = event.key.toLowerCase();
       if (key === "i") {
         event.preventDefault();
-        setChatOpen((value) => !value);
+        setDockOpen(true);
+        setDockTab("assistant");
       } else if (event.key === ".") {
         event.preventDefault();
-        setInspectorOpen((value) => !value);
+        setDockOpen((value) => !value);
       }
     };
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, []);
 
-  const startChatResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const startDockResize = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.preventDefault();
     const startX = event.clientX;
-    const startWidth = chatWidth;
+    const startWidth = dockWidth;
     const onMove = (moveEvent: PointerEvent) => {
       const delta = startX - moveEvent.clientX;
-      setChatWidth(clamp(startWidth + delta, MIN_CHAT, MAX_CHAT));
-    };
-    const stop = () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", stop);
-      window.removeEventListener("pointercancel", stop);
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", stop);
-    window.addEventListener("pointercancel", stop);
-  };
-
-  const startInspectorResize = (event: ReactPointerEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const startX = event.clientX;
-    const startWidth = inspectorWidth;
-    const onMove = (moveEvent: PointerEvent) => {
-      const delta = startX - moveEvent.clientX;
-      setInspectorWidth(
-        clamp(startWidth + delta, MIN_INSPECTOR, MAX_INSPECTOR),
+      setDockWidth(
+        clamp(startWidth + delta, MIN_DOCK_WIDTH, MAX_DOCK_WIDTH),
       );
-    };
-    const stop = () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", stop);
-      window.removeEventListener("pointercancel", stop);
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", stop);
-    window.addEventListener("pointercancel", stop);
-  };
-
-  const startDrcResize = (event: ReactPointerEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const startX = event.clientX;
-    const startWidth = drcWidth;
-    const onMove = (moveEvent: PointerEvent) => {
-      const delta = startX - moveEvent.clientX;
-      setDrcWidth(clamp(startWidth + delta, MIN_DRC, MAX_DRC));
     };
     const stop = () => {
       window.removeEventListener("pointermove", onMove);
@@ -1059,7 +1085,7 @@ function DesignerSpaceInner({
   };
 
   return (
-    <div className="flex h-full w-full flex-col bg-slate-50 dark:bg-slate-950">
+    <div className="flex h-full w-full flex-col bg-surface-app">
       <DesignerHeader
         activeView={state.activeView}
         designs={state.designs}
@@ -1080,7 +1106,7 @@ function DesignerSpaceInner({
               <button
                 type="button"
                 onClick={() => setCloudBrowserOpen(true)}
-                className="rounded-sm border border-slate-300 px-2 py-0.5 text-xs hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
+                className="h-[20px] rounded-control border border-border-control px-2 text-2xs text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-strong"
                 title="Browse designs from cloud"
               >
                 Open from Cloud
@@ -1099,20 +1125,16 @@ function DesignerSpaceInner({
                 api={cloudBadgeApi}
               />
             )}
-            <button
-              type="button"
-              aria-pressed={chatOpen}
-              onClick={() => setChatOpen((value) => !value)}
-              className={`flex shrink-0 items-center gap-1 rounded-sm border px-2 py-0.5 text-xs hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800 ${
-                chatOpen
-                  ? "border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-200"
-                  : "border-slate-300 dark:text-slate-200"
-              }`}
-              title="Toggle Designer Chat (Cmd/Ctrl+I)"
+            <IconButton
+              label="Toggle side panel"
+              variant="ghost"
+              size="sm"
+              active={dockVisible}
+              disabled={dockTabs.length === 0}
+              onClick={() => setDockOpen((value) => !value)}
             >
-              <Bot className="h-3.5 w-3.5" />
-              Chat
-            </button>
+              <PanelRight />
+            </IconButton>
           </>
         }
       />
@@ -1127,9 +1149,18 @@ function DesignerSpaceInner({
       )}
 
       {state.error ? (
-        <div className="border-b border-red-300 bg-red-50 px-3 py-1.5 text-xs text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+        <div className="shrink-0 border-b border-border bg-status-danger-soft px-3 py-1 text-xs text-status-danger">
           {state.error}
         </div>
+      ) : null}
+
+      {!noTabsOpen && state.activeView === "pcb" ? (
+        <>
+          {/* PcbCanvas portals its docked toolbar / parameter row here. Both
+              collapse to zero height while empty. */}
+          <div ref={setPcbToolbarSlot} className="shrink-0" />
+          <div ref={setPcbParamRowSlot} className="shrink-0" />
+        </>
       ) : null}
 
       <div className="relative flex min-h-0 flex-1">
@@ -1140,7 +1171,6 @@ function DesignerSpaceInner({
                 state={state}
                 actions={actions}
                 activeView={state.activeView}
-                pcbSlotRef={setPcbBoardSlot}
                 pcbLayersSlotRef={setPcbLayersSlot}
                 threeDSlotRef={setThreeDSlot}
                 onPlaceComponent={openComponentPalette}
@@ -1156,11 +1186,12 @@ function DesignerSpaceInner({
             </div>
 
             <div
-              className="group relative w-1 shrink-0 cursor-col-resize bg-slate-200 hover:bg-violet-600/60 dark:bg-slate-800/40"
+              className="group relative w-px shrink-0 cursor-col-resize bg-border transition-colors hover:bg-selection"
               onPointerDown={startResize}
+              role="separator"
+              aria-orientation="vertical"
             >
               <div className="absolute inset-y-0 -left-1.5 -right-1.5" />
-              <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-slate-700 group-hover:bg-violet-400" />
             </div>
           </>
         ) : null}
@@ -1222,8 +1253,13 @@ function DesignerSpaceInner({
                     void comments.setAnchor(thread, pointNm)
                   }
                   commentAttachmentUrl={comments.attachmentUrl}
-                  boardPanelTarget={pcbBoardSlot}
                   layersPanelTarget={pcbLayersSlot}
+                  toolbarTarget={pcbToolbarSlot}
+                  paramRowTarget={pcbParamRowSlot}
+                  layerStripTarget={pcbLayerStripSlot}
+                  propertiesTarget={pcbPropertiesSlot}
+                  onCursorChange={setPcbCursorPoint}
+                  onActiveLayerChange={setPcbActiveLayer}
                   selectionRequest={pcbSelectionRequest}
                   initialViewport={
                     state.selectedDesignId
@@ -1235,20 +1271,8 @@ function DesignerSpaceInner({
                   onViewportChange={onPcbViewportChange}
                 />
               </div>
-              <DesignerStatusBar
-                gridMm={PCB_STATUS_GRID_MM}
-                zoom={zoomPercent}
-                selection={
-                  pcbSelectionCount > 0
-                    ? `${pcbSelectionCount} selected`
-                    : "No selection"
-                }
-                drcCount={
-                  pcbLiveDrc ??
-                  (drcSummary ? drcSummary.errors + drcSummary.warnings : 0)
-                }
-                onDrcClick={() => setDrcPanelOpen(true)}
-              />
+              {/* PcbCanvas portals the layer tab strip here. */}
+              <div ref={setPcbLayerStripSlot} className="shrink-0" />
             </div>
           ) : state.activeView === "3d" ? (
             <Board3DCanvas
@@ -1268,47 +1292,18 @@ function DesignerSpaceInner({
               onShowPcb={handleBomShowPcb}
             />
           ) : state.activeView === "drc" ? (
-            <div className="flex h-full min-h-0 flex-col">
-              <div className="min-h-0 flex-1 overflow-hidden">
-                <DesignerDrcView
-                  backendURL={backendURL}
-                  moduleId={moduleId}
-                  designId={state.selectedDesignId}
-                  revision={state.projection?.revision ?? null}
-                  onShowViolation={() => actions.setActiveView("pcb")}
-                />
-              </div>
-              <DesignerStatusBar
-                gridMm={PCB_STATUS_GRID_MM}
-                zoom={zoomPercent}
-                selection="—"
-                drcCount={
-                  drcSummary ? drcSummary.errors + drcSummary.warnings : 0
-                }
-                onDrcClick={() => {
-                  actions.setActiveView("pcb");
-                  setDrcPanelOpen(true);
-                }}
+            <div className="flex h-full min-h-0 flex-col overflow-hidden">
+              <DesignerDrcView
+                backendURL={backendURL}
+                moduleId={moduleId}
+                designId={state.selectedDesignId}
+                revision={state.projection?.revision ?? null}
+                onShowViolation={() => actions.setActiveView("pcb")}
               />
             </div>
           ) : (
             <DesignerPlaceholderView view={state.activeView} />
           )}
-
-          {!noTabsOpen &&
-          state.activeView === "schem" &&
-          state.projection &&
-          !inspectorOpen ? (
-            <button
-              type="button"
-              onClick={() => setInspectorOpen(true)}
-              title="Show inspector (Cmd/Ctrl+.)"
-              aria-label="Show inspector"
-              className="absolute right-2 top-2 z-20 cursor-pointer rounded-md border border-slate-200 bg-white/90 p-1 text-slate-500 shadow-sm backdrop-blur hover:bg-slate-100 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-            >
-              <PanelRightOpen className="h-4 w-4" />
-            </button>
-          ) : null}
 
           {!noTabsOpen && state.activeView === "schem" && state.projection ? (
             <div className="pointer-events-none absolute left-1/2 top-2 z-20 -translate-x-1/2">
@@ -1339,19 +1334,25 @@ function DesignerSpaceInner({
           ) : null}
         </div>
 
-        {!noTabsOpen &&
-        state.activeView === "schem" &&
-        state.projection &&
-        inspectorOpen ? (
-          <>
-            <div
-              className="group relative w-1 shrink-0 cursor-col-resize bg-slate-200/70 hover:bg-violet-600/60 dark:bg-slate-800/20"
-              onPointerDown={startInspectorResize}
-            >
-              <div className="absolute inset-y-0 -left-1.5 -right-1.5" />
-              <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-slate-300 group-hover:bg-violet-400 dark:bg-slate-700" />
-            </div>
-            <div style={{ width: inspectorWidth }} className="min-h-0 shrink-0">
+        {dockVisible ? (
+          <DesignerRightDock
+            tabs={dockTabs}
+            activeTab={activeDockTab}
+            onTabChange={setDockTab}
+            width={clampDockWidth(dockWidth)}
+            onResizeStart={startDockResize}
+            onClose={() => setDockOpen(false)}
+          >
+            {activeDockTab === "properties" && state.activeView === "pcb" ? (
+              // PcbCanvas portals PcbPropertiesPanel into this slot.
+              <div
+                ref={setPcbPropertiesSlot}
+                className="min-h-0 flex-1 overflow-y-auto"
+              />
+            ) : null}
+            {activeDockTab === "properties" &&
+            state.activeView === "schem" &&
+            state.projection ? (
               <SelectionInspectorMount
                 projection={state.projection}
                 state={state}
@@ -1359,7 +1360,7 @@ function DesignerSpaceInner({
                 dispatchCommand={actions.dispatchCommand}
                 setError={actions.setError}
                 docked
-                onCollapse={() => setInspectorOpen(false)}
+                onCollapse={() => setDockOpen(false)}
                 onCrossProbePcb={handleCrossProbePcb}
                 onClose={() => {
                   actions.setSelectedPartId(null);
@@ -1370,20 +1371,8 @@ function DesignerSpaceInner({
                 }}
                 onOpenInLibrary={() => navigateToModule("library")}
               />
-            </div>
-          </>
-        ) : null}
-
-        {!noTabsOpen && state.activeView === "pcb" && drcPanelOpen ? (
-          <>
-            <div
-              className="group relative w-1 shrink-0 cursor-col-resize bg-slate-200/70 hover:bg-violet-600/60 dark:bg-slate-800/20"
-              onPointerDown={startDrcResize}
-            >
-              <div className="absolute inset-y-0 -left-1.5 -right-1.5" />
-              <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-slate-300 group-hover:bg-violet-400 dark:bg-slate-700" />
-            </div>
-            <div style={{ width: drcWidth }} className="min-h-0 shrink-0">
+            ) : null}
+            {activeDockTab === "drc" ? (
               <DesignerDrcView
                 backendURL={backendURL}
                 moduleId={moduleId}
@@ -1392,37 +1381,67 @@ function DesignerSpaceInner({
                 onShowViolation={() => {
                   /* already on PCB — centering flows through the DRC store */
                 }}
-                onClose={() => setDrcPanelOpen(false)}
+                onClose={() => setDockOpen(false)}
               />
-            </div>
-          </>
-        ) : null}
-
-        {chatOpen ? (
-          <>
-            <div
-              className="group relative w-1 shrink-0 cursor-col-resize bg-slate-200/70 hover:bg-violet-600/60 dark:bg-slate-800/20"
-              onPointerDown={startChatResize}
-            >
-              <div className="absolute inset-y-0 -left-1.5 -right-1.5" />
-              <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-slate-300 group-hover:bg-violet-400 dark:bg-slate-700" />
-            </div>
-            <div style={{ width: chatWidth }} className="min-h-0 shrink-0">
+            ) : null}
+            {activeDockTab === "assistant" ? (
               <DesignerChatDock
                 backendURL={backendURL}
                 designId={state.selectedDesignId}
                 designName={activeDesign?.name ?? null}
                 designRevision={activeDesign?.revision ?? null}
-                onClose={() => setChatOpen(false)}
+                onClose={() => setDockOpen(false)}
                 onOpenFull={(chatId) =>
                   navigateToModule("assistant", undefined, { chatId })
                 }
                 onDesignChanged={handleAssistantDesignChanged}
               />
-            </div>
-          </>
+            ) : null}
+          </DesignerRightDock>
         ) : null}
       </div>
+
+      {!noTabsOpen && state.activeView === "pcb" ? (
+        <DesignerStatusBar
+          showCursor
+          gridMm={PCB_STATUS_GRID_MM}
+          zoom={zoomPercent}
+          activeLayer={pcbActiveLayer}
+          hint=""
+          selection={
+            pcbSelectionCount > 0
+              ? `${pcbSelectionCount} selected`
+              : "No selection"
+          }
+          drcCount={
+            pcbLiveDrc ??
+            (drcSummary ? drcSummary.errors + drcSummary.warnings : 0)
+          }
+          onDrcClick={() => setDrcPanelOpen(true)}
+          viewSide={pcbViewSide}
+        />
+      ) : null}
+      {!noTabsOpen && state.activeView === "drc" ? (
+        <DesignerStatusBar
+          gridMm={PCB_STATUS_GRID_MM}
+          zoom={zoomPercent}
+          hint=""
+          selection="—"
+          drcCount={drcSummary ? drcSummary.errors + drcSummary.warnings : 0}
+          onDrcClick={() => {
+            actions.setActiveView("pcb");
+            setDrcPanelOpen(true);
+          }}
+        />
+      ) : null}
+      {!noTabsOpen && state.activeView === "schem" ? (
+        <DesignerStatusBar
+          gridMm={SCHEM_STATUS_GRID_MM}
+          zoom={zoomPercent}
+          hint=""
+          selection={selectionSummary}
+        />
+      ) : null}
 
       <ComponentCommandPalette
         open={paletteOpen}
@@ -1454,7 +1473,11 @@ function DesignerSpaceInner({
 export function DesignerSpace(props: ModuleSpaceProps): ReactElement {
   return (
     <ToastProvider>
-      <DesignerSpaceInner {...props} />
+      {/* Radix tooltips throw without a provider; the shared IconButton wraps
+          itself in one, so the whole designer needs this in scope. */}
+      <TooltipProvider delayDuration={300}>
+        <DesignerSpaceInner {...props} />
+      </TooltipProvider>
     </ToastProvider>
   );
 }

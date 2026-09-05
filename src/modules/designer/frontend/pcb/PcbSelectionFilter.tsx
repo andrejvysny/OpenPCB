@@ -44,10 +44,10 @@ export function PcbSelectionFilter({
     <div
       role="dialog"
       aria-label="Selection filter"
-      className="pointer-events-auto absolute right-3 top-16 z-30 w-56 rounded-md border border-slate-700 bg-slate-900/95 shadow-xl backdrop-blur"
+      className="pointer-events-auto absolute right-3 top-3 z-30 w-56 rounded-float border border-border bg-surface-panel shadow-lg"
     >
-      <div className="flex items-center justify-between border-b border-slate-700 px-2 py-1.5">
-        <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-300">
+      <div className="flex h-[24px] items-center justify-between border-b border-border bg-surface-section px-2">
+        <div className="flex items-center gap-1.5 text-2xs uppercase tracking-[.04em] text-text-tertiary">
           <Filter className="size-3" />
           Selection filter
         </div>
@@ -55,40 +55,40 @@ export function PcbSelectionFilter({
           type="button"
           onClick={onClose}
           aria-label="Close filter panel"
-          className="rounded p-0.5 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+          className="rounded-control p-0.5 text-text-tertiary transition-colors hover:bg-surface-hover hover:text-text-strong"
         >
           <X className="size-3" />
         </button>
       </div>
-      <div className="space-y-1 p-2">
+      <div className="py-1">
         {KINDS.map((k) => {
           const enabled = filter[k.id];
           return (
             <label
               key={k.id}
-              className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 hover:bg-slate-800"
+              className="flex h-[22px] cursor-pointer items-center gap-2 px-2 hover:bg-surface-hover"
               title={k.hint}
             >
               <input
                 type="checkbox"
                 checked={enabled}
                 onChange={(e) => onChange(k.id, e.target.checked)}
-                className="size-3.5 accent-violet-600"
+                className="size-3 accent-[var(--selection)]"
               />
               <span
                 className={`flex-1 text-xs ${
-                  enabled ? "text-slate-100" : "text-slate-500 line-through"
+                  enabled ? "text-text-strong" : "text-text-disabled line-through"
                 }`}
               >
                 {k.label}
               </span>
-              <span className="text-[10px] text-slate-500">{k.hint}</span>
+              <span className="text-2xs text-text-disabled">{k.hint}</span>
             </label>
           );
         })}
       </div>
-      <div className="border-t border-slate-700 px-2 py-1 text-[10px] text-slate-500">
-        Press <kbd className="rounded border border-slate-600 px-1">F</kbd> to
+      <div className="border-t border-border px-2 py-1 text-2xs text-text-disabled">
+        Press <kbd className="rounded-control border border-border-control px-1 font-mono">F</kbd> to
         toggle.
       </div>
     </div>
