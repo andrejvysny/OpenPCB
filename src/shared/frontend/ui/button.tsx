@@ -1,23 +1,40 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
-type ButtonSize = "sm" | "md";
+/**
+ * `outline` is an alias of `secondary` and `destructive` an alias of `danger`
+ * (kept so both naming conventions in the codebase compile).
+ */
+export type ButtonVariant =
+  | "primary"
+  | "secondary"
+  | "outline"
+  | "ghost"
+  | "danger"
+  | "destructive";
+
+/** `md` is the historical name of the 22px default size. */
+export type ButtonSize = "sm" | "md" | "default" | "lg";
 
 const VARIANTS: Record<ButtonVariant, string> = {
-  primary:
-    "bg-violet-600 text-white hover:bg-violet-700 dark:bg-violet-700 dark:hover:bg-violet-600",
+  primary: "bg-primary text-primary-foreground font-medium hover:opacity-90",
   secondary:
-    "border border-slate-300 bg-transparent text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800",
+    "border border-border-control bg-transparent text-text hover:bg-surface-hover hover:text-text-strong",
+  outline:
+    "border border-border-control bg-transparent text-text hover:bg-surface-hover hover:text-text-strong",
   ghost:
-    "bg-transparent text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800",
+    "bg-transparent text-text-secondary hover:bg-surface-hover hover:text-text-strong",
   danger:
-    "bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600",
+    "bg-status-danger text-primary-foreground font-medium hover:opacity-90",
+  destructive:
+    "bg-status-danger text-primary-foreground font-medium hover:opacity-90",
 };
 
 const SIZES: Record<ButtonSize, string> = {
-  sm: "h-8 gap-1.5 px-3 text-xs",
-  md: "h-9 gap-2 px-4 text-sm",
+  sm: "h-5 gap-1 px-2 text-xs",
+  md: "h-[22px] gap-1.5 px-[10px] text-xs",
+  default: "h-[22px] gap-1.5 px-[10px] text-xs",
+  lg: "h-7 gap-2 px-3 text-sm",
 };
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -34,7 +51,9 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     <button
       ref={ref}
       className={cn(
-        "inline-flex items-center justify-center rounded-control font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+        "inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-control transition-colors outline-none",
+        "focus-visible:border-selection disabled:cursor-not-allowed disabled:opacity-50",
+        "[&_svg]:shrink-0",
         VARIANTS[variant],
         SIZES[size],
         className,

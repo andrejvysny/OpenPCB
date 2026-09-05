@@ -4,17 +4,34 @@ import { cn } from "@/lib/utils";
 
 export const DropdownMenu = DropdownMenuPrimitive.Root;
 export const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
+export const DropdownMenuPortal = DropdownMenuPrimitive.Portal;
+
 export const DropdownMenuSeparator = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Separator>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Separator>
 >(({ className, ...props }, ref) => (
   <DropdownMenuPrimitive.Separator
     ref={ref}
-    className={cn("my-1 h-px bg-slate-200 dark:bg-slate-700", className)}
+    className={cn("-mx-1 my-1 h-px bg-divider", className)}
     {...props}
   />
 ));
 DropdownMenuSeparator.displayName = "DropdownMenuSeparator";
+
+export const DropdownMenuLabel = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.Label>,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Label>
+>(({ className, ...props }, ref) => (
+  <DropdownMenuPrimitive.Label
+    ref={ref}
+    className={cn(
+      "flex h-[22px] items-center px-2 text-2xs uppercase tracking-[.04em] text-text-caps",
+      className,
+    )}
+    {...props}
+  />
+));
+DropdownMenuLabel.displayName = "DropdownMenuLabel";
 
 export const DropdownMenuContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Content>,
@@ -26,8 +43,7 @@ export const DropdownMenuContent = React.forwardRef<
       sideOffset={sideOffset}
       align={align}
       className={cn(
-        "z-50 min-w-[11rem] overflow-hidden rounded-control border border-slate-200 bg-white p-1 text-sm text-slate-700 shadow-lg",
-        "dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200",
+        "z-50 min-w-[11rem] overflow-hidden rounded-float border border-border bg-surface-raised p-1 text-xs text-text shadow-lg",
         className,
       )}
       {...props}
@@ -49,11 +65,12 @@ export const DropdownMenuItem = React.forwardRef<
   <DropdownMenuPrimitive.Item
     ref={ref}
     className={cn(
-      "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-xs outline-none transition-colors",
-      "data-[highlighted]:bg-slate-100 dark:data-[highlighted]:bg-slate-800",
+      "flex h-[22px] cursor-pointer items-center gap-2 rounded-control px-2 text-xs outline-none transition-colors",
+      "[&_svg]:h-3 [&_svg]:w-3 [&_svg]:shrink-0",
+      "data-[highlighted]:bg-surface-hover data-[highlighted]:text-text-strong",
       "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       destructive &&
-        "text-red-600 data-[highlighted]:bg-red-50 dark:text-red-400 dark:data-[highlighted]:bg-red-950/40",
+        "text-status-danger data-[highlighted]:bg-status-danger-soft data-[highlighted]:text-status-danger",
       className,
     )}
     {...props}

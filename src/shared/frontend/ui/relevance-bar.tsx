@@ -10,7 +10,7 @@ export function relevanceTier(pct: number): "high" | "mid" | "low" | "poor" {
 
 const TIER_BAR: Record<ReturnType<typeof relevanceTier>, string> = {
   high: "bg-status-success",
-  mid: "bg-emerald-400",
+  mid: "bg-status-info",
   low: "bg-status-warning",
   poor: "bg-status-neutral",
 };
@@ -27,13 +27,13 @@ export function RelevanceBar({
   const tier = relevanceTier(clamped);
   return (
     <div className={cn("flex items-center gap-1.5", className)}>
-      <div className="h-1 w-12 overflow-hidden rounded-pill bg-slate-200 dark:bg-slate-700">
+      <div className="h-1 w-12 overflow-hidden rounded-none bg-surface-control">
         <div
-          className={cn("h-full rounded-pill", TIER_BAR[tier])}
+          className={cn("h-full", TIER_BAR[tier])}
           style={{ width: `${clamped}%` }}
         />
       </div>
-      <span className="text-[10px] tabular-nums text-slate-500 dark:text-slate-400">
+      <span className="font-mono text-2xs tabular-nums text-text-tertiary">
         {clamped}%
       </span>
     </div>

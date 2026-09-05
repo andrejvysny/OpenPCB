@@ -15,10 +15,11 @@ export const Chip = React.forwardRef<HTMLButtonElement, ChipProps>(
       type="button"
       aria-pressed={active}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-pill border px-3 py-1 text-xs font-medium transition-colors",
+        "inline-flex h-[22px] shrink-0 items-center gap-1.5 rounded-control border px-2 text-xs transition-colors outline-none",
+        "[&_svg]:h-3 [&_svg]:w-3 [&_svg]:shrink-0",
         active
-          ? "border-violet-400 bg-accent-soft text-accent-text dark:border-violet-600"
-          : "border-slate-200 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800",
+          ? "border-border-control bg-surface-control font-medium text-text-strong"
+          : "border-border-control text-text-secondary hover:bg-surface-hover hover:text-text",
         className,
       )}
       {...props}
@@ -28,10 +29,8 @@ export const Chip = React.forwardRef<HTMLButtonElement, ChipProps>(
       {typeof count === "number" && (
         <span
           className={cn(
-            "rounded-pill px-1.5 text-[10px] tabular-nums",
-            active
-              ? "bg-violet-500/20"
-              : "bg-slate-200/70 dark:bg-slate-700/70",
+            "rounded-control px-1 font-mono text-2xs tabular-nums",
+            active ? "text-text-secondary" : "text-text-tertiary",
           )}
         >
           {count}

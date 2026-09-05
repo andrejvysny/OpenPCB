@@ -4,10 +4,9 @@ import { cn } from "@/lib/utils";
 export type StackedCardTone = "default" | "accent" | "warning";
 
 const TONES: Record<StackedCardTone, string> = {
-  default: "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900",
-  accent:
-    "border-violet-300 bg-accent-soft dark:border-violet-800/70 dark:bg-violet-950/20",
-  warning: "border-amber-300 bg-status-warning-soft dark:border-amber-800/60",
+  default: "border-border bg-surface-panel",
+  accent: "border-selection/40 bg-selection-soft",
+  warning: "border-status-warning/40 bg-status-warning-soft",
 };
 
 export interface StackedCardProps {
@@ -47,12 +46,12 @@ export function StackedCard({
         className,
       )}
     >
-      <div className="flex items-center gap-2 px-3.5 py-2.5">
+      <div className="flex items-center gap-2 px-2.5 py-2">
         <button
           type="button"
           onClick={onToggle}
           aria-expanded={open}
-          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+          className="flex min-w-0 flex-1 items-center gap-2.5 text-left text-xs text-text"
         >
           {summary}
         </button>
@@ -61,9 +60,7 @@ export function StackedCard({
         ) : null}
       </div>
       {open && (
-        <div className="border-t border-slate-200 px-3.5 py-3.5 dark:border-slate-700/70">
-          {children}
-        </div>
+        <div className="border-t border-border px-2.5 py-2.5">{children}</div>
       )}
     </div>
   );
