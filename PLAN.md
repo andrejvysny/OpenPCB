@@ -445,3 +445,6 @@ Q4. Execution → **Agent waves** (≤4 concurrent implementers), no Workflow.
 
 ## Run log
 (empty — filled by Phase 4)
+- 2026-09-05 T1 tokens/fonts/docs — reviewed (index.css read in full, tsc 0, 326 tests, build ok) — committed ab0c0f4.
+- 2026-09-05 T2 shared primitives — reviewed (toolbar/data-table/dock-tabs/status-bar/property-grid/button read; additive API only; tsc 0) — committed ea10c37.
+- 2026-09-05 wave 2 launched: T3 (sonnet), T4 (opus, critical), T6 (opus), T7 (opus) in the main checkout, no worktrees.
