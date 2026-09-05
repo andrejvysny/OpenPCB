@@ -1,6 +1,6 @@
 # PLAN — OpenPCB UI refactor to the neutral EDA design (Claude Design handoff)
 
-status: ready
+status: done
 owner: orchestrator session
 branch: ui/neutral-eda-redesign
 design bundle: /home/claude/repo/project (read-only source of truth)
@@ -454,3 +454,19 @@ Q4. Execution → **Agent waves** (≤4 concurrent implementers), no Workflow.
 - 2026-09-05 FINDING: root `npm run typecheck` (tsc -b) fails on `master` too (36 pre-existing errors in assistant/**, library/backend/**, core/backend/tests — `AiProviderKind` lacks "openpcb-cloud"). Gate for this branch = no NEW errors: `tsc -p tsconfig.modules.json` filtered to designer/library/shared/core frontend must be empty, plus frontend tsc + vitest + build.
 - 2026-09-05 T4 designer/PCB — critical review by reviewer agent + own read. Fixed before commit: cursor readout moved to `pcb-cursor-store` (Space re-rendered per pointer move); DRC full view height/scroll; selection opens a closed dock and never leaves Assistant; single trace/via selection state; "Fit board" name; ToolbarButton `title` override (Undo/Redo hotkey tooltips) — committed 0ef7b65. Deferred to T8a: dead PcbTopToolbar props, `boardPanelTarget`, raw palette classes in PcbCanvas overlays. Note: `pcb.sidebar.board` localStorage key is now unused (Board moved to the Properties dock).
 - 2026-09-05 launched T5 (opus) + T8a PCB cleanup (sonnet).
+- 2026-09-05 T8a PCB cleanup — committed 129138b. T5 schematic — reviewed (toolbar names, Space diff) — committed a593e12 together with a Library fix: Mount column removed (list DTO has no mount type; it rendered "—" on every row — found via screenshots).
+- 2026-09-05 VISUAL VERIFICATION: backend (bun) + Vite booted in the container; Playwright captured Home, Library (+selected row), Schematic, PCB (+Route param row), BOM and DRC in dark and light. Structure matches the mocks; light theme has full parity; PCB canvas stays dark. Known in-container artefact: `troika-three-text` fetches Unicode font data from jsdelivr, which the sandbox proxy blocks → WebGL text-dependent previews show "Loading preview…" here (pre-existing, environmental).
+- 2026-09-05 FINAL GATES: frontend tsc 0; `tsc -p tsconfig.modules.json` has no errors under core/designer/library/shared frontend (only the 36 pre-existing master errors); vitest 48 files / 341 tests; `npm run build:frontend` ok. Raw palette classes remaining: core 20 (non-screen), designer 179 (KicadProjectImportWizard, comments/*, CloudDesignBrowser), library 862 (all import-wizard), assistant 655, knowledge 59, tasks 12, shared 41 (markdown) — all in the documented remap-stopgap bucket.
+
+## Follow-ups discovered during the run (in addition to §9)
+- Status-bar hint segment is empty on PCB; wire an `onHintChange` from PcbCanvas and retire the floating `RouteHintStrip`/`MeasureHintStrip`/`SketchHintStrip` overlays (currently duplicated with the parameter row).
+- Schematic status bar lacks cursor X/Y; add `onCursorChange` to SchematicCanvas mirroring the PCB one (`pcb-cursor-store`).
+- `lib/net-class.ts#netClassTextClass` still returns emerald/rose/slate classes → move to `text-net-*` tokens.
+- `PcbDisambiguationPopup` / `SnapTargetIndicator` per-kind hit colours still include violet (canvas domain colours; revisit with the shared-repo canvas palette).
+- `PcbPropertiesPanel` reads pads from `placement.footprint.preview.pads`; placements without a preview snapshot show an empty pads table. Footprint "Value" needs a projection field.
+- `bundleRoutingEnabled` feature-flag hook in PcbCanvas is now unused.
+- Library: `onPlace` handlers on cards/preview pane are unwired (no place action in the Library space); Pins column needs `padCount` on the list DTO; sortKey "recent" still a no-op.
+- BOM: Description/Stock/Alternates need `BomLine` fields. Home: KiCad import entry point from core, app version constant, `DesignCard` list variant now dead.
+- e2e `pcb-routing.spec.ts` expects "Tune (U)"/"Bundle" toolbar buttons that were already hidden before this work.
+- `pcb.sidebar.board` localStorage key is no longer read (Board moved into the Properties dock).
+- Settings panels keep raw amber/red/emerald banner colours (token re-skin only covered slate/violet).
