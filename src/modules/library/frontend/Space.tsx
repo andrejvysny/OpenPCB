@@ -13,6 +13,7 @@ import {
   Checkbox,
   SearchField,
   SegmentedControl,
+  TooltipProvider,
 } from "@shared/frontend/ui";
 import type { LibraryComponent } from "../../../sdks/library";
 import { useNavigationStore } from "../../../core/frontend/src/stores/navigation-store";
@@ -554,6 +555,11 @@ export function LibrarySpace({
   }, [notice]);
 
   const sorted = useMemo(() => sortByName(components), [components]);
+  // The preview pane always shows a part (design 3b): default to the first row.
+  useEffect(() => {
+    if (selectedComponentId || sorted.length === 0) return;
+    setSelectedComponentId(sorted[0].id);
+  }, [selectedComponentId, sorted]);
   const totalCount = facets.total > 0 ? facets.total : components.length;
   const sourceCount = facets.source.length;
 
@@ -770,14 +776,16 @@ export function LibrarySpace({
         </div>
 
         {view === "table" ? (
-          <LibraryPreviewPane
-            backendURL={backendURL}
-            moduleId={moduleId}
-            componentId={selectedComponentId}
-            onOpen={setDetailComponentId}
-            onDelete={handleDeleteComponent}
-            refreshToken={refreshTick}
-          />
+          <TooltipProvider>
+            <LibraryPreviewPane
+              backendURL={backendURL}
+              moduleId={moduleId}
+              componentId={selectedComponentId}
+              onOpen={setDetailComponentId}
+              onDelete={handleDeleteComponent}
+              refreshToken={refreshTick}
+            />
+          </TooltipProvider>
         ) : null}
       </div>
       <NoticeViewport notice={notice} onDismiss={() => setNotice(null)} />

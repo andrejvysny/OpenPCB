@@ -37,6 +37,21 @@ export interface FacetSidebarProps {
  * per-bucket section headers already name it, and "Clear all" lives in the
  * results chip row next to the chips it clears.
  */
+/** Mount facet keys are raw tags (`smd`, `through_hole`); show the display form. */
+const MOUNT_LABELS: Record<string, string> = {
+  smd: "SMD",
+  smt: "SMD",
+  tht: "THT",
+  through_hole: "THT",
+  mixed: "Mixed",
+  unknown: "Unknown",
+};
+
+function facetOptionLabel(sectionKey: string, option: { key: string; label: string }): string {
+  if (sectionKey !== "mount") return option.label;
+  return MOUNT_LABELS[option.key.toLowerCase()] ?? option.label;
+}
+
 export function FacetSidebar({
   facets,
   activeFilters,
@@ -130,6 +145,7 @@ function FacetSection({
           {visible.map((option) => {
             const token = `${config.prefix}${option.key}`;
             const checked = activeFilters.has(token);
+            const label = facetOptionLabel(config.bucket, option);
             return (
               <div
                 key={option.key}
@@ -138,7 +154,7 @@ function FacetSection({
                 <Checkbox
                   checked={checked}
                   onChange={() => onToggle(token)}
-                  aria-label={`${config.label}: ${option.label}`}
+                  aria-label={`${config.label}: ${label}`}
                   wrapperClassName="min-w-0 flex-1"
                   className={
                     checked
@@ -146,8 +162,8 @@ function FacetSection({
                       : "text-text hover:text-text-strong"
                   }
                   label={
-                    <span className="truncate" title={option.label}>
-                      {option.label}
+                    <span className="truncate" title={label}>
+                      {label}
                     </span>
                   }
                 />
