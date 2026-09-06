@@ -40,7 +40,6 @@ export interface DesignSummary {
 
 interface DesignCardProps {
   design: DesignSummary;
-  view: "grid" | "list";
   starred: boolean;
   archived: boolean;
   onOpen: () => void;
@@ -53,7 +52,11 @@ interface DesignCardProps {
 export function DrcPill({ status }: { status?: DesignerDrcStatus | null }) {
   if (!status) {
     return (
-      <Pill tone="neutral" icon={<CircleDashed className="h-3 w-3" />}>
+      <Pill
+        tone="neutral"
+        icon={<CircleDashed className="h-3 w-3" />}
+        className="text-text-secondary"
+      >
         DRC not run
       </Pill>
     );
@@ -64,6 +67,7 @@ export function DrcPill({ status }: { status?: DesignerDrcStatus | null }) {
         tone="neutral"
         icon={<CircleDashed className="h-3 w-3" />}
         title={`DRC last ran at r${status.ranAtRevision}; board has changed`}
+        className="text-text-secondary"
       >
         DRC stale
       </Pill>
@@ -176,7 +180,7 @@ export function StarButton({
         "flex p-0.5 outline-none",
         starred
           ? "text-status-warning"
-          : "text-text-disabled hover:text-text-secondary",
+          : "text-border-control hover:text-text-secondary",
       )}
     >
       <Star className="h-3 w-3" fill={starred ? "currentColor" : "none"} />
@@ -185,32 +189,7 @@ export function StarButton({
 }
 
 export function DesignCard(props: DesignCardProps) {
-  const { design, view, starred, onOpen, onToggleStar } = props;
-
-  if (view === "list") {
-    return (
-      <div
-        onClick={onOpen}
-        className="flex cursor-pointer items-center gap-3 border-b border-border-subtle px-[10px] py-2 hover:bg-surface-hover"
-      >
-        <div className="h-9 w-16 shrink-0 overflow-hidden border border-border bg-surface-canvas-well">
-          <SchematicThumbnail preview={design.schematicPreview} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="truncate text-sm font-medium text-text-strong">
-            {design.name}
-          </h3>
-          <div className="mt-0.5 flex items-center gap-2 text-2xs text-text-tertiary">
-            <span className="font-mono">r{design.revision}</span>
-            <span>{formatRelativeTime(design.updatedAt)}</span>
-          </div>
-        </div>
-        <DrcPill status={design.drcStatus} />
-        <StarButton starred={starred} onToggle={onToggleStar} />
-        <ActionsMenu {...props} />
-      </div>
-    );
-  }
+  const { design, starred, onOpen, onToggleStar } = props;
 
   return (
     <div

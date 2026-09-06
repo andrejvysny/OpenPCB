@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownWideNarrow,
   ChevronDown,
+  Download,
   FilePlus,
   LayoutGrid,
   List,
@@ -117,6 +118,7 @@ export function HomeScreen() {
   const [sort, setSort] = useState<SortKey>("modified");
   const [view, setView] = useState<"grid" | "list">("list");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [appVersion, setAppVersion] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const designerModule = moduleRegistry?.modules.find(
@@ -149,6 +151,22 @@ export function HomeScreen() {
   useEffect(() => {
     void fetchDesigns();
   }, [fetchDesigns]);
+
+  // App version for the footer segment — Electron-only, absent in browser dev.
+  useEffect(() => {
+    const api = window.electronAPI;
+    if (!api?.getAppVersions) return;
+    let cancelled = false;
+    api
+      .getAppVersions()
+      .then((versions) => {
+        if (!cancelled) setAppVersion(versions.app);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleCreateDesign = useCallback(async () => {
     if (!backendURL) return;
@@ -253,6 +271,18 @@ export function HomeScreen() {
         searchRef.current?.focus();
         return;
       }
+      if (
+        e.key === "/" &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !typing &&
+        !(e.target as HTMLElement | null)?.isContentEditable
+      ) {
+        e.preventDefault();
+        searchRef.current?.focus();
+        return;
+      }
       // Enter opens the selected design, but only when focus is not on a
       // control that has its own Enter behaviour (buttons, menu items…).
       const onControl = (e.target as HTMLElement | null)?.closest?.(
@@ -327,7 +357,6 @@ export function HomeScreen() {
             <DesignCard
               key={design.id}
               design={design}
-              view="grid"
               starred={userState.isStarred(design.id)}
               archived={userState.isArchived(design.id)}
               onOpen={() => openDesign(design.id)}
@@ -383,7 +412,7 @@ export function HomeScreen() {
             autoComplete="off"
             placeholder="Search designs…"
             aria-label="Search designs"
-            shortcutHint="⌘K"
+            shortcutHint="/"
             containerClassName="ml-2 w-[300px]"
           />
           <div className="flex-1" />
@@ -404,6 +433,18 @@ export function HomeScreen() {
             value={view}
             onChange={setView}
           />
+          <Button
+            variant="outline"
+            onClick={() =>
+              navigateToModule("designer", undefined, {
+                action: "import-kicad",
+              })
+            }
+            disabled={!designerAvailable}
+            icon={<Download className="h-3 w-3" />}
+          >
+            Import KiCad…
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -481,9 +522,15 @@ export function HomeScreen() {
         <StatusBar>
           <StatusSegment>designs {visible.length}</StatusSegment>
           <StatusSegment flex sans className="text-text-tertiary">
-            Enter to open · N new · ⌘K search
+            Enter to open · N new · / search
           </StatusSegment>
           <StatusSegment>Local</StatusSegment>
+          {appVersion && (
+            <StatusSegment>
+              v
+              {appVersion.startsWith("v") ? appVersion.slice(1) : appVersion}
+            </StatusSegment>
+          )}
         </StatusBar>
 
         {deletingDesign && (
