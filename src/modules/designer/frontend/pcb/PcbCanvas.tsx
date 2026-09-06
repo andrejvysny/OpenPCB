@@ -5095,8 +5095,9 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
   // "Edit rules…" from the Board properties and "Edit rules" in the DRC view
   // share one dialog + one `pcb_set_design_rules` envelope (see the hook).
   const handleRulesSaved = useCallback(() => {
-    void workspace.refresh();
-  }, [workspace.refresh]);
+    // Rules go through the PCB undo stack; refresh history so Undo enables.
+    void workspace.refresh().then(() => workspace.refreshHistory());
+  }, [workspace.refresh, workspace.refreshHistory]);
   const rulesDialog = usePcbDesignRulesDialog({
     backendURL: props.backendURL,
     moduleId: props.moduleId,
@@ -5163,6 +5164,12 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
    */
   const handleSelectComponent = useCallback(
     (placementId: string) => {
+      // Mirror the toolbar exits: leave any in-flight tool session before
+      // switching to select, otherwise routing/measure state lingers.
+      dispatchRoute({ kind: "cancel" });
+      dispatchMeasure({ kind: "clear" });
+      dispatchSketch({ kind: "cancel" });
+      dispatchTune({ kind: "cancel" });
       setToolMode("select");
       setSelection({
         ...emptyPcbSelection(),

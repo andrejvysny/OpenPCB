@@ -26,9 +26,10 @@ export function LeftSidebar({ onSettingsClick }: LeftSidebarProps) {
     (state) => state.navigateToModule,
   );
   const { moduleRegistry } = useBootstrap();
-  // Same gate the designer header uses (`useAuth().enabled`): no cloud config
-  // (or the flag off) means this build is local-only.
-  const { enabled: cloudEnabled } = useAuth();
+  // Same gate the designer header uses: no cloud config, or cloud configured
+  // but not signed in, means this session is local-only.
+  const { enabled: cloudEnabled, session } = useAuth();
+  const localOnly = !cloudEnabled || !session;
 
   const loadedModules = (moduleRegistry?.modules ?? []).filter(
     (module: ModuleRegistryItem) => {
@@ -127,14 +128,16 @@ export function LeftSidebar({ onSettingsClick }: LeftSidebarProps) {
         </nav>
 
         <div className="flex flex-col items-center gap-2">
-          {!cloudEnabled ? (
-            <span
-              aria-hidden="true"
-              title="Local only — not signed in"
-              className="flex h-8 w-8 items-center justify-center text-text-tertiary"
-            >
-              <CloudOff className="h-4 w-4" strokeWidth={1.5} />
-            </span>
+          {localOnly ? (
+            <Tooltip label="Local only — not signed in" side="right">
+              <span
+                role="img"
+                aria-label="Local only — not signed in"
+                className="flex h-8 w-8 items-center justify-center text-text-tertiary"
+              >
+                <CloudOff className="h-4 w-4" strokeWidth={1.5} />
+              </span>
+            </Tooltip>
           ) : null}
           <Tooltip label="Report a bug or request a feature" side="right">
             <a

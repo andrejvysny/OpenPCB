@@ -179,6 +179,10 @@ export function PcbLayersPanel({
 
   const filteredNodes = useMemo(() => {
     const nodes: LayerTreeNode[] = [];
+    // Guard against a future package bump that ships courtyard nodes itself.
+    const treeIds = new Set(
+      PCB_LAYER_TREE.filter((n) => n.kind === "layer").map((n) => n.id),
+    );
     for (const n of PCB_LAYER_TREE) {
       if (
         n.kind === "layer" &&
@@ -189,9 +193,13 @@ export function PcbLayersPanel({
       }
       nodes.push(n);
       // Courtyard closes out its side group (after F.Cu / after B.SilkS).
-      if (n.kind === "layer" && n.id === "F.Cu") {
+      if (n.kind === "layer" && n.id === "F.Cu" && !treeIds.has("F.CrtYd")) {
         nodes.push(COURTYARD_NODES["F.CrtYd"]);
-      } else if (n.kind === "layer" && n.id === "B.SilkS") {
+      } else if (
+        n.kind === "layer" &&
+        n.id === "B.SilkS" &&
+        !treeIds.has("B.CrtYd")
+      ) {
         nodes.push(COURTYARD_NODES["B.CrtYd"]);
       }
     }

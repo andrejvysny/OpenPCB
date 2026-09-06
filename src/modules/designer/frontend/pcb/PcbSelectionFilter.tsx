@@ -44,7 +44,7 @@ export function PcbSelectionFilter({
     <div
       role="dialog"
       aria-label="Selection filter"
-      className="pointer-events-auto absolute right-3 top-3 z-30 w-56 rounded-float border border-border bg-surface-panel shadow-lg"
+      className="pointer-events-auto absolute right-3 top-[92px] z-30 w-56 rounded-float border border-border bg-surface-panel shadow-lg"
     >
       <div className="flex h-[24px] items-center justify-between border-b border-border bg-surface-section px-2">
         <div className="flex items-center gap-1.5 text-2xs uppercase tracking-[.04em] text-text-tertiary">
