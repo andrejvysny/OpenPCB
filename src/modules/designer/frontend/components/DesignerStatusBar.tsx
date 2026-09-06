@@ -13,7 +13,8 @@ const LAYER_COLORS = PCB_LAYER_COLORS as Record<string, string | undefined>;
 const LAYER_LABELS = PCB_LAYER_LABELS as Record<string, string | undefined>;
 
 interface DesignerStatusBarProps {
-  gridMm: number;
+  /** Snap/grid pitch; omit when the editor has no grid snapping in effect. */
+  gridMm?: number;
   /** Zoom, in percent. */
   zoom: number;
   selection: string;
@@ -98,10 +99,12 @@ export function DesignerStatusBar({
           <PcbCursorReadout />
         )
       ) : null}
-      <StatusSegment>
-        <span className="text-text-caps">grid</span>
-        <span className="text-text-strong">{gridMm.toFixed(2)} mm</span>
-      </StatusSegment>
+      {gridMm !== undefined && (
+        <StatusSegment>
+          <span className="text-text-caps">grid</span>
+          <span className="text-text-strong">{gridMm.toFixed(2)} mm</span>
+        </StatusSegment>
+      )}
       <StatusSegment>
         <span className="text-text-caps">zoom</span>
         <span className="text-text-strong">{zoom.toFixed(0)}%</span>

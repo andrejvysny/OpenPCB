@@ -71,7 +71,6 @@ import type {
 import type { DesignerWorkspaceState } from "./hooks/useDesignerWorkspace";
 import type { ModuleSpaceProps, ViewportState } from "./types";
 import { isEditableShortcutTarget } from "../../../shared/frontend/canvas/utils/keyboard-shortcuts";
-import { PCB_GRID_MM } from "../../../shared/frontend/canvas/defaults";
 import type { PcbLayerId } from "../../../sdks";
 import { IconButton } from "@shared/frontend/ui/icon-button";
 import { TooltipProvider } from "@shared/frontend/ui/tooltip";
@@ -82,7 +81,6 @@ const MIN_LEFT = 240;
 const MAX_LEFT = 520;
 const DEFAULT_LEFT = 260;
 /** Schematic grid pitch (100 mil) shown in the status bar. */
-const SCHEM_STATUS_GRID_MM = 2.54;
 const DEFAULT_COMPONENT_LIMIT = 8;
 const RECENT_PLACEMENTS_KEY = "openpcb:designer:recents";
 const RECENT_PLACEMENTS_CAP = 20;
@@ -1584,7 +1582,6 @@ function DesignerSpaceInner({
       {!noTabsOpen && state.activeView === "pcb" ? (
         <DesignerStatusBar
           showCursor
-          gridMm={PCB_GRID_MM}
           zoom={zoomPercent}
           activeLayer={pcbActiveLayer}
           hint={pcbHint}
@@ -1599,7 +1596,6 @@ function DesignerSpaceInner({
       ) : null}
       {!noTabsOpen && state.activeView === "drc" ? (
         <DesignerStatusBar
-          gridMm={PCB_GRID_MM}
           zoom={zoomPercent}
           hint=""
           selection="—"
@@ -1614,7 +1610,6 @@ function DesignerSpaceInner({
         <DesignerStatusBar
           showCursor
           cursorSource="schematic"
-          gridMm={SCHEM_STATUS_GRID_MM}
           zoom={zoomPercent}
           hint={schemHint}
           selection={selectionSummary}
