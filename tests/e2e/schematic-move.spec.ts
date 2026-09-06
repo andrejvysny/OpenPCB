@@ -256,7 +256,8 @@ async function seedAndOpenScene(
 
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Designs" })).toBeVisible();
-  await page.getByText(designName).first().click();
+  // Home list rows select on click; open with a double-click (Enter also works).
+  await page.getByText(designName).first().dblclick();
   const canvas = page.locator("canvas").first();
   await expect(canvas).toBeVisible();
   await page.waitForTimeout(700); // camera + first projection render
