@@ -36,7 +36,7 @@ export function DockTabs<T extends string | number>({
       role="tablist"
       aria-label={ariaLabel}
       className={cn(
-        "flex h-[24px] shrink-0 items-stretch border-b border-border bg-surface-app",
+        "flex h-[24px] shrink-0 items-stretch border-b border-border bg-surface-rail",
         className,
       )}
     >

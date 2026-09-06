@@ -37,6 +37,7 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
         aria-pressed={typeof active === "boolean" ? active : undefined}
         className={cn(
           "inline-flex shrink-0 items-center justify-center rounded-control transition-colors outline-none",
+          "focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-selection",
           "disabled:cursor-not-allowed disabled:opacity-50",
           "[&_svg]:h-[12px] [&_svg]:w-[12px] [&_svg]:shrink-0",
           variant === "outline" && "border border-border-control",

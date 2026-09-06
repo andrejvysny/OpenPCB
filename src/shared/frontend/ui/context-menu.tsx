@@ -14,7 +14,7 @@ export const ContextMenuContent = React.forwardRef<
     <ContextMenuPrimitive.Content
       ref={ref}
       className={cn(
-        "z-50 min-w-[10rem] overflow-hidden rounded-float border border-border bg-surface-raised p-1 text-xs text-text shadow-md",
+        "z-50 min-w-[10rem] overflow-hidden rounded-float border border-menu-border bg-menu-bg p-1 text-xs text-text shadow-md",
         className,
       )}
       {...props}
@@ -38,8 +38,8 @@ export const ContextMenuItem = React.forwardRef<
     className={cn(
       "flex h-[22px] cursor-pointer select-none items-center gap-2 rounded-control px-2 text-xs outline-none transition-colors",
       "[&_svg]:h-3 [&_svg]:w-3 [&_svg]:shrink-0",
-      "focus:bg-surface-hover focus:text-text-strong",
-      "data-[highlighted]:bg-surface-hover data-[highlighted]:text-text-strong",
+      "focus:bg-menu-highlight focus:text-text-strong",
+      "data-[highlighted]:bg-menu-highlight data-[highlighted]:text-text-strong",
       "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       destructive &&
         "text-status-danger focus:bg-status-danger-soft focus:text-status-danger data-[highlighted]:bg-status-danger-soft data-[highlighted]:text-status-danger",

@@ -102,6 +102,9 @@
   --color-layer-drill: #88e090;
   --color-layer-metadata: #a3a3a3;
   --opacity-copper: 0.92;
+
+  --color-tooltip-text: #f5f5f5;
+  --color-surface-schematic-well: #101012;
 }
 
 /*
@@ -122,6 +125,13 @@
   --color-surface-hover: var(--surface-hover);
   --color-surface-selected: var(--surface-selected);
   --color-surface-canvas-well: var(--surface-canvas-well);
+
+  /* Menus / tooltips */
+  --color-menu-bg: var(--menu-bg);
+  --color-menu-border: var(--menu-border);
+  --color-menu-highlight: var(--menu-highlight);
+  --color-tooltip-bg: var(--tooltip-bg);
+  --color-tooltip-border: var(--tooltip-border);
 
   /* Lines */
   --color-border: var(--border);
@@ -188,7 +198,7 @@
   --surface-control: #d6d6da;
   --surface-input: #ffffff;
   --surface-hover: #e6e6e9;
-  --surface-selected: #dcdce0;
+  --surface-selected: #e2e2e5;
   --surface-canvas-well: #08090a;
 
   --border: #d4d4d8;
@@ -203,8 +213,14 @@
   --text-disabled: #a8a8ae;
   --text-caps: #6f6f76;
 
-  --primary: #111114;
+  --primary: #1c1c1f;
   --primary-foreground: #f5f5f5;
+
+  --menu-bg: #ffffff;
+  --menu-border: #d4d4d8;
+  --menu-highlight: #e2e2e5;
+  --tooltip-bg: #26262b;
+  --tooltip-border: transparent;
 
   --selection: #0891b2;
   --selection-soft: rgba(8, 145, 178, 0.1);
@@ -258,6 +274,12 @@ html.dark {
 
   --primary: #e8e8e8;
   --primary-foreground: #111114;
+
+  --menu-bg: #1c1c1f;
+  --menu-border: #232326;
+  --menu-highlight: #2c2c31;
+  --tooltip-bg: #1c1c1f;
+  --tooltip-border: #232326;
 
   --selection: #33d1ff;
   --selection-soft: rgba(51, 209, 255, 0.08);

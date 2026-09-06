@@ -83,3 +83,7 @@ export {
   type ToolbarProps,
   type ToolbarButtonProps,
 } from "./toolbar";
+export {
+  CanvasZoomCluster,
+  type CanvasZoomClusterProps,
+} from "./canvas-zoom-cluster";
