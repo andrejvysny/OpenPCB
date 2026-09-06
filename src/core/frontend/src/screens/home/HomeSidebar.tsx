@@ -1,4 +1,4 @@
-import { Archive, Clock, HardDrive, LayoutGrid, Star } from "lucide-react";
+import { HardDrive } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/cloud/AuthProvider";
 import { useCloudPrefs } from "@/cloud/cloud-prefs";
@@ -10,12 +10,11 @@ export type HomeFilterKey = "all" | "recent" | "starred" | "archived";
 const FILTERS: {
   key: HomeFilterKey;
   label: string;
-  Icon: typeof LayoutGrid;
 }[] = [
-  { key: "all", label: "All designs", Icon: LayoutGrid },
-  { key: "recent", label: "Recent", Icon: Clock },
-  { key: "starred", label: "Starred", Icon: Star },
-  { key: "archived", label: "Archived", Icon: Archive },
+  { key: "all", label: "All designs" },
+  { key: "recent", label: "Recent" },
+  { key: "starred", label: "Starred" },
+  { key: "archived", label: "Archived" },
 ];
 
 /**
@@ -80,7 +79,7 @@ export function HomeSidebar({
   return (
     <aside className="flex w-[200px] shrink-0 flex-col border-r border-border bg-surface-panel">
       <nav className="min-h-0 flex-1 overflow-auto py-1">
-        {FILTERS.map(({ key, label, Icon }) => {
+        {FILTERS.map(({ key, label }) => {
           const active = filter === key;
           return (
             <button
@@ -95,7 +94,6 @@ export function HomeSidebar({
                   : "text-text hover:bg-surface-hover",
               )}
             >
-              <Icon aria-hidden="true" className="h-3 w-3 shrink-0" />
               <span className="min-w-0 flex-1 truncate">{label}</span>
               <span className="shrink-0 font-mono text-2xs tabular-nums text-text-disabled">
                 {counts[key]}
