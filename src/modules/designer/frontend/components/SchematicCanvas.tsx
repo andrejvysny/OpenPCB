@@ -35,6 +35,13 @@ import {
   useMarqueeSelection,
 } from "../../../../shared/frontend/canvas/selection";
 import type { BoundsMm } from "../../../../shared/rendering/types";
+import {
+  labelBoundsMm,
+  partBoundsMm,
+  primitiveBoundsMm,
+  unionBoundsMm,
+  wireBoundsMm,
+} from "./OutlinePanel/bounds";
 import { RENDER_ORDER } from "../../../../shared/frontend/canvas/layers";
 import { useCanvasTheme } from "../../../../shared/frontend/canvas/theme";
 import { useTheme } from "../../../../core/frontend/src/providers/ThemeProvider";
@@ -210,6 +217,11 @@ export interface SchematicCanvasHandle {
    * Esc cancels.
    */
   armComponentPlacement(detail: LibraryComponentPlacementDetail): void;
+  /**
+   * Frame the camera onto the current canvas selection (parts, wires, labels
+   * and primitives). No-op when nothing is selected.
+   */
+  frameSelection(): void;
 }
 
 interface SchematicCanvasProps {
@@ -261,6 +273,12 @@ interface SchematicCanvasProps {
     pointNm: { x: number; y: number },
   ) => void;
   commentAttachmentUrl?: (attachmentId: string) => string;
+  /** Toggle comment-placement mode; also bound to the "C" hotkey here. */
+  onToggleCommentMode?: () => void;
+  /** Sheet-space cursor for the status-bar X / Y readout. */
+  onCursorChange?: (point: { xMm: number; yMm: number } | null) => void;
+  /** Contextual status-bar hint, derived from tool + selection state only. */
+  onHintChange?: (hint: string) => void;
   onZoomChange?: (zoomPercent: number) => void;
   initialViewport?: ViewportState | null;
   onViewportChange?: (zoom: number, posX: number, posY: number) => void;
@@ -400,6 +418,17 @@ function computeDragWireOverrides(
   }
   return overrides;
 }
+
+/**
+ * Status-bar hints. Only gestures and hotkeys that actually exist are listed:
+ * a wire ends by clicking a pin or a wire (there is no double-click finish),
+ * and the schematic keydown handler binds R (rotate) and Delete on a part.
+ */
+const HINT_WIRE =
+  "Click a pin or wire to connect · click empty space for a corner · Esc cancel";
+const HINT_PLACE = "Click to place · Esc cancel";
+const HINT_SELECT =
+  "Click to select · Shift+click to add · drag to box-select";
 
 function emptySelection(): SelectionState {
   return {
@@ -899,6 +928,7 @@ export const SchematicCanvas = forwardRef<
     onSetCommentTodoStatus,
     onToggleCommentReaction,
     onMoveComment,
+    onToggleCommentMode,
     commentAttachmentUrl,
     onZoomChange,
     initialViewport,
@@ -1164,6 +1194,37 @@ export const SchematicCanvas = forwardRef<
     requestRender,
   ]);
 
+  /**
+   * Pan + zoom onto a sheet-space box. Shared by the `frameToBoundsMm` and
+   * `frameSelection` handle methods (and, through them, by the outline panel,
+   * the ERC dock and the toolbar's zoom-to-selection).
+   */
+  const frameBounds = useCallback(
+    (bounds: BoundsMm) => {
+      const camera = cameraRef.current;
+      if (!camera) return;
+      const canvas = camera.userData?.canvas as HTMLCanvasElement | undefined;
+      const width = canvas?.clientWidth ?? 800;
+      const height = canvas?.clientHeight ?? 600;
+      const contentWidth = Math.max(bounds.maxX - bounds.minX, 1);
+      const contentHeight = Math.max(bounds.maxY - bounds.minY, 1);
+      const padding = Math.max(contentWidth, contentHeight) * 0.4;
+      const paddedWidth = contentWidth + padding * 2;
+      const paddedHeight = contentHeight + padding * 2;
+      const zoomX = width / paddedWidth;
+      const zoomY = height / paddedHeight;
+      const targetZoom = Math.max(20, Math.min(Math.min(zoomX, zoomY), 200));
+      const centerX = (bounds.minX + bounds.maxX) / 2;
+      const centerY = (bounds.minY + bounds.maxY) / 2;
+      camera.position.set(centerX, centerY, camera.position.z);
+      camera.zoom = targetZoom;
+      camera.updateProjectionMatrix();
+      onZoomChange?.(camera.zoom * 2);
+      requestRender();
+    },
+    [onZoomChange, requestRender],
+  );
+
   useImperativeHandle(ref, () => ({
     zoomIn() {
       const camera = cameraRef.current;
@@ -1222,28 +1283,83 @@ export const SchematicCanvas = forwardRef<
       fitCamera();
     },
     frameToBoundsMm(bounds) {
-      const camera = cameraRef.current;
-      if (!camera) return;
-      const canvas = camera.userData?.canvas as HTMLCanvasElement | undefined;
-      const width = canvas?.clientWidth ?? 800;
-      const height = canvas?.clientHeight ?? 600;
-      const contentWidth = Math.max(bounds.maxX - bounds.minX, 1);
-      const contentHeight = Math.max(bounds.maxY - bounds.minY, 1);
-      const padding = Math.max(contentWidth, contentHeight) * 0.4;
-      const paddedWidth = contentWidth + padding * 2;
-      const paddedHeight = contentHeight + padding * 2;
-      const zoomX = width / paddedWidth;
-      const zoomY = height / paddedHeight;
-      const targetZoom = Math.max(20, Math.min(Math.min(zoomX, zoomY), 200));
-      const centerX = (bounds.minX + bounds.maxX) / 2;
-      const centerY = (bounds.minY + bounds.maxY) / 2;
-      camera.position.set(centerX, centerY, camera.position.z);
-      camera.zoom = targetZoom;
-      camera.updateProjectionMatrix();
-      onZoomChange?.(camera.zoom * 2);
-      requestRender();
+      frameBounds(bounds);
+    },
+    frameSelection() {
+      if (!projection) return;
+      const boxes: Array<BoundsMm | null> = [];
+      for (const partId of selection.partIds) {
+        const part = projection.parts.find((p) => p.id === partId);
+        if (part) boxes.push(partBoundsMm(part));
+      }
+      for (const wireId of selection.wireIds) {
+        const wire = projection.wires.find((w) => w.id === wireId);
+        if (wire) boxes.push(wireBoundsMm(wire));
+      }
+      for (const labelId of selection.labelIds) {
+        const label = projection.labels.find((l) => l.id === labelId);
+        if (label) boxes.push(labelBoundsMm(label));
+      }
+      for (const primitiveId of selection.primitiveIds) {
+        const primitive = projection.primitives.find(
+          (candidate) => candidate.id === primitiveId,
+        );
+        if (primitive) boxes.push(primitiveBoundsMm(primitive));
+      }
+      const bounds = unionBoundsMm(boxes);
+      if (bounds) frameBounds(bounds);
     },
   }));
+
+  // Sheet-space cursor for the status-bar X / Y readout. `cursorNm` already
+  // dedupes to integer nanometres, so this fires at most once per moved
+  // nanometre and lands in a dedicated store — never in the editor shell.
+  const onCursorChange = props.onCursorChange;
+  useEffect(() => {
+    onCursorChange?.(
+      cursorNm
+        ? { xMm: Units.nmToMm(cursorNm.x), yMm: Units.nmToMm(cursorNm.y) }
+        : null,
+    );
+  }, [cursorNm, onCursorChange]);
+  useEffect(() => () => onCursorChange?.(null), [onCursorChange]);
+
+  // Status-bar hint. Derived from tool + selection state only (never the
+  // cursor) so pointer moves cannot re-render the editor shell.
+  const singleSelectedPart = useMemo(() => {
+    if (
+      selection.partIds.size !== 1 ||
+      selection.wireIds.size > 0 ||
+      selection.labelIds.size > 0 ||
+      selection.primitiveIds.size > 0
+    ) {
+      return null;
+    }
+    const [partId] = [...selection.partIds];
+    return projection?.parts.find((part) => part.id === partId) ?? null;
+  }, [selection, projection?.parts]);
+
+  const statusHint = useMemo(() => {
+    if (wireSession) return HINT_WIRE;
+    if (armedComponentDetail || armedPrimitive || armedLabelText) {
+      return HINT_PLACE;
+    }
+    if (singleSelectedPart) {
+      return `${singleSelectedPart.reference} — drag to move · R rotate · Del delete`;
+    }
+    return HINT_SELECT;
+  }, [
+    armedComponentDetail,
+    armedLabelText,
+    armedPrimitive,
+    singleSelectedPart,
+    wireSession,
+  ]);
+
+  const onHintChange = props.onHintChange;
+  useEffect(() => {
+    onHintChange?.(statusHint);
+  }, [statusHint, onHintChange]);
 
   // Parts/primitives passed in come from `effectiveProjection` (pending moves
   // already applied); only the LIVE drag delta is layered on top here. The
@@ -1827,12 +1943,27 @@ export const SchematicCanvas = forwardRef<
         setNetPortalPickerOpen(true);
         return;
       }
+
+      // Comment mode — same toggle the toolbar's "Comment (C)" button drives.
+      if (
+        onToggleCommentMode &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        !event.shiftKey &&
+        matchesKey(event, "c")
+      ) {
+        event.preventDefault();
+        onToggleCommentMode();
+        return;
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
     actions,
+    onToggleCommentMode,
     armedLabelText,
     armedPrimitive,
     armedComponentDetail,

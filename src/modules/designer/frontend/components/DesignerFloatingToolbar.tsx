@@ -1,11 +1,11 @@
 import {
   ArrowRightFromLine,
   ChevronsDown,
+  Frame,
   MessageSquarePlus,
-  Minus,
-  Plus,
   ScanSearch,
   Search,
+  ShieldCheck,
   Undo2,
   Redo2,
   Zap,
@@ -15,6 +15,7 @@ import {
   Toolbar,
   ToolbarButton,
   ToolbarSeparator,
+  ToolbarSpacer,
 } from "@shared/frontend/ui/toolbar";
 
 interface SchematicToolbarProps {
@@ -22,15 +23,22 @@ interface SchematicToolbarProps {
   canRedo?: boolean;
   onUndo: () => void;
   onRedo: () => void;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
   onFit: () => void;
+  /** Frame the current selection; disabled when nothing is selected. */
+  onZoomToSelection?: () => void;
+  canZoomToSelection?: boolean;
   onPlaceComponent?: () => void;
   onPlaceGnd?: () => void;
   onPlacePwr?: () => void;
   onPlaceNetPortal?: () => void;
   commentMode?: boolean;
   onToggleCommentMode?: () => void;
+  /** Opens the right dock's ERC tab. */
+  onOpenErc?: () => void;
+  /** Outstanding ERC errors + warnings; omitted until a report exists. */
+  ercCount?: number;
+  /** Whether the dock is currently showing the ERC tab. */
+  ercPanelOpen?: boolean;
 }
 
 /**
@@ -43,15 +51,18 @@ export function SchematicToolbar({
   canRedo = false,
   onUndo,
   onRedo,
-  onZoomIn,
-  onZoomOut,
   onFit,
+  onZoomToSelection,
+  canZoomToSelection = false,
   onPlaceComponent,
   onPlaceGnd,
   onPlacePwr,
   onPlaceNetPortal,
   commentMode = false,
   onToggleCommentMode,
+  onOpenErc,
+  ercCount,
+  ercPanelOpen = false,
 }: SchematicToolbarProps): ReactElement {
   return (
     <Toolbar aria-label="Schematic tools">
@@ -76,8 +87,14 @@ export function SchematicToolbar({
         icon={<ScanSearch />}
         onClick={onFit}
       />
-      <ToolbarButton label="Zoom out" icon={<Minus />} onClick={onZoomOut} />
-      <ToolbarButton label="Zoom in" icon={<Plus />} onClick={onZoomIn} />
+      {onZoomToSelection ? (
+        <ToolbarButton
+          label="Zoom to selection"
+          icon={<Frame />}
+          onClick={onZoomToSelection}
+          disabled={!canZoomToSelection}
+        />
+      ) : null}
 
       {onPlaceComponent || onPlaceGnd || onPlacePwr || onPlaceNetPortal ? (
         <ToolbarSeparator />
@@ -139,9 +156,29 @@ export function SchematicToolbar({
           </ToolbarButton>
         </>
       ) : null}
+
+      {onOpenErc ? (
+        <>
+          <ToolbarSpacer />
+          {/* Mirrors the PCB toolbar's DRC button: a dock-tab toggle whose
+              count flags outstanding violations. */}
+          <ToolbarButton
+            label="ERC"
+            title="Electrical rules check"
+            icon={<ShieldCheck />}
+            active={ercPanelOpen}
+            pressable
+            onClick={onOpenErc}
+          >
+            ERC
+            {ercCount !== undefined && ercCount > 0 ? (
+              <span className="font-mono text-2xs text-status-danger">
+                {ercCount}
+              </span>
+            ) : null}
+          </ToolbarButton>
+        </>
+      ) : null}
     </Toolbar>
   );
 }
-
-/** Legacy name kept so existing imports keep resolving. */
-export const DesignerFloatingToolbar = SchematicToolbar;

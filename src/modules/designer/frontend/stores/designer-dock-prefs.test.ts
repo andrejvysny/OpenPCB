@@ -133,6 +133,21 @@ describe("designer-dock-prefs", () => {
     });
   });
 
+  test('the schematic ERC tab id "erc" round-trips', () => {
+    writeDockPrefs({ open: true, width: 320, tab: "erc" }, store);
+    expect(store.data[DOCK_TAB_KEY]).toBe("erc");
+    expect(readDockPrefs(store)).toEqual({
+      open: true,
+      width: 320,
+      tab: "erc",
+    });
+  });
+
+  test('a persisted "erc" tab is accepted on a cold read', () => {
+    const seeded = memoryStorage({ [DOCK_TAB_KEY]: "erc" });
+    expect(readDockPrefs(seeded).tab).toBe("erc");
+  });
+
   test("an unknown persisted tab falls back to properties", () => {
     const bogus = memoryStorage({ [DOCK_TAB_KEY]: "wat", [DOCK_OPEN_KEY]: "true" });
     expect(readDockPrefs(bogus).tab).toBe("properties");

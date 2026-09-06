@@ -7,6 +7,7 @@ import {
 } from "../../../../shared/frontend/canvas/layers";
 import type { PcbLayerId } from "../../../../sdks";
 import { usePcbCursorStore } from "../pcb/pcb-cursor-store";
+import { useSchematicCursorStore } from "../stores/schematic-cursor-store";
 
 const LAYER_COLORS = PCB_LAYER_COLORS as Record<string, string | undefined>;
 const LAYER_LABELS = PCB_LAYER_LABELS as Record<string, string | undefined>;
@@ -19,8 +20,14 @@ interface DesignerStatusBarProps {
   drcCount?: number;
   /** When provided, the DRC segment becomes a button that opens the DRC tab. */
   onDrcClick?: () => void;
-  /** Render the X / Y cursor segments (PCB only). Reads `usePcbCursorStore`. */
+  /** Label for the violation-count segment — "ERC" on the schematic. */
+  drcLabel?: string;
+  /** Native tooltip for the violation-count segment. */
+  drcTitle?: string;
+  /** Render the X / Y cursor segments. */
   showCursor?: boolean;
+  /** Which editor's cursor store the X / Y readout subscribes to. */
+  cursorSource?: "pcb" | "schematic";
   /** Active copper layer chip (PCB only). */
   activeLayer?: PcbLayerId | null;
   /** Contextual tool hint; fills the remaining width. */
@@ -35,12 +42,11 @@ function formatMm(value: number): string {
   return value.toFixed(3);
 }
 
-/**
- * X / Y cursor segment. Subscribes to the cursor store itself so pointer
- * moves re-render only this segment, never the editor shell.
- */
-function CursorReadout(): ReactElement {
-  const point = usePcbCursorStore((s) => s.point);
+function CursorSegment({
+  point,
+}: {
+  point: { xMm: number; yMm: number } | null;
+}): ReactElement {
   return (
     <StatusSegment>
       <span className="text-text-caps">X</span>
@@ -51,6 +57,19 @@ function CursorReadout(): ReactElement {
   );
 }
 
+/**
+ * X / Y cursor segments. Each variant subscribes to its editor's cursor store
+ * itself so pointer moves re-render only this segment, never the editor shell.
+ * Two components rather than one with a conditional hook call.
+ */
+function PcbCursorReadout(): ReactElement {
+  return <CursorSegment point={usePcbCursorStore((s) => s.point)} />;
+}
+
+function SchematicCursorReadout(): ReactElement {
+  return <CursorSegment point={useSchematicCursorStore((s) => s.point)} />;
+}
+
 /** 22px editor status bar (design D2 §9). */
 export function DesignerStatusBar({
   gridMm,
@@ -58,7 +77,10 @@ export function DesignerStatusBar({
   selection,
   drcCount,
   onDrcClick,
+  drcLabel = "DRC",
+  drcTitle = "Design rule violations",
   showCursor = false,
+  cursorSource = "pcb",
   activeLayer,
   hint = "",
   viewSide,
@@ -69,7 +91,13 @@ export function DesignerStatusBar({
 
   return (
     <StatusBar>
-      {showCursor ? <CursorReadout /> : null}
+      {showCursor ? (
+        cursorSource === "schematic" ? (
+          <SchematicCursorReadout />
+        ) : (
+          <PcbCursorReadout />
+        )
+      ) : null}
       <StatusSegment>
         <span className="text-text-caps">grid</span>
         <span className="text-text-strong">{gridMm.toFixed(2)} mm</span>
@@ -93,35 +121,22 @@ export function DesignerStatusBar({
         {hint}
       </StatusSegment>
       {drcCount !== undefined ? (
-        onDrcClick ? (
-          <StatusSegment
-            onClick={onDrcClick}
-            title="Design rule violations"
-            aria-label={`${drcCount} DRC`}
+        <StatusSegment
+          title={drcTitle}
+          {...(onDrcClick
+            ? { onClick: onDrcClick, "aria-label": `${drcCount} ${drcLabel}` }
+            : {})}
+        >
+          <SeverityDiamond severity={drcCount > 0 ? "error" : "info"} />
+          <span
+            className={
+              drcCount > 0 ? "font-medium text-status-danger" : undefined
+            }
           >
-            <SeverityDiamond severity={drcCount > 0 ? "error" : "info"} />
-            <span
-              className={
-                drcCount > 0 ? "font-medium text-status-danger" : undefined
-              }
-            >
-              {drcCount}
-            </span>
-            <span className="text-text-caps">DRC</span>
-          </StatusSegment>
-        ) : (
-          <StatusSegment title="Design rule violations">
-            <SeverityDiamond severity={drcCount > 0 ? "error" : "info"} />
-            <span
-              className={
-                drcCount > 0 ? "font-medium text-status-danger" : undefined
-              }
-            >
-              {drcCount}
-            </span>
-            <span className="text-text-caps">DRC</span>
-          </StatusSegment>
-        )
+            {drcCount}
+          </span>
+          <span className="text-text-caps">{drcLabel}</span>
+        </StatusSegment>
       ) : null}
       <StatusSegment sans className="max-w-[240px] truncate">
         {selection}

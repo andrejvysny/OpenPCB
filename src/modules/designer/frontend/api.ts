@@ -15,6 +15,7 @@ import type {
   DesignerPcbProjection,
   DesignerSchematicProjection,
   DrcReport,
+  ErcReport,
   KicadProjectCommitResult,
   KicadProjectInspectReport,
   LibraryComponent,
@@ -299,6 +300,21 @@ export function createDesignerApi(params: {
         },
       );
       return data.attachment;
+    },
+
+    /**
+     * Run ERC over the current schematic projection. The backend computes it
+     * on demand and persists nothing, so there is no companion getter.
+     */
+    async runErc(designId: string): Promise<ErcReport> {
+      const data = await fetchData<{ report: ErcReport }>(
+        buildModuleUrl(
+          backendURL,
+          moduleId,
+          `/designs/${encodeURIComponent(designId)}/erc`,
+        ),
+      );
+      return data.report;
     },
 
     /** Compute + persist DRC, returning the fresh report. */

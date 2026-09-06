@@ -4,9 +4,7 @@ import type {
   DesignerDerivedNet,
   DesignerLabel,
   DesignerPlacedPart,
-  DesignerSchematicProjection,
 } from "../../../../../sdks";
-import { Units } from "../../../../../shared/frontend/canvas/coords";
 import type {
   DesignerWorkspaceActions,
   DesignerWorkspaceState,
@@ -20,12 +18,11 @@ import { classifyNet, isPowerNet } from "../../lib/net-class";
 import { ComponentClassIcon } from "../ComponentClassIcon";
 import { OutlineRow, type OutlineRowAction } from "./OutlineRow";
 import { OutlineEmptyState } from "./OutlineEmptyState";
+import { labelBoundsMm, netBoundsMm, partBoundsMm } from "./bounds";
 import { PanelSectionHeader } from "@shared/frontend/ui/panel-section-header";
 import { SearchField } from "@shared/frontend/ui/search-field";
 import { SegmentedControl } from "@shared/frontend/ui/segmented-control";
 import { TableHeaderRow } from "@shared/frontend/ui/data-table";
-
-const FRAME_PADDING_MM = 5;
 
 type TabKey = "parts" | "nets" | "labels";
 type SortKey = "primary" | "secondary";
@@ -56,82 +53,6 @@ interface OutlinePanelProps {
 interface RenameTarget {
   kind: "part" | "label";
   id: string;
-}
-
-function partBoundsMm(part: DesignerPlacedPart): {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
-} {
-  const x = Units.nmToMm(part.positionNm.x);
-  const y = Units.nmToMm(part.positionNm.y);
-  return {
-    minX: x - FRAME_PADDING_MM,
-    minY: y - FRAME_PADDING_MM,
-    maxX: x + FRAME_PADDING_MM,
-    maxY: y + FRAME_PADDING_MM,
-  };
-}
-
-function labelBoundsMm(label: DesignerLabel): {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
-} {
-  const x = Units.nmToMm(label.positionNm.x);
-  const y = Units.nmToMm(label.positionNm.y);
-  return {
-    minX: x - FRAME_PADDING_MM,
-    minY: y - FRAME_PADDING_MM,
-    maxX: x + FRAME_PADDING_MM,
-    maxY: y + FRAME_PADDING_MM,
-  };
-}
-
-function netBoundsMm(
-  net: DesignerDerivedNet,
-  projection: DesignerSchematicProjection,
-): { minX: number; minY: number; maxX: number; maxY: number } | null {
-  let minX = Number.POSITIVE_INFINITY;
-  let minY = Number.POSITIVE_INFINITY;
-  let maxX = Number.NEGATIVE_INFINITY;
-  let maxY = Number.NEGATIVE_INFINITY;
-  let hit = false;
-  for (const wireId of net.wireIds) {
-    const wire = projection.wires.find((w) => w.id === wireId);
-    if (!wire) continue;
-    for (const point of wire.pointsNm) {
-      const xMm = Units.nmToMm(point.x);
-      const yMm = Units.nmToMm(point.y);
-      if (xMm < minX) minX = xMm;
-      if (yMm < minY) minY = yMm;
-      if (xMm > maxX) maxX = xMm;
-      if (yMm > maxY) maxY = yMm;
-      hit = true;
-    }
-  }
-  for (const pinId of net.pinIds) {
-    for (const part of projection.parts) {
-      const pin = part.pins.find((p) => p.id === pinId);
-      if (!pin) continue;
-      const xMm = Units.nmToMm(pin.worldPositionNm.x);
-      const yMm = Units.nmToMm(pin.worldPositionNm.y);
-      if (xMm < minX) minX = xMm;
-      if (yMm < minY) minY = yMm;
-      if (xMm > maxX) maxX = xMm;
-      if (yMm > maxY) maxY = yMm;
-      hit = true;
-    }
-  }
-  if (!hit) return null;
-  return {
-    minX: minX - FRAME_PADDING_MM,
-    minY: minY - FRAME_PADDING_MM,
-    maxX: maxX + FRAME_PADDING_MM,
-    maxY: maxY + FRAME_PADDING_MM,
-  };
 }
 
 const TABS: ReadonlyArray<{ key: TabKey; label: string }> = [

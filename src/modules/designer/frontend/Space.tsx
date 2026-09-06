@@ -28,12 +28,15 @@ import { KicadProjectImportWizard } from "./components/KicadProjectImportWizard"
 import { DesignerPlaceholderView } from "./components/DesignerPlaceholderView";
 import { DesignerBomView } from "./components/DesignerBomView";
 import { DesignerDrcView } from "./components/DesignerDrcView";
+import { DesignerErcView } from "./components/DesignerErcView";
 import { DesignerStatusBar } from "./components/DesignerStatusBar";
 import { DesignerSidebar } from "./components/DesignerSidebar";
 import { DesignerRightDock } from "./components/DesignerRightDock";
 import { useDrcStore } from "./pcb/drc/drc-store";
 import { usePcbViewStore } from "./pcb/pcb-view-store";
 import { setPcbCursorPoint } from "./pcb/pcb-cursor-store";
+import { setSchematicCursorPoint } from "./stores/schematic-cursor-store";
+import { ercIssueCount, useErcStore } from "./stores/erc-store";
 import {
   MAX_DOCK_WIDTH,
   MIN_DOCK_WIDTH,
@@ -73,6 +76,7 @@ import type { PcbLayerId } from "../../../sdks";
 import { IconButton } from "@shared/frontend/ui/icon-button";
 import { TooltipProvider } from "@shared/frontend/ui/tooltip";
 import type { DockTabItem } from "@shared/frontend/ui/dock-tabs";
+import { CanvasZoomCluster } from "@shared/frontend/ui/canvas-zoom-cluster";
 
 const MIN_LEFT = 240;
 const MAX_LEFT = 520;
@@ -237,10 +241,16 @@ function SelectionInspectorMount({
   const [variants, setVariants] = useState<LibraryComponentFootprintVariant[]>(
     [],
   );
+  // The library record behind the selected part: fallback source for the
+  // Fields rows (MPN / Manufacturer / Datasheet) when the instance carries no
+  // per-part override in `propertiesJson`.
+  const [libraryComponent, setLibraryComponent] =
+    useState<LibraryComponent | null>(null);
 
   useEffect(() => {
     if (!partForVariants) {
       setVariants([]);
+      setLibraryComponent(null);
       return;
     }
     let cancelled = false;
@@ -248,10 +258,12 @@ function SelectionInspectorMount({
       .then((detail) => {
         if (cancelled) return;
         setVariants(detail.footprintVariants ?? []);
+        setLibraryComponent(detail.component ?? null);
       })
       .catch(() => {
         if (cancelled) return;
         setVariants([]);
+        setLibraryComponent(null);
       });
     return () => {
       cancelled = true;
@@ -265,6 +277,7 @@ function SelectionInspectorMount({
       selection={selection}
       projection={projection}
       variants={variants}
+      component={libraryComponent}
       dispatchCommand={dispatchCommand}
       setError={setError}
       onClose={onClose}
@@ -432,7 +445,6 @@ function DesignerSpaceInner({
   const [dockWidth, setDockWidth] = useState(initialDockPrefs.width);
   const [dockTab, setDockTab] = useState<DockTab>(initialDockPrefs.tab);
   const [zoomPercent, setZoomPercent] = useState(20);
-  const [gridVisible] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   // Live in-progress-trace DRC conflict count while routing; `null` when idle so
   // the PCB status-bar chip falls back to the full-board batch count.
@@ -474,8 +486,22 @@ function DesignerSpaceInner({
     useState<HTMLDivElement | null>(null);
   const [pcbLayersHeaderSlot, setPcbLayersHeaderSlot] =
     useState<HTMLDivElement | null>(null);
+  // Batch-ERC summary for the schematic status bar + dock badge. ERC is not
+  // persisted server-side; the dock view runs it on open.
+  const ercReportRaw = useErcStore((s) => s.report);
+  const clearErc = useErcStore((s) => s.clear);
+  // Never let another design's report drive this design's badge/status chip —
+  // the store is cleared on design change, but the dock view's own re-run
+  // effect races that clear by one commit.
+  const ercReport =
+    ercReportRaw && ercReportRaw.designId === state.selectedDesignId
+      ? ercReportRaw
+      : null;
+  const ercCount = ercIssueCount(ercReport);
   // Status-bar strings published by PcbCanvas (tool hint + selection summary).
   const [pcbHint, setPcbHint] = useState("");
+  // Status-bar hint published by SchematicCanvas.
+  const [schemHint, setSchemHint] = useState("");
   const [pcbSelectionSummary, setPcbSelectionSummary] =
     useState("No selection");
   const [pcbComponentCount, setPcbComponentCount] = useState(0);
@@ -798,6 +824,14 @@ function DesignerSpaceInner({
     state.selectedWireId,
   ]);
 
+  // Drives the toolbar's "Zoom to selection" enablement. Mirrors the four
+  // selection slots the canvas publishes back to the shell.
+  const hasSchematicSelection =
+    state.selectedPartIds.size > 0 ||
+    state.selectedPartId !== null ||
+    state.selectedLabelId !== null ||
+    state.selectedWireId !== null;
+
   const startResize = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.preventDefault();
     const startX = event.clientX;
@@ -943,6 +977,14 @@ function DesignerSpaceInner({
       case "schem":
         return [
           { id: "properties", label: "Properties" },
+          {
+            id: "erc",
+            label: "ERC",
+            // Only badge once a report exists — "0" before the first run would
+            // read as "checked, clean".
+            badge: ercReport && ercCount > 0 ? ercCount : undefined,
+            badgeClassName: ercCount > 0 ? "text-status-danger" : undefined,
+          },
           { id: "assistant", label: "Assistant" },
         ];
       case "3d":
@@ -950,7 +992,7 @@ function DesignerSpaceInner({
       default:
         return [];
     }
-  }, [drcIssueCount, noTabsOpen, state.activeView]);
+  }, [drcIssueCount, ercCount, ercReport, noTabsOpen, state.activeView]);
 
   // The persisted tab may not exist in this view (e.g. DRC while on 3D).
   const activeDockTab: DockTab =
@@ -985,6 +1027,25 @@ function DesignerSpaceInner({
     drcRequestPrevRef.current = drcDockShown;
     setDrcPanelOpen(drcDockShown);
   }, [drcDockShown, setDrcPanelOpen]);
+
+  const ercDockShown =
+    dockVisible && activeDockTab === "erc" && state.activeView === "schem";
+
+  /** Schematic toolbar ERC button + status-bar chip: toggle the dock's ERC tab. */
+  const handleToggleErcDock = useCallback(() => {
+    if (ercDockShown) {
+      setDockOpen(false);
+      return;
+    }
+    setDockOpen(true);
+    setDockTab("erc");
+  }, [ercDockShown]);
+
+  // ERC is computed on demand and never persisted, so a design switch must not
+  // leave the previous design's violations on screen.
+  useEffect(() => {
+    clearErc();
+  }, [clearErc, state.selectedDesignId]);
 
   // Selecting on the PCB canvas surfaces the Properties tab. A closed dock is
   // opened (the retired floating inspector appeared unconditionally, and free
@@ -1103,7 +1164,9 @@ function DesignerSpaceInner({
         selectionRequest={schematicSelectionRequest}
         wireSourcePinId={state.wireSourcePinId}
         labelDraftText={state.labelDraftText}
-        gridVisible={gridVisible}
+        // The schematic grid overlay + grid snap have never been switchable
+        // from the shell; keep the constant the dead state used to supply.
+        gridVisible={false}
         draggingComponentId={state.draggingComponentId}
         dragPlacementLoading={state.dragPlacementLoading}
         dragPlacementDetail={state.dragPlacementDetail}
@@ -1134,6 +1197,11 @@ function DesignerSpaceInner({
           void comments.setAnchor(thread, pointNm)
         }
         commentAttachmentUrl={comments.attachmentUrl}
+        onToggleCommentMode={() =>
+          comments.setCommentMode(!comments.commentMode)
+        }
+        onCursorChange={setSchematicCursorPoint}
+        onHintChange={setSchemHint}
         onZoomChange={setZoomPercent}
         initialViewport={
           state.selectedDesignId
@@ -1191,7 +1259,7 @@ function DesignerSpaceInner({
                 )}
               </>
             ) : (
-              // No cloud configured for this build — say so once, plainly,
+              // No cloud configured, or not signed in — say so once, plainly,
               // instead of leaving the slot empty.
               <span
                 title="Not signed in — local only"
@@ -1205,8 +1273,9 @@ function DesignerSpaceInner({
             <button
               type="button"
               onClick={openAssistantDock}
+              disabled={dockTabs.length === 0}
               title="Open the assistant (⌘/Ctrl+I)"
-              className="inline-flex h-6 cursor-pointer items-center gap-1.5 px-2 text-xs text-text-tertiary transition-colors hover:text-text-strong"
+              className="inline-flex h-6 cursor-pointer items-center gap-1.5 px-2 text-xs text-text-tertiary transition-colors hover:text-text-strong disabled:cursor-default disabled:opacity-50 disabled:hover:text-text-tertiary"
             >
               <Bot aria-hidden="true" className="h-3.5 w-3.5" />
               Assistant
@@ -1257,9 +1326,12 @@ function DesignerSpaceInner({
           canRedo={state.canRedo}
           onUndo={() => void actions.undo()}
           onRedo={() => void actions.redo()}
-          onZoomIn={() => canvasRef.current?.zoomIn()}
-          onZoomOut={() => canvasRef.current?.zoomOut()}
           onFit={() => canvasRef.current?.fit()}
+          onZoomToSelection={() => canvasRef.current?.frameSelection()}
+          canZoomToSelection={hasSchematicSelection}
+          onOpenErc={handleToggleErcDock}
+          ercCount={ercReport ? ercCount : undefined}
+          ercPanelOpen={ercDockShown}
           onPlaceComponent={openComponentPalette}
           onPlaceGnd={() => canvasRef.current?.armPrimitive("gnd")}
           onPlacePwr={() => canvasRef.current?.armPrimitive("pwr")}
@@ -1316,7 +1388,16 @@ function DesignerSpaceInner({
               onOpen={handleOpenFromEmptyState}
             />
           ) : state.activeView === "schem" ? (
-            canvasContent()
+            <>
+              {canvasContent()}
+              {state.projection ? (
+                <CanvasZoomCluster
+                  onZoomIn={() => canvasRef.current?.zoomIn()}
+                  onZoomOut={() => canvasRef.current?.zoomOut()}
+                  onFit={() => canvasRef.current?.fit()}
+                />
+              ) : null}
+            </>
           ) : state.activeView === "pcb" ? (
             <div className="flex h-full min-h-0 flex-col">
               <div className="relative min-h-0 flex-1">
@@ -1324,7 +1405,7 @@ function DesignerSpaceInner({
                   backendURL={backendURL}
                   moduleId={moduleId}
                   designId={state.selectedDesignId}
-                  gridVisible={gridVisible}
+                  gridVisible={false}
                   cloudHeaders={autoLayoutCloudHeaders}
                   autoLayoutEnabled={autoLayoutEnabled}
                   autoLayoutSignedIn={autoLayoutSignedIn}
@@ -1458,6 +1539,19 @@ function DesignerSpaceInner({
                 onOpenInLibrary={() => navigateToModule("library")}
               />
             ) : null}
+            {activeDockTab === "erc" && state.activeView === "schem" ? (
+              <DesignerErcView
+                backendURL={backendURL}
+                moduleId={moduleId}
+                designId={state.selectedDesignId}
+                projection={state.projection ?? null}
+                onSelectOnCanvas={handleOutlineSelect}
+                onFrameBoundsMm={(bounds) =>
+                  canvasRef.current?.frameToBoundsMm(bounds)
+                }
+                onClose={() => setDockOpen(false)}
+              />
+            ) : null}
             {activeDockTab === "drc" ? (
               <DesignerDrcView
                 backendURL={backendURL}
@@ -1518,10 +1612,16 @@ function DesignerSpaceInner({
       ) : null}
       {!noTabsOpen && state.activeView === "schem" ? (
         <DesignerStatusBar
+          showCursor
+          cursorSource="schematic"
           gridMm={SCHEM_STATUS_GRID_MM}
           zoom={zoomPercent}
-          hint=""
+          hint={schemHint}
           selection={selectionSummary}
+          drcCount={ercReport ? ercCount : undefined}
+          drcLabel="ERC"
+          drcTitle="Electrical rule violations"
+          onDrcClick={handleToggleErcDock}
         />
       ) : null}
 

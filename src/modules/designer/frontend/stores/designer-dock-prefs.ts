@@ -11,7 +11,7 @@
  * Assistant tab, and the inspector's width seeds the dock width.
  */
 
-export type DockTab = "properties" | "drc" | "assistant";
+export type DockTab = "properties" | "drc" | "erc" | "assistant";
 
 export const DOCK_OPEN_KEY = "openpcb:designer:dock-open";
 export const DOCK_WIDTH_KEY = "openpcb:designer:dock-width";
@@ -69,7 +69,12 @@ function readNumber(raw: string | null): number | null {
 }
 
 function isDockTab(value: string | null): value is DockTab {
-  return value === "properties" || value === "drc" || value === "assistant";
+  return (
+    value === "properties" ||
+    value === "drc" ||
+    value === "erc" ||
+    value === "assistant"
+  );
 }
 
 /**

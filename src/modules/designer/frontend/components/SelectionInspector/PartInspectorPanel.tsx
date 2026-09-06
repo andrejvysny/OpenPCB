@@ -15,11 +15,13 @@ import {
 import type {
   DesignerPlacedPart,
   DesignerSchematicProjection,
+  LibraryComponent,
   LibraryComponentFootprintVariant,
 } from "../../../../../sdks";
 import type { DesignerWorkspaceActions } from "../../hooks/useDesignerWorkspace";
 import { classifyNet, netClassTextClass } from "../../lib/net-class";
 import { Button } from "@shared/frontend/ui/button";
+import { Checkbox } from "@shared/frontend/ui/checkbox";
 import { PanelSectionHeader } from "@shared/frontend/ui/panel-section-header";
 import { PropertyGrid, PropertyRow } from "@shared/frontend/ui/property-grid";
 import { TableHeaderRow, TableRow } from "@shared/frontend/ui/data-table";
@@ -29,15 +31,64 @@ const INPUT_CLASS =
 const NUMBER_INPUT_CLASS = `${INPUT_CLASS} font-mono tabular-nums`;
 const PIN_COLS = "28px 1fr 70px";
 
+/** `PartPropertiesJson` is not re-exported from the SDK barrel. */
+type PartProps = DesignerPlacedPart["propertiesJson"];
+
 interface PartInspectorPanelProps {
   part: DesignerPlacedPart;
   projection: DesignerSchematicProjection;
   variants: readonly LibraryComponentFootprintVariant[];
+  /** Library record behind the part; fallback source for the Fields rows. */
+  component?: LibraryComponent | null;
   dispatchCommand: DesignerWorkspaceActions["dispatchCommand"];
   setError: DesignerWorkspaceActions["setError"];
   onOpenInLibrary?(componentId: string): void;
   onCrossProbePcb?(): void;
   onReplaceComponentDisabledMessage?: string;
+}
+
+function readPropString(
+  props: PartProps,
+  ...keys: string[]
+): string | null {
+  for (const key of keys) {
+    const raw = props[key];
+    if (typeof raw === "string" && raw.trim().length > 0) return raw;
+  }
+  return null;
+}
+
+function readPropBoolean(props: PartProps, key: string): boolean {
+  return props[key] === true;
+}
+
+/**
+ * Merge a per-part field override, dropping the key entirely when cleared so
+ * the library value takes over again instead of an empty string shadowing it.
+ */
+function mergeProp(
+  props: PartProps,
+  key: string,
+  value: string,
+): PartProps {
+  const next: PartProps = { ...props };
+  if (value.length === 0) delete next[key];
+  else next[key] = value;
+  return next;
+}
+
+/** Prefer the Electron shell for external links; fall back to a new tab. */
+function openExternalUrl(url: string): void {
+  const api = (
+    window as unknown as {
+      electronAPI?: { openExternal?: (target: string) => Promise<void> };
+    }
+  ).electronAPI;
+  if (api?.openExternal) {
+    void api.openExternal(url);
+    return;
+  }
+  window.open(url, "_blank", "noopener,noreferrer");
 }
 
 function inferValueKind(
@@ -118,6 +169,7 @@ export function PartInspectorPanel({
   part,
   projection,
   variants,
+  component = null,
   dispatchCommand,
   setError,
   onOpenInLibrary,
@@ -140,6 +192,28 @@ export function PartInspectorPanel({
   const [footprintMenuOpen, setFootprintMenuOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
+  // Fields: a per-part override in `propertiesJson` wins; otherwise the
+  // library record behind the part. Same precedence the BOM writer applies.
+  const props = part.propertiesJson;
+  const mpnValue =
+    readPropString(props, "manufacturerPartNumber", "mpn") ??
+    component?.manufacturerPartNumber ??
+    "";
+  const manufacturerValue =
+    readPropString(props, "manufacturer") ?? component?.manufacturer ?? "";
+  const datasheetUrl =
+    readPropString(props, "datasheetUrl", "datasheet") ??
+    component?.datasheetUrl ??
+    "";
+  const dnp = readPropBoolean(props, "dnp");
+
+  const [mpnDraft, setMpnDraft] = useState(mpnValue);
+  const [manufacturerDraft, setManufacturerDraft] = useState(manufacturerValue);
+  // Optimistic DNP so the checkbox flips instantly; reset from the projection
+  // once the command round-trips, and on failure.
+  const [dnpPending, setDnpPending] = useState<boolean | null>(null);
+  const dnpChecked = dnpPending ?? dnp;
+
   useEffect(() => {
     setValueDraft(part.value);
   }, [part.value]);
@@ -153,6 +227,15 @@ export function PartInspectorPanel({
   useEffect(() => {
     setRotDraft(String(part.rotationDeg));
   }, [part.rotationDeg]);
+  useEffect(() => {
+    setMpnDraft(mpnValue);
+  }, [mpnValue]);
+  useEffect(() => {
+    setManufacturerDraft(manufacturerValue);
+  }, [manufacturerValue]);
+  useEffect(() => {
+    setDnpPending(null);
+  }, [dnp, part.id]);
 
   const commitValue = useCallback(async () => {
     const trimmedValue = valueDraft.trim();
@@ -210,6 +293,66 @@ export function PartInspectorPanel({
       setToleranceDraft(current.tolerance ?? "");
     }
   }, [dispatchCommand, part, setError, toleranceDraft]);
+
+  const commitField = useCallback(
+    async (key: string, draft: string, current: string, label: string) => {
+      const trimmed = draft.trim();
+      if (trimmed === current) return;
+      try {
+        await dispatchCommand({
+          type: "update_part_properties",
+          partId: part.id,
+          propertiesJson: mergeProp(part.propertiesJson, key, trimmed),
+        });
+      } catch (error) {
+        setError(
+          error instanceof Error ? error.message : `Failed to update ${label}`,
+        );
+        return current;
+      }
+      return undefined;
+    },
+    [dispatchCommand, part.id, part.propertiesJson, setError],
+  );
+
+  const commitMpn = useCallback(async () => {
+    const revert = await commitField(
+      "manufacturerPartNumber",
+      mpnDraft,
+      mpnValue,
+      "MPN",
+    );
+    if (revert !== undefined) setMpnDraft(revert);
+  }, [commitField, mpnDraft, mpnValue]);
+
+  const commitManufacturer = useCallback(async () => {
+    const revert = await commitField(
+      "manufacturer",
+      manufacturerDraft,
+      manufacturerValue,
+      "manufacturer",
+    );
+    if (revert !== undefined) setManufacturerDraft(revert);
+  }, [commitField, manufacturerDraft, manufacturerValue]);
+
+  const commitDnp = useCallback(
+    async (next: boolean) => {
+      setDnpPending(next);
+      try {
+        await dispatchCommand({
+          type: "update_part_properties",
+          partId: part.id,
+          propertiesJson: { ...part.propertiesJson, dnp: next },
+        });
+      } catch (error) {
+        setDnpPending(null);
+        setError(
+          error instanceof Error ? error.message : "Failed to update DNP",
+        );
+      }
+    },
+    [dispatchCommand, part.id, part.propertiesJson, setError],
+  );
 
   const commitPosition = useCallback(async () => {
     const xMm = Number.parseFloat(xDraft);
@@ -352,6 +495,9 @@ export function PartInspectorPanel({
             )}
           </PropertyRow>
         ) : null}
+        <PropertyRow label="Symbol" mono title={part.symbol.name}>
+          {part.symbol.name}
+        </PropertyRow>
       </PropertyGrid>
 
       {footprintMenuOpen && hasAlternatives && currentVariant ? (
@@ -406,6 +552,64 @@ export function PartInspectorPanel({
           {onReplaceComponentDisabledMessage}
         </p>
       ) : null}
+
+      <PanelSectionHeader variant="uppercase" title="Attributes" />
+      <div className="flex items-center border-b border-border px-2 py-1.5">
+        <Checkbox
+          checked={dnpChecked}
+          onChange={(event) => void commitDnp(event.target.checked)}
+          label="DNP (do not populate)"
+          wrapperClassName="text-xs text-text"
+        />
+      </div>
+
+      <PanelSectionHeader variant="uppercase" title="Fields" />
+      <PropertyGrid>
+        <PropertyRow label="MPN" className="h-[26px]">
+          <input
+            value={mpnDraft}
+            onChange={(event) => setMpnDraft(event.target.value)}
+            onBlur={() => void commitMpn()}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") event.currentTarget.blur();
+            }}
+            aria-label="MPN"
+            placeholder="—"
+            className={`${INPUT_CLASS} font-mono`}
+          />
+        </PropertyRow>
+        <PropertyRow label="Manufacturer" className="h-[26px]">
+          <input
+            value={manufacturerDraft}
+            onChange={(event) => setManufacturerDraft(event.target.value)}
+            onBlur={() => void commitManufacturer()}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") event.currentTarget.blur();
+            }}
+            aria-label="Manufacturer"
+            placeholder="—"
+            className={INPUT_CLASS}
+          />
+        </PropertyRow>
+        <PropertyRow label="Datasheet" title={datasheetUrl || undefined}>
+          {datasheetUrl ? (
+            <a
+              href={datasheetUrl}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(event) => {
+                event.preventDefault();
+                openExternalUrl(datasheetUrl);
+              }}
+              className="block truncate text-text-secondary underline underline-offset-2 hover:text-text-strong"
+            >
+              {datasheetUrl}
+            </a>
+          ) : (
+            "—"
+          )}
+        </PropertyRow>
+      </PropertyGrid>
 
       <PanelSectionHeader variant="uppercase" title="Placement" />
       <PropertyGrid>
@@ -533,9 +737,6 @@ export function PartInspectorPanel({
           <PropertyGrid>
             <PropertyRow label="Component" mono title={part.componentId}>
               {part.componentId}
-            </PropertyRow>
-            <PropertyRow label="Symbol" mono title={part.symbol.name}>
-              {part.symbol.name}
             </PropertyRow>
             <PropertyRow label="Pins" mono>
               {part.pins.length}

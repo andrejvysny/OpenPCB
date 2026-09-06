@@ -5,6 +5,7 @@ import type {
   DesignerPlacedPart,
   DesignerSchematicProjection,
   DesignerWire,
+  LibraryComponent,
   LibraryComponentFootprintVariant,
 } from "../../../../../sdks";
 import type { DesignerWorkspaceActions } from "../../hooks/useDesignerWorkspace";
@@ -28,6 +29,8 @@ interface SelectionInspectorProps {
   selection: InspectorSelection;
   projection: DesignerSchematicProjection;
   variants: readonly LibraryComponentFootprintVariant[];
+  /** Library record behind a selected part (Fields fallback); null while loading. */
+  component?: LibraryComponent | null;
   dispatchCommand: DesignerWorkspaceActions["dispatchCommand"];
   setError: DesignerWorkspaceActions["setError"];
   /** Clears the 5 selection slots (rendered as the panel's "Deselect"). */
@@ -99,6 +102,7 @@ export function SelectionInspector({
   selection,
   projection,
   variants,
+  component = null,
   dispatchCommand,
   setError,
   onClose,
@@ -172,6 +176,7 @@ export function SelectionInspector({
           part={selection.part}
           projection={projection}
           variants={variants}
+          component={component}
           dispatchCommand={dispatchCommand}
           setError={setError}
           onOpenInLibrary={onOpenInLibrary}
