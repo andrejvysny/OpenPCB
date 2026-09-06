@@ -557,8 +557,9 @@ export function LibrarySpace({
   const sorted = useMemo(() => sortByName(components), [components]);
   // The preview pane always shows a part (design 3b): default to the first row.
   useEffect(() => {
-    if (selectedComponentId || sorted.length === 0) return;
-    setSelectedComponentId(sorted[0].id);
+    const first = sorted[0];
+    if (selectedComponentId || !first) return;
+    setSelectedComponentId(first.id);
   }, [selectedComponentId, sorted]);
   const totalCount = facets.total > 0 ? facets.total : components.length;
   const sourceCount = facets.source.length;

@@ -80,7 +80,6 @@ import { CanvasZoomCluster } from "@shared/frontend/ui/canvas-zoom-cluster";
 const MIN_LEFT = 240;
 const MAX_LEFT = 520;
 const DEFAULT_LEFT = 260;
-/** Schematic grid pitch (100 mil) shown in the status bar. */
 const DEFAULT_COMPONENT_LIMIT = 8;
 const RECENT_PLACEMENTS_KEY = "openpcb:designer:recents";
 const RECENT_PLACEMENTS_CAP = 20;
