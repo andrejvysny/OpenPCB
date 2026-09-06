@@ -30,35 +30,23 @@ export interface FacetSidebarProps {
   facets: LibraryFacets;
   activeFilters: ReadonlySet<string>;
   onToggle: (filterToken: string) => void;
-  onClearAll: () => void;
 }
 
+/**
+ * Facet rail. It carries no header row of its own: the `aside` label plus the
+ * per-bucket section headers already name it, and "Clear all" lives in the
+ * results chip row next to the chips it clears.
+ */
 export function FacetSidebar({
   facets,
   activeFilters,
   onToggle,
-  onClearAll,
 }: FacetSidebarProps): ReactElement {
-  const hasAnyActive = activeFilters.size > 0;
   return (
     <aside
       aria-label="Filter facets"
       className="flex h-full w-[220px] shrink-0 flex-col overflow-y-auto border-r border-border bg-surface-panel"
     >
-      <header className="flex h-[26px] shrink-0 items-center justify-between px-2">
-        <h2 className="text-2xs uppercase tracking-[.04em] text-text-caps">
-          Filters
-        </h2>
-        {hasAnyActive && (
-          <button
-            type="button"
-            onClick={onClearAll}
-            className="text-2xs text-text-secondary underline-offset-2 outline-none hover:text-text-strong hover:underline"
-          >
-            Clear all
-          </button>
-        )}
-      </header>
       <div className="flex-1">
         {SECTIONS.map((section) => {
           const options = facets[section.bucket];

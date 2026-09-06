@@ -28,13 +28,11 @@ import {
 import { setComponentDragData } from "../lib/component-drag";
 
 /**
- * `24px 1.4fr 90px 1.1fr 110px` — design D3 §2 minus the `44px` Pins and the
- * `60px` Mount columns: the list DTO carries neither a pin/pad count nor a
- * mount type (the backend derives mount for the facet counts from footprint
- * data that is not in the list payload), so both are omitted rather than
- * rendered as "—" on every row.
+ * `24px 1.4fr 90px 1.1fr 60px 44px 110px` — design D3 §2: glyph | Name |
+ * Family | Package | Mount | Pins | Source. Mount and Pins come from the
+ * component's default footprint, joined into the list DTO server-side.
  */
-const COLS = "24px 1.4fr 90px 1.1fr 110px";
+const COLS = "24px 1.4fr 90px 1.1fr 60px 44px 110px";
 const COLS_WITH_SELECTION = `24px ${COLS}`;
 
 /** Family tag → 14px outline glyph. Falls back to a generic part box. */
@@ -72,8 +70,6 @@ export interface LibraryTableProps {
   selectionMode: boolean;
   /** The row whose detail feeds the preview pane. */
   selectedComponentId: string | null;
-  sortKey: "name" | "recent";
-  onSortByName: () => void;
   onSelectRow: (componentId: string) => void;
   onOpen: (componentId: string) => void;
   onToggleSelect: (componentId: string) => void;
@@ -85,8 +81,6 @@ export function LibraryTable({
   selectedIds,
   selectionMode,
   selectedComponentId,
-  sortKey,
-  onSortByName,
   onSelectRow,
   onOpen,
   onToggleSelect,
@@ -148,21 +142,20 @@ export function LibraryTable({
       <TableHeaderRow cols={cols}>
         {selectionMode ? <span /> : null}
         <span />
-        <button
-          type="button"
-          onClick={onSortByName}
-          aria-label="Sort by name"
-          className="flex min-w-0 items-center gap-1 text-left uppercase tracking-[.04em] outline-none hover:text-text-secondary"
-        >
+        <span className="flex min-w-0 items-center gap-1">
           Name
-          {sortKey === "name" ? (
-            <span aria-hidden="true" className="text-text-secondary">
-              ▴
-            </span>
-          ) : null}
-        </button>
+          <span
+            aria-hidden="true"
+            title="Sorted by name, ascending"
+            className="text-text-secondary"
+          >
+            ▴
+          </span>
+        </span>
         <span>Family</span>
         <span>Package</span>
+        <span>Mount</span>
+        <span className="text-right">Pins</span>
         <span>Source</span>
       </TableHeaderRow>
 
@@ -224,6 +217,12 @@ export function LibraryTable({
             </span>
             <span className="truncate font-mono text-2xs text-text-secondary">
               {tags.package ?? "—"}
+            </span>
+            <span className="truncate text-text-secondary">
+              {component.mountType ?? "—"}
+            </span>
+            <span className="truncate text-right font-mono text-2xs text-text-secondary tabular-nums">
+              {component.padCount ?? "—"}
             </span>
             <span className="truncate text-[9.5px] uppercase tracking-[.06em] text-text-tertiary">
               {source}

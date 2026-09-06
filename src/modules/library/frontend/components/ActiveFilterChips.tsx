@@ -79,7 +79,7 @@ export function ActiveFilterChips({
       <button
         type="button"
         onClick={onClearAll}
-        className="shrink-0 text-2xs text-text-secondary underline-offset-2 outline-none hover:text-text-strong hover:underline"
+        className="shrink-0 text-2xs text-text-secondary underline underline-offset-2 outline-none hover:text-text-strong"
       >
         Clear all
       </button>

@@ -20,7 +20,22 @@ export interface LibraryComponent {
   subcategory?: string | null;
   datasheetUrl?: string | null;
   keywords?: string[];
+  /**
+   * Mount style of the component's default footprint, normalised for display.
+   * Populated by the component-list DTO only (the detail payload carries the
+   * authoritative `footprint.mountType`). `null` when the component has no
+   * resolvable footprint or its blob carries no recognised mount value.
+   */
+  mountType?: LibraryMountType | null;
+  /**
+   * Pad count of the component's default footprint. Same provenance rules as
+   * `mountType`: list DTO only, `null` when unresolvable.
+   */
+  padCount?: number | null;
 }
+
+/** Display forms of a footprint mount style (list DTO). */
+export type LibraryMountType = "SMD" | "THT" | "Mixed";
 
 export interface LibraryPinMapEntry {
   pinNumber: string;

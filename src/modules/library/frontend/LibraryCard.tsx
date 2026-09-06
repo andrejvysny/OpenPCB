@@ -12,7 +12,6 @@ interface LibraryCardProps {
   selected?: boolean;
   onOpen: (componentId: string) => void;
   onToggleSelect?: (componentId: string) => void;
-  onPlace?: (componentId: string) => void;
 }
 
 export function LibraryCard({
@@ -22,7 +21,6 @@ export function LibraryCard({
   selected,
   onOpen,
   onToggleSelect,
-  onPlace,
 }: LibraryCardProps): ReactElement {
   const [previewFailed, setPreviewFailed] = useState(false);
   const hasPlaceholderFootprint = component.tags.some(
@@ -86,19 +84,6 @@ export function LibraryCard({
             />
           ) : (
             <PreviewFallback name={component.name} />
-          )}
-          {onPlace && (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onPlace(component.id);
-              }}
-              className="absolute bottom-1.5 right-1.5 hidden h-[22px] items-center rounded-control bg-surface-control px-[10px] text-xs font-medium text-text-strong outline-none group-hover:inline-flex"
-              aria-label={`Place ${component.name}`}
-            >
-              Place
-            </button>
           )}
         </div>
 

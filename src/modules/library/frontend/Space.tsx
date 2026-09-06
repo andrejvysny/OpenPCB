@@ -7,15 +7,7 @@ import {
   useState,
   type ReactElement,
 } from "react";
-import {
-  ArrowDownAZ,
-  LayoutGrid,
-  Plus,
-  Rows3,
-  Trash2,
-  Upload,
-  X,
-} from "lucide-react";
+import { Download, LayoutGrid, Plus, Rows3, Trash2, X } from "lucide-react";
 import {
   Button,
   Checkbox,
@@ -39,7 +31,6 @@ import {
 import { LibraryCard } from "./LibraryCard";
 import { toUserError } from "./utils";
 
-type LibrarySortKey = "name" | "recent";
 type LibraryView = "table" | "grid";
 
 /** Persisted Table/Grid choice (PLAN D11). */
@@ -162,17 +153,12 @@ function NoticeViewport({
   );
 }
 
-function sortComponents(
-  list: LibraryComponent[],
-  key: LibrarySortKey,
-): LibraryComponent[] {
-  const copy = [...list];
-  if (key === "name") {
-    copy.sort((a, b) => a.name.localeCompare(b.name));
-  }
-  // "recent" relies on backend ORDER BY name fallback today; preserved-as-fetched
-  // is the closest proxy for newest-first until createdAt surfaces in the DTO.
-  return copy;
+/**
+ * The list is always name-ascending: the backend already orders by name and the
+ * DTO carries no timestamp, so there is no second axis to offer.
+ */
+function sortByName(list: LibraryComponent[]): LibraryComponent[] {
+  return [...list].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 const VIEW_OPTIONS = [
@@ -223,7 +209,6 @@ export function LibrarySpace({
   const [deleting, setDeleting] = useState(false);
   const [zipImporting, setZipImporting] = useState(false);
   const [notice, setNotice] = useState<LibraryNotice | null>(null);
-  const [sortKey, setSortKey] = useState<LibrarySortKey>("name");
   const [view, setView] = useState<LibraryView>(readStoredView);
   /** Row highlighted in the table; drives the preview pane (PLAN D11). */
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>(
@@ -272,42 +257,58 @@ export function LibrarySpace({
     setSelectedIds(new Set());
   }, []);
 
-  const handleBulkDelete = useCallback(async () => {
-    if (selectedIds.size === 0 || !backendURL) return;
+  /** Shared by the bulk toolbar and the preview pane's overflow menu. */
+  const deleteComponents = useCallback(
+    async (ids: readonly string[]) => {
+      if (ids.length === 0 || !backendURL) return;
 
-    const confirmed = window.confirm(
-      `Delete ${selectedIds.size} component${selectedIds.size > 1 ? "s" : ""}? This will also remove orphaned symbols and footprints.`,
-    );
-    if (!confirmed) return;
-
-    setDeleting(true);
-    try {
-      const response = await fetch(
-        `${backendURL}/api/modules/${moduleId}/components/delete`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ids: [...selectedIds] }),
-        },
+      const confirmed = window.confirm(
+        `Delete ${ids.length} component${ids.length > 1 ? "s" : ""}? This will also remove orphaned symbols and footprints.`,
       );
-      const payload = (await response.json().catch(() => null)) as unknown;
-      if (!response.ok) {
-        throw new Error(
-          toUserError(payload, `Delete failed (HTTP ${response.status})`),
+      if (!confirmed) return;
+
+      setDeleting(true);
+      try {
+        const response = await fetch(
+          `${backendURL}/api/modules/${moduleId}/components/delete`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ids: [...ids] }),
+          },
         );
+        const payload = (await response.json().catch(() => null)) as unknown;
+        if (!response.ok) {
+          throw new Error(
+            toUserError(payload, `Delete failed (HTTP ${response.status})`),
+          );
+        }
+        setSelectedIds(new Set());
+        setRefreshTick((v) => v + 1);
+      } catch (deleteError) {
+        setError(
+          deleteError instanceof Error
+            ? deleteError.message
+            : "Failed to delete components",
+        );
+      } finally {
+        setDeleting(false);
       }
-      setSelectedIds(new Set());
-      setRefreshTick((v) => v + 1);
-    } catch (deleteError) {
-      setError(
-        deleteError instanceof Error
-          ? deleteError.message
-          : "Failed to delete components",
-      );
-    } finally {
-      setDeleting(false);
-    }
-  }, [selectedIds, backendURL, moduleId]);
+    },
+    [backendURL, moduleId],
+  );
+
+  const handleBulkDelete = useCallback(
+    () => deleteComponents([...selectedIds]),
+    [deleteComponents, selectedIds],
+  );
+
+  const handleDeleteComponent = useCallback(
+    (componentId: string) => {
+      void deleteComponents([componentId]);
+    },
+    [deleteComponents],
+  );
 
   const handleZipUpload = useCallback(
     async (file: File | null | undefined) => {
@@ -552,15 +553,9 @@ export function LibrarySpace({
     return () => window.clearTimeout(timeout);
   }, [notice]);
 
-  const sorted = useMemo(
-    () => sortComponents(components, sortKey),
-    [components, sortKey],
-  );
+  const sorted = useMemo(() => sortByName(components), [components]);
   const totalCount = facets.total > 0 ? facets.total : components.length;
-
-  const handleSortByName = useCallback(() => {
-    setSortKey((prev) => (prev === "name" ? "recent" : "name"));
-  }, []);
+  const sourceCount = facets.source.length;
 
   if (detailComponentId) {
     return (
@@ -606,7 +601,8 @@ export function LibrarySpace({
       <header className="flex h-[34px] shrink-0 items-center gap-2 border-b border-border bg-surface-rail px-3">
         <h1 className="text-base font-medium text-text-strong">Library</h1>
         <span className="font-mono text-2xs tabular-nums text-text-tertiary">
-          {totalCount} part{totalCount === 1 ? "" : "s"}
+          {totalCount} part{totalCount === 1 ? "" : "s"} · {sourceCount} source
+          {sourceCount === 1 ? "" : "s"}
         </span>
 
         <SearchField
@@ -628,11 +624,12 @@ export function LibrarySpace({
 
         <Button
           type="button"
-          icon={<Upload className="h-3 w-3" />}
+          variant="outline"
+          icon={<Download className="h-3 w-3" />}
           disabled={zipImporting}
           onClick={() => zipInputRef.current?.click()}
         >
-          {zipImporting ? "Importing..." : "Upload ZIP"}
+          {zipImporting ? "Importing…" : "Import library…"}
         </Button>
         <input
           ref={zipInputRef}
@@ -657,7 +654,7 @@ export function LibrarySpace({
           disabled={zipImporting}
           onClick={() => setWizardOpen(true)}
         >
-          New
+          New part
         </Button>
       </header>
 
@@ -666,7 +663,6 @@ export function LibrarySpace({
           facets={facets}
           activeFilters={activeTags}
           onToggle={toggleTag}
-          onClearAll={clearAllFilters}
         />
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex h-[26px] shrink-0 items-center gap-2 border-b border-border px-2.5 text-2xs text-text-tertiary">
@@ -680,20 +676,6 @@ export function LibrarySpace({
               {components.length} of {totalCount}
             </span>
             <div className="flex-1" />
-            <label className="flex select-none items-center gap-1.5 text-2xs text-text-tertiary">
-              <ArrowDownAZ aria-hidden="true" className="h-3 w-3" />
-              <span>Sort</span>
-              <select
-                value={sortKey}
-                onChange={(event) =>
-                  setSortKey(event.target.value as LibrarySortKey)
-                }
-                className="h-[18px] rounded-control border border-border-control bg-surface-input px-1 text-2xs text-text outline-none focus:border-selection"
-              >
-                <option value="name">Name</option>
-                <option value="recent">As loaded</option>
-              </select>
-            </label>
             <Checkbox
               checked={
                 selectableCount > 0 && selectedIds.size === selectableCount
@@ -763,8 +745,6 @@ export function LibrarySpace({
                 selectedIds={selectedIds}
                 selectionMode={selectionMode}
                 selectedComponentId={selectedComponentId}
-                sortKey={sortKey}
-                onSortByName={handleSortByName}
                 onSelectRow={setSelectedComponentId}
                 onOpen={setDetailComponentId}
                 onToggleSelect={toggleSelect}
@@ -795,6 +775,7 @@ export function LibrarySpace({
             moduleId={moduleId}
             componentId={selectedComponentId}
             onOpen={setDetailComponentId}
+            onDelete={handleDeleteComponent}
             refreshToken={refreshTick}
           />
         ) : null}

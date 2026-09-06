@@ -25,6 +25,7 @@ export type {
   LibraryFootprintPlacementSnapshot,
   LibraryComponentFootprintVariant,
   LibraryListTagsOptions,
+  LibraryMountType,
   LibraryPinMapEntry,
   LibraryPreviewWarning,
   LibrarySearchParams,

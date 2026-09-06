@@ -1,10 +1,17 @@
 import { useMemo, type ReactElement, type ReactNode } from "react";
+import { ExternalLink, MoreHorizontal, Trash2 } from "lucide-react";
 import {
   FootprintPreviewCanvas,
   SymbolPreviewCanvas,
 } from "../../../../shared/frontend/canvas/preview";
 import {
   Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  IconButton,
   PanelSectionHeader,
   PropertyGrid,
   PropertyRow,
@@ -25,10 +32,10 @@ export interface LibraryPreviewPaneProps {
   moduleId: string;
   /** The row currently selected in the table; `null` renders the empty state. */
   componentId: string | null;
-  /** Opens the full detail page. */
+  /** Opens the full detail page (where editing, cloning and STEP upload live). */
   onOpen: (componentId: string) => void;
-  /** Optional "Place in design" action, wired by the embedding surface. */
-  onPlace?: (componentId: string) => void;
+  /** Deletes the component; the overflow menu hides it for built-ins. */
+  onDelete: (componentId: string) => void;
   refreshToken?: number;
 }
 
@@ -38,7 +45,7 @@ export function LibraryPreviewPane({
   moduleId,
   componentId,
   onOpen,
-  onPlace,
+  onDelete,
   refreshToken = 0,
 }: LibraryPreviewPaneProps): ReactElement {
   const { detail, loading, error } = useComponentDetail({
@@ -81,7 +88,7 @@ export function LibraryPreviewPane({
       ) : (
         <>
           <header className="sticky top-0 z-10 flex h-[34px] shrink-0 items-center gap-2 border-b border-border bg-surface-panel px-2">
-            <span className="min-w-0 flex-1 truncate text-base font-medium text-text-strong">
+            <span className="min-w-0 truncate text-base font-medium text-text-strong">
               {component?.name ?? (loading ? "Loading…" : "Component")}
             </span>
             {component ? (
@@ -89,28 +96,51 @@ export function LibraryPreviewPane({
                 {componentSourceKey(component)}
               </span>
             ) : null}
-            {onPlace && component ? (
-              <Button
-                type="button"
-                onClick={() => onPlace(component.id)}
-                className="bg-surface-control font-medium text-text-strong"
-              >
-                Place
-              </Button>
-            ) : null}
-            <Button type="button" onClick={() => onOpen(componentId)}>
+
+            <div className="flex-1" />
+
+            <Button
+              type="button"
+              onClick={() => onOpen(componentId)}
+              className="bg-surface-control font-medium text-text-strong"
+            >
               Open
             </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <IconButton label="Component actions">
+                  <MoreHorizontal aria-hidden="true" />
+                </IconButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onSelect={() => onOpen(componentId)}>
+                  <ExternalLink aria-hidden="true" />
+                  Open
+                </DropdownMenuItem>
+                {component && !component.isBuiltin ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      destructive
+                      onSelect={() => onDelete(component.id)}
+                    >
+                      <Trash2 aria-hidden="true" />
+                      Delete
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </header>
 
           <div className="grid shrink-0 grid-cols-2 gap-px border-b border-border bg-border">
-            <PreviewCell label="Symbol">
+            <PreviewCell label="Symbol" wellClassName="bg-surface-schematic-well">
               <SymbolPreviewCanvas
                 model={symbolPreview}
                 emptyMessage="No symbol preview"
               />
             </PreviewCell>
-            <PreviewCell label="Footprint">
+            <PreviewCell label="Footprint" wellClassName="bg-surface-canvas-well">
               <FootprintPreviewCanvas
                 model={footprintPreview}
                 emptyMessage="No footprint preview"
@@ -275,13 +305,16 @@ export function LibraryPreviewPane({
 
 function PreviewCell({
   label,
+  wellClassName,
   children,
 }: {
   label: string;
+  /** Well background token: schematic ground for symbols, canvas for footprints. */
+  wellClassName: string;
   children: ReactNode;
 }): ReactElement {
   return (
-    <div className="relative h-[150px] bg-surface-canvas-well">
+    <div className={`relative h-[150px] ${wellClassName}`}>
       {children}
       <span className="pointer-events-none absolute left-1.5 top-1 text-2xs uppercase tracking-[.04em] text-text-disabled">
         {label}
