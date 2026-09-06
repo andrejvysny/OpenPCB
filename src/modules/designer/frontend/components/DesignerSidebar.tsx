@@ -14,6 +14,11 @@ interface DesignerSidebarProps {
   actions: DesignerWorkspaceActions;
   activeView: DesignerView;
   pcbLayersSlotRef?: (el: HTMLDivElement | null) => void;
+  /** Trailing slot in the Layers section header (hosts the preset dropdown). */
+  pcbLayersHeaderSlotRef?: (el: HTMLDivElement | null) => void;
+  pcbComponentsSlotRef?: (el: HTMLDivElement | null) => void;
+  /** Placements on the board, for the Components section header badge. */
+  pcbComponentCount?: number;
   threeDSlotRef?: (el: HTMLDivElement | null) => void;
   onPlaceComponent(): void;
   onAddNetLabel(): void;
@@ -39,6 +44,9 @@ export function DesignerSidebar({
   actions,
   activeView,
   pcbLayersSlotRef,
+  pcbLayersHeaderSlotRef,
+  pcbComponentsSlotRef,
+  pcbComponentCount,
   threeDSlotRef,
   onPlaceComponent,
   onAddNetLabel,
@@ -48,11 +56,25 @@ export function DesignerSidebar({
 }: DesignerSidebarProps): ReactElement {
   if (activeView === "pcb") {
     // Board settings moved into the right dock's Properties tab (its idle
-    // state), so the PCB sidebar hosts Layers alone.
+    // state); the PCB sidebar hosts Layers + Components. Both bodies are
+    // portal targets filled by PcbCanvas.
     return (
       <aside className={`${ASIDE_CLASS} overflow-y-auto`}>
-        <CollapsibleSection id="pcb.sidebar.layers" title="Layers" defaultOpen>
+        <CollapsibleSection
+          id="pcb.sidebar.layers"
+          title="Layers"
+          defaultOpen
+          trailing={<div ref={pcbLayersHeaderSlotRef} />}
+        >
           <div ref={pcbLayersSlotRef} />
+        </CollapsibleSection>
+        <CollapsibleSection
+          id="pcb.sidebar.components"
+          title="Components"
+          count={pcbComponentCount}
+          defaultOpen
+        >
+          <div ref={pcbComponentsSlotRef} />
         </CollapsibleSection>
       </aside>
     );

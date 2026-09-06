@@ -29,14 +29,14 @@ export function isPowerNet(name: string): boolean {
   return classifyNet(name) !== "signal";
 }
 
-/** Tailwind text-color class for a net class (dark-theme tuned). */
+/** Semantic text-color token class for a net class (both themes). */
 export function netClassTextClass(cls: NetClass): string {
   switch (cls) {
     case "ground":
-      return "text-emerald-500 dark:text-emerald-400";
+      return "text-net-ground";
     case "power":
-      return "text-rose-500 dark:text-rose-400";
+      return "text-net-power";
     case "signal":
-      return "text-slate-500 dark:text-slate-400";
+      return "text-net-signal";
   }
 }

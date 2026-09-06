@@ -28,6 +28,11 @@ interface PcbPropertiesPanelProps {
   boardPanel: ReactNode;
   /** Single free hole / pad / overlay-text selection, when that's what's picked. */
   inspectorSelection: PcbInspectorSelection;
+  /**
+   * Schematic part id → value. The PCB projection carries no value field, so
+   * the designer shell passes the schematic projection's map through.
+   */
+  partValues: ReadonlyMap<string, string>;
   onUpdateFreeHole(id: string, patch: { drillMm?: number }): Promise<void>;
   onDeleteFreeHole(id: string): Promise<void>;
   onUpdateFreePad(
@@ -100,6 +105,7 @@ export function PcbPropertiesPanel({
   projection,
   boardPanel,
   inspectorSelection,
+  partValues,
   onUpdateFreeHole,
   onDeleteFreeHole,
   onUpdateFreePad,
@@ -207,6 +213,9 @@ export function PcbPropertiesPanel({
             <PropertyRow label="Reference" mono>
               {placement.reference}
             </PropertyRow>
+            <PropertyRow label="Value" mono>
+              {partValues.get(placement.partId) ?? "—"}
+            </PropertyRow>
             <PropertyRow
               label="Footprint"
               mono
@@ -241,11 +250,20 @@ export function PcbPropertiesPanel({
             count={pads.length}
           />
           <div className="min-h-0">
-            <TableHeaderRow cols={PAD_COLS}>
-              <span>#</span>
-              <span>Net</span>
-              <span className="text-right">Size mm</span>
-            </TableHeaderRow>
+            {pads.length === 0 ? (
+              // Placements imported without a footprint preview snapshot have
+              // no pad geometry to show — say so instead of an empty table.
+              <div className="flex h-[22px] items-center px-[10px] text-2xs text-text-tertiary">
+                Pad geometry unavailable for this footprint
+              </div>
+            ) : null}
+            {pads.length > 0 ? (
+              <TableHeaderRow cols={PAD_COLS}>
+                <span>#</span>
+                <span>Net</span>
+                <span className="text-right">Size mm</span>
+              </TableHeaderRow>
+            ) : null}
             {shownPads.map((pad) => (
               <TableRow key={pad.id} cols={PAD_COLS} className="font-mono">
                 <span className="truncate">{pad.number}</span>

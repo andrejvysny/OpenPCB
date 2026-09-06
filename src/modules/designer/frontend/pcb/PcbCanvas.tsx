@@ -94,6 +94,7 @@ import { useCanvasProjection } from "../components/comments/useCanvasProjection"
 import type { PcbInspectorSelection } from "./PcbSelectionInspector";
 import { PcbPropertiesPanel } from "./PcbPropertiesPanel";
 import { PcbLayerTabStrip } from "./PcbLayerTabStrip";
+import { CanvasZoomCluster } from "@shared/frontend/ui/canvas-zoom-cluster";
 import { useMarqueeSelection } from "../../../../shared/frontend/canvas/selection";
 import {
   PcbScene,
@@ -122,7 +123,9 @@ import {
 } from "./usePcbPlacePreview";
 import { createDesignerApi, type CloudHeadersProvider } from "../api";
 import { PcbBoardPanel } from "./PcbBoardPanel";
+import { PcbComponentsPanel } from "./PcbComponentsPanel";
 import { PcbLayersPanel } from "./PcbLayersPanel";
+import { usePcbDesignRulesDialog } from "./use-pcb-design-rules-dialog";
 import { pickRouteStartLayer } from "./route-start-layer";
 import { PcbSelectionFilter } from "./PcbSelectionFilter";
 import { findSnapTarget, type SnapTarget } from "./snap";
@@ -423,6 +426,16 @@ interface PcbCanvasProps {
   ) => void;
   commentAttachmentUrl?: (attachmentId: string) => string;
   layersPanelTarget?: HTMLElement | null;
+  /** Trailing slot in the sidebar "Layers" section header (preset dropdown). */
+  layersHeaderTarget?: HTMLElement | null;
+  /** Sidebar "Components" section body. */
+  componentsPanelTarget?: HTMLElement | null;
+  /**
+   * Schematic part id → value. The PCB projection has no value field, so the
+   * designer shell supplies the schematic projection's map for the Components
+   * list and the Properties "Value" row.
+   */
+  partValues?: ReadonlyMap<string, string>;
   /** Docked 30px toolbar row (Space.tsx renders the empty slot). */
   toolbarTarget?: HTMLElement | null;
   /** 28px contextual parameter row; empty (collapsed) while no tool is active. */
@@ -435,6 +448,12 @@ interface PcbCanvasProps {
   onCursorChange?: (point: { xMm: number; yMm: number } | null) => void;
   /** Effective copper layer (routing layer, else the board's active layer). */
   onActiveLayerChange?: (layer: PcbLayerId) => void;
+  /** Contextual status-bar hint for the active tool / selection. */
+  onHintChange?: (hint: string) => void;
+  /** Human-readable status-bar selection summary. */
+  onSelectionSummaryChange?: (summary: string) => void;
+  /** Placement count, for the sidebar "Components" section header badge. */
+  onPlacementCountChange?: (count: number) => void;
   selectionRequest?: {
     placementIds: readonly string[];
     /** Cross-probe by refdes (resolved against loaded placements). */
@@ -445,83 +464,24 @@ interface PcbCanvasProps {
   onViewportChange?: (zoom: number, posX: number, posY: number) => void;
 }
 
-function RouteHintStrip({ active }: { active: boolean }): ReactElement {
-  if (!active) {
-    return (
-      <div className="rounded-control border border-border bg-surface-raised/95 px-3 py-1 text-[11px] font-medium text-text-secondary shadow-lg backdrop-blur">
-        Click a pad, trace, or via to start routing · Esc cancel
-      </div>
-    );
-  }
-  const keys: ReadonlyArray<[string, string]> = [
-    ["F", "Flip Elbow"],
-    ["V", "Switch Layer"],
-    ["W", "Cycle Width"],
-    ["Shift", "Unconstrain"],
-    ["/", "Posture"],
-    ["Backspace", "Undo Segment"],
-    ["Esc", "Cancel"],
-  ];
-  return (
-    <div className="flex items-center gap-2 rounded-control border border-border bg-surface-raised/95 px-3 py-1 text-[11px] text-text-secondary shadow-xl backdrop-blur">
-      {keys.map(([key, label]) => (
-        <span key={key} className="inline-flex items-center gap-1">
-          <kbd className="rounded-control bg-surface-control px-1.5 py-0.5 font-mono text-[10px] font-semibold text-text-strong shadow-inner">
-            {key}
-          </kbd>
-          <span>{label}</span>
-        </span>
-      ))}
-    </div>
-  );
-}
+/** Stable identity for the optional `partValues` prop. */
+const EMPTY_PART_VALUES: ReadonlyMap<string, string> = new Map();
 
-function MeasureHintStrip({ active }: { active: boolean }): ReactElement {
-  return (
-    <div className="flex items-center gap-2 rounded-control border border-border bg-surface-raised/95 px-3 py-1 text-[11px] text-text-secondary shadow-xl backdrop-blur">
-      <span>{active ? "Click endpoint to lock" : "Click start point"}</span>
-      <span>·</span>
-      <span>
-        Hold{" "}
-        <kbd className="rounded-control bg-surface-control px-1.5 py-0.5 font-mono text-[10px] font-semibold text-text-strong shadow-inner">
-          Shift
-        </kbd>{" "}
-        for ΔX/ΔY
-      </span>
-      <span>· Esc clear</span>
-    </div>
-  );
-}
-
-function SketchHintStrip({ active }: { active: boolean }): ReactElement {
-  if (!active) {
-    return (
-      <div className="rounded-control border border-border bg-surface-raised/95 px-3 py-1 text-[11px] font-medium text-text-secondary shadow-lg backdrop-blur">
-        Click to place the first corner · Esc exit
-      </div>
-    );
-  }
-  const keys: ReadonlyArray<[string, string]> = [
-    ["type", "Length"],
-    ["Tab", "∠ Angle"],
-    ["Shift", "45° lock"],
-    ["Enter", "Close/Place"],
-    ["⌫", "Undo"],
-    ["Esc", "Cancel"],
-  ];
-  return (
-    <div className="flex items-center gap-2 rounded-control border border-border bg-surface-raised/95 px-3 py-1 text-[11px] text-text-secondary shadow-xl backdrop-blur">
-      {keys.map(([key, label]) => (
-        <span key={key} className="inline-flex items-center gap-1">
-          <kbd className="rounded-control bg-surface-control px-1.5 py-0.5 font-mono text-[10px] font-semibold text-text-strong shadow-inner">
-            {key}
-          </kbd>
-          <span>{label}</span>
-        </span>
-      ))}
-    </div>
-  );
-}
+/**
+ * Status-bar hints (design D2 §9). These replace the floating hint strips that
+ * used to sit at the bottom of the canvas — same wording, one home.
+ */
+const HINT_SELECT = "Click to select · Shift+click to add · drag to box-select";
+const HINT_ROUTE_IDLE = "Click a pad, trace, or via to start routing · Esc cancel";
+const HINT_ROUTE_ACTIVE =
+  "F flip elbow · V switch layer · W cycle width · Shift unconstrain · / posture · Backspace undo segment · Esc cancel";
+const HINT_MEASURE_IDLE =
+  "Click start point · hold Shift for ΔX/ΔY · Esc clear";
+const HINT_MEASURE_ACTIVE =
+  "Click endpoint to lock · hold Shift for ΔX/ΔY · Esc clear";
+const HINT_SKETCH_IDLE = "Click to place the first corner · Esc exit";
+const HINT_SKETCH_ACTIVE =
+  "type Length · Tab ∠ angle · Shift 45° lock · Enter close/place · ⌫ undo · Esc cancel";
 
 export function PcbCanvas(props: PcbCanvasProps): ReactElement {
   const gridEnabled = props.gridVisible ?? false;
@@ -729,7 +689,6 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
   // last computed anchors, hysteresis reads the last side pick.
   const walkaroundEnabled = useFeatureFlag("pcb.routeWalkaround");
   const lengthTuningEnabled = useFeatureFlag("pcb.lengthTuning");
-  const bundleRoutingEnabled = useFeatureFlag("pcb.bundleRouting");
   const walkChoiceRef = useRef<{
     clusterSignature: string;
     side: "cw" | "ccw";
@@ -5042,6 +5001,111 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
     onActiveLayerChange?.(displayedCopperLayer);
   }, [displayedCopperLayer, onActiveLayerChange]);
 
+  // Status-bar hint + selection summary. Both derive from the tool mode and the
+  // selection only — never from the cursor — so pointer moves never re-render
+  // the editor shell (the X/Y readout has its own store for that).
+  const routeSessionActive = routeState.kind === "routing";
+  const measureSessionActive = measureState.kind === "measuring";
+  const sketchSessionActive = sketchState.kind === "drawing";
+
+  const selectedPlacement = useMemo(() => {
+    if (selection.placementIds.size !== 1) return null;
+    const [id] = [...selection.placementIds];
+    return workspace.projection?.placements.find((p) => p.id === id) ?? null;
+  }, [selection.placementIds, workspace.projection?.placements]);
+
+  const statusHint = useMemo(() => {
+    if (toolMode === "route") {
+      return routeSessionActive ? HINT_ROUTE_ACTIVE : HINT_ROUTE_IDLE;
+    }
+    if (toolMode === "measure") {
+      return measureSessionActive ? HINT_MEASURE_ACTIVE : HINT_MEASURE_IDLE;
+    }
+    if (toolMode === "boardShape") {
+      return sketchSessionActive ? HINT_SKETCH_ACTIVE : HINT_SKETCH_IDLE;
+    }
+    if (selectionCount === 1 && selectedPlacement) {
+      return `${selectedPlacement.reference} — drag to move · R rotate · F flip · Del delete`;
+    }
+    return HINT_SELECT;
+  }, [
+    measureSessionActive,
+    routeSessionActive,
+    selectedPlacement,
+    selectionCount,
+    sketchSessionActive,
+    toolMode,
+  ]);
+
+  const statusSelectionSummary = useMemo(() => {
+    if (selectionCount === 0) return "No selection";
+    if (selectionCount > 1) return `${selectionCount} selected`;
+    const proj = workspace.projection;
+    const netLabel = (netId: string | null | undefined): string | null => {
+      if (!netId) return null;
+      return proj?.netNames[netId] ?? netId;
+    };
+    if (selectedPlacement) {
+      return `${selectedPlacement.reference} · ${selectedPlacement.footprint.name}`;
+    }
+    const traceId = [...selection.traceIds][0];
+    if (traceId) {
+      const net = netLabel(proj?.traces.find((t) => t.id === traceId)?.netId);
+      return net ? `Trace · ${net}` : "Trace";
+    }
+    const viaId = [...selection.viaIds][0];
+    if (viaId) {
+      const net = netLabel(proj?.vias.find((v) => v.id === viaId)?.netId);
+      return net ? `Via · ${net}` : "Via";
+    }
+    const holeId = [...(selection.freeHoleIds ?? [])][0];
+    if (holeId) {
+      const hole = proj?.freeHoles.find((h) => h.id === holeId);
+      return hole ? `Hole · Ø ${hole.drillMm} mm` : "Hole";
+    }
+    const padId = [...(selection.freePadIds ?? [])][0];
+    if (padId) {
+      const pad = proj?.freePads.find((p) => p.id === padId);
+      return pad ? `Pad · ${pad.widthMm} × ${pad.heightMm} mm` : "Pad";
+    }
+    const textId = [...(selection.overlayTextIds ?? [])][0];
+    if (textId) {
+      const text = proj?.overlayTexts.find((t) => t.id === textId);
+      return text ? `Text · ${text.text}` : "Text";
+    }
+    return "1 selected";
+  }, [selection, selectionCount, selectedPlacement, workspace.projection]);
+
+  const onHintChange = props.onHintChange;
+  useEffect(() => {
+    onHintChange?.(statusHint);
+  }, [statusHint, onHintChange]);
+
+  const onSelectionSummaryChange = props.onSelectionSummaryChange;
+  useEffect(() => {
+    onSelectionSummaryChange?.(statusSelectionSummary);
+  }, [statusSelectionSummary, onSelectionSummaryChange]);
+
+  const onPlacementCountChange = props.onPlacementCountChange;
+  const placementCount = workspace.projection?.placements.length ?? 0;
+  useEffect(() => {
+    onPlacementCountChange?.(placementCount);
+  }, [placementCount, onPlacementCountChange]);
+
+  // "Edit rules…" from the Board properties and "Edit rules" in the DRC view
+  // share one dialog + one `pcb_set_design_rules` envelope (see the hook).
+  const handleRulesSaved = useCallback(() => {
+    void workspace.refresh();
+  }, [workspace.refresh]);
+  const rulesDialog = usePcbDesignRulesDialog({
+    backendURL: props.backendURL,
+    moduleId: props.moduleId,
+    designId: props.designId,
+    sessionId: "designer-pcb-session",
+    projection: workspace.projection ?? null,
+    onSaved: handleRulesSaved,
+  });
+
   /**
    * Board settings body. Rendered inside the right dock's Properties tab
    * (its idle state).
@@ -5088,7 +5152,34 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
         setBoardDimMode(false);
         setDxfImportOpen(true);
       }}
+      onEditRules={rulesDialog.open}
+      canEditRules={rulesDialog.available}
     />
+  );
+
+  /**
+   * Sidebar Components row click: single-select the placement (clearing every
+   * other kind, exactly like a canvas click) and centre the camera on it.
+   */
+  const handleSelectComponent = useCallback(
+    (placementId: string) => {
+      setToolMode("select");
+      setSelection({
+        ...emptyPcbSelection(),
+        placementIds: new Set([placementId]),
+      });
+      const placement = workspace.projection?.placements.find(
+        (p) => p.id === placementId,
+      );
+      if (!placement) return;
+      // The board mirror group flips X in bottom view, so flip the target too.
+      const scaleX = workspace.viewSide === "bottom" ? -1 : 1;
+      cameraControlsRef.current?.centerOnMm({
+        x: scaleX * placement.positionMm.x,
+        y: placement.positionMm.y,
+      });
+    },
+    [workspace.projection?.placements, workspace.viewSide],
   );
 
   /**
@@ -5437,6 +5528,13 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
           }}
         />
       ) : null}
+      {workspace.projection ? (
+        <CanvasZoomCluster
+          onZoomIn={() => cameraControlsRef.current?.zoomIn()}
+          onZoomOut={() => cameraControlsRef.current?.zoomOut()}
+          onFit={() => cameraControlsRef.current?.fit()}
+        />
+      ) : null}
       {workspace.projection && selectionFilterPanelOpen ? (
         <PcbSelectionFilter
           filter={selectionFilter}
@@ -5520,9 +5618,8 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
               canRedo={workspace.canRedo}
               onUndo={() => void workspace.undo()}
               onRedo={() => void workspace.redo()}
-              onZoomIn={() => cameraControlsRef.current?.zoomIn()}
-              onZoomOut={() => cameraControlsRef.current?.zoomOut()}
               onFit={() => cameraControlsRef.current?.fit()}
+              onExport={() => setExportDialogOpen(true)}
               routeMode={toolMode === "route"}
               onToggleRouteMode={() => {
                 setToolMode((prev) => (prev === "route" ? "select" : "route"));
@@ -5575,15 +5672,6 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
 
       {workspace.projection && props.designId ? (
         <>
-          <button
-            type="button"
-            onClick={() => setExportDialogOpen(true)}
-            title="Export manufacturing files (Gerber + Drill + BOM + PnP)"
-            data-testid="pcb-export-button"
-            className="absolute bottom-3 right-3 z-20 inline-flex items-center gap-1.5 rounded-control border border-border bg-surface-raised px-2.5 py-1 text-xs font-medium text-text shadow-sm hover:bg-surface-hover"
-          >
-            Export…
-          </button>
           <PcbExportDialog
             backendURL={props.backendURL}
             moduleId={props.moduleId}
@@ -5835,21 +5923,6 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
           })()
         : null}
 
-      {toolMode === "route" ? (
-        <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 -translate-x-1/2">
-          <RouteHintStrip active={routeState.kind === "routing"} />
-        </div>
-      ) : null}
-      {toolMode === "measure" ? (
-        <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 -translate-x-1/2">
-          <MeasureHintStrip active={measureState.kind === "measuring"} />
-        </div>
-      ) : null}
-      {toolMode === "boardShape" ? (
-        <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 -translate-x-1/2">
-          <SketchHintStrip active={sketchState.kind === "drawing"} />
-        </div>
-      ) : null}
       {toolMode === "boardShape" && sketchState.kind === "drawing" ? (
         <SketchDimEntry
           entry={sketchEntry}
@@ -5862,6 +5935,7 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
       {workspace.projection && props.layersPanelTarget
         ? createPortal(
             <PcbLayersPanel
+              headerTarget={props.layersHeaderTarget ?? null}
               activeLayer={focusedLayer}
               lockedVisibleLayer={displayedCopperLayer}
               routingLayer={
@@ -6102,6 +6176,7 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
               projection={workspace.projection}
               boardPanel={boardPanelElement}
               inspectorSelection={inspectorSelection}
+              partValues={props.partValues ?? EMPTY_PART_VALUES}
               onUpdateFreeHole={(id, patch) =>
                 workspace.updateFreeHole(id, patch)
               }
@@ -6128,6 +6203,18 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
             props.propertiesTarget,
           )
         : null}
+      {workspace.projection && props.componentsPanelTarget
+        ? createPortal(
+            <PcbComponentsPanel
+              placements={workspace.projection.placements}
+              partValues={props.partValues ?? EMPTY_PART_VALUES}
+              selectedIds={selection.placementIds}
+              onSelect={handleSelectComponent}
+            />,
+            props.componentsPanelTarget,
+          )
+        : null}
+      {rulesDialog.dialog}
       {dxfImportOpen ? (
         <DxfImportModal
           backendURL={props.backendURL ?? null}

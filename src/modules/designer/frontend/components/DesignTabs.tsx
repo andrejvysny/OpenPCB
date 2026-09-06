@@ -207,10 +207,10 @@ export function DesignTabs({
                   e.stopPropagation();
                   startRename(designId);
                 }}
-                className={`group relative flex h-[26px] min-w-[120px] max-w-[200px] cursor-pointer select-none items-center gap-1.5 px-2 text-xs transition-colors ${
+                className={`group relative flex min-w-[120px] max-w-[200px] cursor-pointer select-none items-center gap-1.5 px-2 text-xs transition-colors ${
                   isActive
-                    ? "border-x border-border bg-surface-app font-medium text-text-strong"
-                    : "border-x border-transparent text-text-tertiary hover:text-text"
+                    ? "self-stretch border-r border-border bg-surface-app font-medium text-text-strong"
+                    : "h-[26px] self-center text-text-tertiary hover:text-text"
                 } ${dragIndex === index ? "opacity-50" : ""}`}
                 data-testid={`design-tab-${designId}`}
               >
@@ -327,7 +327,7 @@ export function DesignTabs({
     <div
       role="tablist"
       aria-label="Open designs"
-      className="flex min-w-0 items-center overflow-x-auto"
+      className="flex min-w-0 items-stretch overflow-x-auto"
       style={{ scrollbarWidth: "none" }}
     >
       {items}
@@ -337,7 +337,7 @@ export function DesignTabs({
         disabled={creatingDesign}
         aria-label="New design"
         title={creatingDesign ? "Creating…" : "New design"}
-        className="ml-1 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-control text-text-tertiary transition-colors hover:bg-surface-hover hover:text-text-strong disabled:opacity-50"
+        className="ml-1 flex h-[22px] w-[22px] shrink-0 self-center items-center justify-center rounded-control text-text-tertiary transition-colors hover:bg-surface-hover hover:text-text-strong disabled:opacity-50"
       >
         <Plus className="h-3.5 w-3.5" />
       </button>

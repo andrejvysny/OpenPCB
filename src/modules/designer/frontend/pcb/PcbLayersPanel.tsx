@@ -14,6 +14,7 @@ import {
   type MouseEvent,
   type ReactElement,
 } from "react";
+import { createPortal } from "react-dom";
 import type {
   PcbCopperLayerId,
   PcbDisplayMode,
@@ -30,6 +31,12 @@ import {
   type PcbLayerPresetId,
 } from "../../../../shared/frontend/canvas/layers";
 import { SegmentedControl } from "@shared/frontend/ui/segmented-control";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@shared/frontend/ui/dropdown-menu";
 
 interface PcbLayersPanelProps {
   activeLayer: PcbLayerId | null;
@@ -64,6 +71,12 @@ interface PcbLayersPanelProps {
    */
   soloLayer?: PcbLayerId | null;
   onToggleSoloLayer?: (layer: PcbLayerId, isActivatable: boolean) => void;
+  /**
+   * Trailing slot in the sidebar section header (rendered by
+   * `CollapsibleSection`). The preset dropdown is portalled there so this panel
+   * keeps owning preset detection + selection.
+   */
+  headerTarget?: HTMLElement | null;
 }
 
 const DISPLAY_MODES: ReadonlyArray<{
@@ -72,8 +85,31 @@ const DISPLAY_MODES: ReadonlyArray<{
 }> = [
   { id: "normal", label: "Normal" },
   { id: "dim", label: "Dim" },
-  { id: "solo", label: "Solo" },
+  // Same `solo` display mode as ever — "Hide" is what it actually does to the
+  // inactive layers, and reads unambiguously next to the per-row Alt+click solo.
+  { id: "solo", label: "Hide" },
 ];
+
+/**
+ * Courtyard rows. `PCB_LAYER_TREE` (in `@openpcb/r3f-eda-canvas`) has no
+ * courtyard nodes, but the layer tab strip shows F.CrtYd and the renderer honours
+ * the same `visibleLayers` set — so the panel injects them at the end of each
+ * side group, sharing `PCB_LAYER_COLORS` and the same visibility toggle.
+ */
+const COURTYARD_NODES: Record<"F.CrtYd" | "B.CrtYd", LayerTreeNode> = {
+  "F.CrtYd": {
+    kind: "layer",
+    id: "F.CrtYd",
+    label: "Top Courtyard",
+    activatable: false,
+  },
+  "B.CrtYd": {
+    kind: "layer",
+    id: "B.CrtYd",
+    label: "Bottom Courtyard",
+    activatable: false,
+  },
+};
 
 function isCopperLayer(layer: PcbLayerId): layer is PcbCopperLayerId {
   return (
@@ -111,6 +147,7 @@ export function PcbLayersPanel({
   onSetLayerOpacity,
   soloLayer = null,
   onToggleSoloLayer,
+  headerTarget = null,
 }: PcbLayersPanelProps): ReactElement {
   const activePresetId = useMemo(
     () =>
@@ -140,15 +177,26 @@ export function PcbLayersPanel({
   const [topOpen, setTopOpen] = useState(true);
   const [bottomOpen, setBottomOpen] = useState(true);
 
-  const filteredNodes = useMemo(
-    () =>
-      PCB_LAYER_TREE.filter(
-        (n) =>
-          n.kind === "group" ||
-          (n.requiresLayerCount ? layerCount >= n.requiresLayerCount : true),
-      ),
-    [layerCount],
-  );
+  const filteredNodes = useMemo(() => {
+    const nodes: LayerTreeNode[] = [];
+    for (const n of PCB_LAYER_TREE) {
+      if (
+        n.kind === "layer" &&
+        n.requiresLayerCount &&
+        layerCount < n.requiresLayerCount
+      ) {
+        continue;
+      }
+      nodes.push(n);
+      // Courtyard closes out its side group (after F.Cu / after B.SilkS).
+      if (n.kind === "layer" && n.id === "F.Cu") {
+        nodes.push(COURTYARD_NODES["F.CrtYd"]);
+      } else if (n.kind === "layer" && n.id === "B.SilkS") {
+        nodes.push(COURTYARD_NODES["B.CrtYd"]);
+      }
+    }
+    return nodes;
+  }, [layerCount]);
 
   const setVisibility = useCallback(
     (next: ReadonlySet<PcbLayerId>) => {
@@ -195,12 +243,14 @@ export function PcbLayersPanel({
     "F.Paste",
     "F.Mask",
     "F.Cu",
+    "F.CrtYd",
   ];
   const BOTTOM_CHILDREN: ReadonlyArray<PcbLayerId> = [
     "B.Cu",
     "B.Mask",
     "B.Paste",
     "B.SilkS",
+    "B.CrtYd",
   ];
 
   const groupOpen: Record<"group:top" | "group:bottom", boolean> = {
@@ -223,38 +273,54 @@ export function PcbLayersPanel({
     [onSelectLayerPreset],
   );
 
+  const activePresetLabel =
+    PCB_LAYER_PRESETS.find((p) => p.id === activePresetId)?.label ?? "Custom";
+
+  // The preset picker lives in the sidebar section header (portalled), so the
+  // list itself starts at the first layer row.
+  const presetMenu =
+    onSelectLayerPreset && headerTarget
+      ? createPortal(
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                title="Layer visibility preset"
+                aria-label="Layer visibility preset"
+                className="inline-flex h-[18px] cursor-pointer items-center gap-1 rounded-control border border-border-control px-1.5 text-2xs text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-strong"
+              >
+                Preset: {activePresetLabel}
+                <ChevronDown aria-hidden="true" className="h-2.5 w-2.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {PCB_LAYER_PRESETS.map((preset) => (
+                <DropdownMenuItem
+                  key={preset.id}
+                  title={preset.description}
+                  onSelect={() => handlePresetClick(preset.id)}
+                >
+                  {preset.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>,
+          headerTarget,
+        )
+      : null;
+
   return (
     <div className="flex flex-col">
-      {onSelectLayerPreset ? (
-        <div className="flex flex-wrap gap-1 border-b border-border px-2 py-1.5">
-          {PCB_LAYER_PRESETS.map((preset) => {
-            const active = activePresetId === preset.id;
-            return (
-              <button
-                key={preset.id}
-                type="button"
-                onClick={() => handlePresetClick(preset.id)}
-                title={preset.description}
-                aria-pressed={active}
-                className={`h-[18px] rounded-control border px-1.5 text-2xs transition-colors ${
-                  active
-                    ? "border-border-control bg-surface-control font-medium text-text-strong"
-                    : "border-border-control text-text-secondary hover:bg-surface-hover hover:text-text-strong"
-                }`}
-              >
-                {preset.label}
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
+      {presetMenu}
       <div className="flex-1 overflow-y-auto">
         {filteredNodes.map((node) => {
           if (isHidden(node)) return null;
           if (node.kind === "group") {
             const open = groupOpen[node.id];
-            const allVisible = node.children.every((c) => visibleSet.has(c));
-            const anyVisible = node.children.some((c) => visibleSet.has(c));
+            const children =
+              node.id === "group:top" ? TOP_CHILDREN : BOTTOM_CHILDREN;
+            const allVisible = children.every((c) => visibleSet.has(c));
+            const anyVisible = children.some((c) => visibleSet.has(c));
             return (
               <div
                 key={node.id}
@@ -278,7 +344,7 @@ export function PcbLayersPanel({
                 </span>
                 <button
                   type="button"
-                  onClick={() => toggleGroup(node.children)}
+                  onClick={() => toggleGroup(children)}
                   className={`${ROW_ICON_BUTTON} text-text-tertiary hover:text-text-strong`}
                   title={allVisible ? "Hide all" : "Show all"}
                 >

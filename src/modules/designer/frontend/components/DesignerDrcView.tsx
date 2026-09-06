@@ -1,23 +1,25 @@
 import { ChevronDown, ChevronRight, Play, X } from "lucide-react";
-import { type ReactElement, useEffect, useMemo, useState } from "react";
+import {
+  type ReactElement,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { Button } from "@shared/frontend/ui/button";
 import { Checkbox } from "@shared/frontend/ui/checkbox";
 import { IconButton } from "@shared/frontend/ui/icon-button";
 import { SeverityDiamond } from "@shared/frontend/ui/severity-diamond";
 import type {
-  DesignerCommandEnvelope,
   DesignerPcbProjection,
   DrcRuleCode,
   DrcSeverity,
-  PcbDesignRules,
-  PcbLengthMatchGroup,
-  PcbNetClass,
 } from "../../../../sdks";
 import { createDesignerApi } from "../api";
 import { useDrcStore } from "../pcb/drc/drc-store";
 import { CODE_LABEL, resolveAnchorLabel } from "../pcb/drc/drc-labels";
 import { usePcbViewStore } from "../pcb/pcb-view-store";
-import { PcbDesignRulesDialog } from "./PcbDesignRulesDialog";
+import { usePcbDesignRulesDialog } from "../pcb/use-pcb-design-rules-dialog";
 
 const DRC_SESSION_ID = "designer-drc-session";
 
@@ -73,7 +75,6 @@ export function DesignerDrcView({
   );
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [showWaived, setShowWaived] = useState(false);
-  const [rulesOpen, setRulesOpen] = useState(false);
 
   // Load labels (projection) + hydrate the persisted report when opening a
   // design whose result the store doesn't already hold.
@@ -141,35 +142,24 @@ export function DesignerDrcView({
     void run(() => api.runDrc(designId));
   };
 
-  const handleSaveRules = async (next: {
-    designRules: PcbDesignRules;
-    netClasses: PcbNetClass[];
-    boardThicknessMm: number;
-    perNetClassAssignments: Record<string, string>;
-    lengthMatchGroups: PcbLengthMatchGroup[];
-  }): Promise<void> => {
+  const handleRulesSaved = useCallback(async () => {
     if (!designId) return;
-    const envelope: DesignerCommandEnvelope = {
-      commandId: crypto.randomUUID(),
-      sessionId: DRC_SESSION_ID,
-      aggregateId: designId,
-      baseRevision: projection?.revision ?? revision ?? null,
-      issuedAt: Date.now(),
-      command: {
-        type: "pcb_set_design_rules",
-        designRules: next.designRules,
-        netClasses: next.netClasses,
-        boardThicknessMm: next.boardThicknessMm,
-        perNetClassAssignments: next.perNetClassAssignments,
-        lengthMatchGroups: next.lengthMatchGroups,
-      },
-    };
-    await api.dispatch(designId, envelope);
     // Pull the new board (revision bumped) then re-run DRC against it.
     const proj = await api.getPcbProjection(designId);
     setProjection(proj);
     void run(() => api.runDrc(designId));
-  };
+  }, [api, designId, run]);
+
+  // Shared with the PCB Board properties panel — one envelope, one save path.
+  const rules = usePcbDesignRulesDialog({
+    backendURL,
+    moduleId,
+    designId,
+    sessionId: DRC_SESSION_ID,
+    projection,
+    fallbackRevision: revision,
+    onSaved: handleRulesSaved,
+  });
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-surface-panel text-xs">
@@ -186,8 +176,8 @@ export function DesignerDrcView({
         <Button
           variant="secondary"
           size="sm"
-          onClick={() => setRulesOpen(true)}
-          disabled={!projection}
+          onClick={rules.open}
+          disabled={!rules.available}
         >
           Edit rules
         </Button>
@@ -364,15 +354,7 @@ export function DesignerDrcView({
         })}
       </div>
 
-      {projection ? (
-        <PcbDesignRulesDialog
-          open={rulesOpen}
-          board={projection.board}
-          netNames={projection.netNames}
-          onClose={() => setRulesOpen(false)}
-          onSave={handleSaveRules}
-        />
-      ) : null}
+      {rules.dialog}
     </div>
   );
 }

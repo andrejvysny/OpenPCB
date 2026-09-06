@@ -9,8 +9,9 @@ import {
 } from "react";
 import { useShallow } from "zustand/react/shallow";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { PanelRight } from "lucide-react";
+import { Bot, HardDrive, PanelRight } from "lucide-react";
 import { useNavigationStore } from "@/stores/navigation-store";
+import { useWindowTitleStore } from "@/stores/window-title-store";
 import { useAuth } from "@/cloud/AuthProvider";
 import { useCloudPrefs } from "@/cloud/cloud-prefs";
 import { useFeatureFlag } from "@/feature-flags";
@@ -67,6 +68,7 @@ import type {
 import type { DesignerWorkspaceState } from "./hooks/useDesignerWorkspace";
 import type { ModuleSpaceProps, ViewportState } from "./types";
 import { isEditableShortcutTarget } from "../../../shared/frontend/canvas/utils/keyboard-shortcuts";
+import { PCB_GRID_MM } from "../../../shared/frontend/canvas/defaults";
 import type { PcbLayerId } from "../../../sdks";
 import { IconButton } from "@shared/frontend/ui/icon-button";
 import { TooltipProvider } from "@shared/frontend/ui/tooltip";
@@ -75,9 +77,6 @@ import type { DockTabItem } from "@shared/frontend/ui/dock-tabs";
 const MIN_LEFT = 240;
 const MAX_LEFT = 520;
 const DEFAULT_LEFT = 260;
-// Placeholder grid spacing for the PCB/DRC status bar (50 mil). The PCB editor
-// has no grid-snap state yet; surface a sensible default until one exists.
-const PCB_STATUS_GRID_MM = 1.27;
 /** Schematic grid pitch (100 mil) shown in the status bar. */
 const SCHEM_STATUS_GRID_MM = 2.54;
 const DEFAULT_COMPONENT_LIMIT = 8;
@@ -279,6 +278,7 @@ function DesignerSpaceInner({
   moduleId,
   backendURL,
   designId,
+  params,
 }: ModuleSpaceProps): ReactElement {
   const { addToast } = useToast();
   const { session, user, enabled: cloudEnabled } = useAuth();
@@ -470,6 +470,15 @@ function DesignerSpaceInner({
     useState<HTMLDivElement | null>(null);
   const [pcbPropertiesSlot, setPcbPropertiesSlot] =
     useState<HTMLDivElement | null>(null);
+  const [pcbComponentsSlot, setPcbComponentsSlot] =
+    useState<HTMLDivElement | null>(null);
+  const [pcbLayersHeaderSlot, setPcbLayersHeaderSlot] =
+    useState<HTMLDivElement | null>(null);
+  // Status-bar strings published by PcbCanvas (tool hint + selection summary).
+  const [pcbHint, setPcbHint] = useState("");
+  const [pcbSelectionSummary, setPcbSelectionSummary] =
+    useState("No selection");
+  const [pcbComponentCount, setPcbComponentCount] = useState(0);
   const [threeDSlot, setThreeDSlot] = useState<HTMLDivElement | null>(null);
   const [pcbActiveLayer, setPcbActiveLayer] = useState<PcbLayerId | null>(null);
   const pcbViewSide = usePcbViewStore((s) => s.viewState.viewSide);
@@ -891,6 +900,31 @@ function DesignerSpaceInner({
     ? drcSummary.errors + drcSummary.warnings
     : 0;
 
+  // Schematic part id → value. The PCB projection carries no value field, so the
+  // PCB Components list / Properties "Value" row read it from here (the
+  // schematic projection loads for the design regardless of the active view).
+  const partValues = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const part of state.projection?.parts ?? []) {
+      if (part.value) map.set(part.id, part.value);
+    }
+    return map;
+  }, [state.projection?.parts]);
+
+  // Window title context: "OpenPCB — <design>".
+  const setWindowSubtitle = useWindowTitleStore((s) => s.setSubtitle);
+  useEffect(() => {
+    setWindowSubtitle(activeDesign?.name ?? null);
+    return () => setWindowSubtitle(null);
+  }, [activeDesign?.name, setWindowSubtitle]);
+
+  // Home's "Import KiCad…" navigates here with `action=import-kicad`. The nav
+  // store hands out a fresh route object whenever params are passed, so keying
+  // on its identity opens the wizard once per navigation.
+  useEffect(() => {
+    if (params?.action === "import-kicad") setKicadImportOpen(true);
+  }, [params]);
+
   // Which tabs this view offers. BOM and the full-screen DRC view get no dock.
   const dockTabs = useMemo<ReadonlyArray<DockTabItem<DockTab>>>(() => {
     if (noTabsOpen) return [];
@@ -973,6 +1007,12 @@ function DesignerSpaceInner({
     writeDockPrefs({ open: dockOpen, width: dockWidth, tab: dockTab });
   }, [dockOpen, dockWidth, dockTab]);
 
+  /** Open the right dock on the Assistant tab (⌘/Ctrl+I and the header button). */
+  const openAssistantDock = useCallback(() => {
+    setDockOpen(true);
+    setDockTab("assistant");
+  }, []);
+
   // Cmd/Ctrl+I opens the dock on Assistant (was: toggle chat dock);
   // Cmd/Ctrl+. toggles the dock (was: toggle inspector dock).
   useEffect(() => {
@@ -982,8 +1022,7 @@ function DesignerSpaceInner({
       const key = event.key.toLowerCase();
       if (key === "i") {
         event.preventDefault();
-        setDockOpen(true);
-        setDockTab("assistant");
+        openAssistantDock();
       } else if (event.key === ".") {
         event.preventDefault();
         setDockOpen((value) => !value);
@@ -991,7 +1030,7 @@ function DesignerSpaceInner({
     };
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, []);
+  }, [openAssistantDock]);
 
   const startDockResize = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -1125,29 +1164,53 @@ function DesignerSpaceInner({
         onCreateDesign={() => void handleCreateDesign()}
         trailing={
           <>
-            {cloudEnabled && session && designBrowserFeatureEnabled && (
-              <button
-                type="button"
-                onClick={() => setCloudBrowserOpen(true)}
-                className="h-[20px] rounded-control border border-border-control px-2 text-2xs text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-strong"
-                title="Browse designs from cloud"
+            {cloudEnabled && session ? (
+              <>
+                {session && designBrowserFeatureEnabled && (
+                  <button
+                    type="button"
+                    onClick={() => setCloudBrowserOpen(true)}
+                    className="h-[20px] cursor-pointer rounded-control border border-border-control px-2 text-2xs text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-strong"
+                    title="Browse designs from cloud"
+                  >
+                    Open from Cloud
+                  </button>
+                )}
+                {syncFeatureEnabled && (
+                  <CloudSyncBadge
+                    designId={activeDesignId}
+                    api={cloudBadgeApi}
+                    onNotify={addToast}
+                  />
+                )}
+                {presenceFeatureEnabled && (
+                  <CloudPresenceIndicator
+                    designId={activeDesignId}
+                    api={cloudBadgeApi}
+                  />
+                )}
+              </>
+            ) : (
+              // No cloud configured for this build — say so once, plainly,
+              // instead of leaving the slot empty.
+              <span
+                title="Not signed in — local only"
+                className="inline-flex h-6 items-center gap-1.5 px-2 text-xs text-text-tertiary"
               >
-                Open from Cloud
-              </button>
+                <HardDrive aria-hidden="true" className="h-3.5 w-3.5" />
+                Local
+              </span>
             )}
-            {syncFeatureEnabled && (
-              <CloudSyncBadge
-                designId={activeDesignId}
-                api={cloudBadgeApi}
-                onNotify={addToast}
-              />
-            )}
-            {presenceFeatureEnabled && (
-              <CloudPresenceIndicator
-                designId={activeDesignId}
-                api={cloudBadgeApi}
-              />
-            )}
+            <span aria-hidden="true" className="h-4 w-px bg-divider" />
+            <button
+              type="button"
+              onClick={openAssistantDock}
+              title="Open the assistant (⌘/Ctrl+I)"
+              className="inline-flex h-6 cursor-pointer items-center gap-1.5 px-2 text-xs text-text-tertiary transition-colors hover:text-text-strong"
+            >
+              <Bot aria-hidden="true" className="h-3.5 w-3.5" />
+              Assistant
+            </button>
             <IconButton
               label="Toggle side panel"
               variant="ghost"
@@ -1217,6 +1280,9 @@ function DesignerSpaceInner({
                 actions={actions}
                 activeView={state.activeView}
                 pcbLayersSlotRef={setPcbLayersSlot}
+                pcbLayersHeaderSlotRef={setPcbLayersHeaderSlot}
+                pcbComponentsSlotRef={setPcbComponentsSlot}
+                pcbComponentCount={pcbComponentCount}
                 threeDSlotRef={setThreeDSlot}
                 onPlaceComponent={openComponentPalette}
                 onAddNetLabel={() =>
@@ -1299,12 +1365,18 @@ function DesignerSpaceInner({
                   }
                   commentAttachmentUrl={comments.attachmentUrl}
                   layersPanelTarget={pcbLayersSlot}
+                  layersHeaderTarget={pcbLayersHeaderSlot}
+                  componentsPanelTarget={pcbComponentsSlot}
+                  partValues={partValues}
                   toolbarTarget={pcbToolbarSlot}
                   paramRowTarget={pcbParamRowSlot}
                   layerStripTarget={pcbLayerStripSlot}
                   propertiesTarget={pcbPropertiesSlot}
                   onCursorChange={setPcbCursorPoint}
                   onActiveLayerChange={setPcbActiveLayer}
+                  onHintChange={setPcbHint}
+                  onSelectionSummaryChange={setPcbSelectionSummary}
+                  onPlacementCountChange={setPcbComponentCount}
                   selectionRequest={pcbSelectionRequest}
                   initialViewport={
                     state.selectedDesignId
@@ -1358,7 +1430,6 @@ function DesignerSpaceInner({
             onTabChange={setDockTab}
             width={clampDockWidth(dockWidth)}
             onResizeStart={startDockResize}
-            onClose={() => setDockOpen(false)}
           >
             {activeDockTab === "properties" && state.activeView === "pcb" ? (
               // PcbCanvas portals PcbPropertiesPanel into this slot.
@@ -1419,15 +1490,11 @@ function DesignerSpaceInner({
       {!noTabsOpen && state.activeView === "pcb" ? (
         <DesignerStatusBar
           showCursor
-          gridMm={PCB_STATUS_GRID_MM}
+          gridMm={PCB_GRID_MM}
           zoom={zoomPercent}
           activeLayer={pcbActiveLayer}
-          hint=""
-          selection={
-            pcbSelectionCount > 0
-              ? `${pcbSelectionCount} selected`
-              : "No selection"
-          }
+          hint={pcbHint}
+          selection={pcbSelectionSummary}
           drcCount={
             pcbLiveDrc ??
             (drcSummary ? drcSummary.errors + drcSummary.warnings : 0)
@@ -1438,7 +1505,7 @@ function DesignerSpaceInner({
       ) : null}
       {!noTabsOpen && state.activeView === "drc" ? (
         <DesignerStatusBar
-          gridMm={PCB_STATUS_GRID_MM}
+          gridMm={PCB_GRID_MM}
           zoom={zoomPercent}
           hint=""
           selection="—"

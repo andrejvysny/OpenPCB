@@ -1,7 +1,5 @@
-import { X } from "lucide-react";
 import type { PointerEvent as ReactPointerEvent, ReactElement, ReactNode } from "react";
 import { DockTabs, type DockTabItem } from "@shared/frontend/ui/dock-tabs";
-import { IconButton } from "@shared/frontend/ui/icon-button";
 import type { DockTab } from "../stores/designer-dock-prefs";
 
 export type { DockTab };
@@ -13,7 +11,6 @@ export interface DesignerRightDockProps {
   /** Clamped to the dock bounds by the owner. */
   width: number;
   onResizeStart: (event: ReactPointerEvent<HTMLDivElement>) => void;
-  onClose: () => void;
   /** Body for `activeTab`. */
   children: ReactNode;
 }
@@ -22,6 +19,10 @@ export interface DesignerRightDockProps {
  * The designer's single right dock. Replaces the three stacked docks
  * (selection inspector / DRC results / assistant chat) with one tabbed column
  * whose tab set depends on the active view.
+ *
+ * The dock has no close affordance of its own — the header's "Toggle side
+ * panel" button (and ⌘/Ctrl+.) is the single control, so there is exactly one
+ * place to look for it.
  */
 export function DesignerRightDock({
   tabs,
@@ -29,7 +30,6 @@ export function DesignerRightDock({
   onTabChange,
   width,
   onResizeStart,
-  onClose,
   children,
 }: DesignerRightDockProps): ReactElement {
   return (
@@ -51,16 +51,6 @@ export function DesignerRightDock({
           tabs={tabs}
           active={activeTab}
           onChange={onTabChange}
-          trailing={
-            <IconButton
-              label="Close side panel"
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-            >
-              <X />
-            </IconButton>
-          }
         />
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {children}

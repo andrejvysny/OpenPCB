@@ -12,6 +12,8 @@ interface CollapsibleSectionProps {
   id: string;
   title: string;
   defaultOpen?: boolean;
+  /** Right-aligned count badge in the header row. */
+  count?: number | string;
   /** Optional element rendered on the right side of the header row. */
   trailing?: ReactNode;
   children: ReactNode;
@@ -38,6 +40,7 @@ export function CollapsibleSection({
   id,
   title,
   defaultOpen = true,
+  count,
   trailing,
   children,
   className,
@@ -58,6 +61,7 @@ export function CollapsibleSection({
     <section className={`flex min-h-0 flex-col ${className ?? ""}`}>
       <PanelSectionHeader
         title={title}
+        count={count}
         collapsed={!open}
         onToggle={toggle}
         trailing={trailing}

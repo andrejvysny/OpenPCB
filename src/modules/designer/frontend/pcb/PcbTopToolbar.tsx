@@ -6,15 +6,15 @@ import {
   CircleDot,
   Eye,
   EyeOff,
+  Factory,
   FlipHorizontal2,
   Magnet,
+  Maximize,
   MessageSquarePlus,
-  Minus,
   Network,
   Plus,
   Redo2,
-  ScanSearch,
-  ShieldAlert,
+  ShieldCheck,
   Square,
   Type,
   Undo2,
@@ -98,9 +98,9 @@ interface PcbTopToolbarProps {
   canRedo: boolean;
   onUndo: () => void;
   onRedo: () => void;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
   onFit: () => void;
+  /** Opens the manufacturing export dialog (Gerber + Drill + BOM + PnP). */
+  onExport: () => void;
   routeMode: boolean;
   onToggleRouteMode: () => void;
   boardShapeMode: boolean;
@@ -610,8 +610,9 @@ function ViewToggleDropdown({
  *
  * Frozen accessible names (`title` === `aria-label`, composed by
  * `ToolbarButton` as `label` or `label (hotkey)`) — E2E locators depend on
- * them verbatim: "Undo", "Redo", "Fit board", "Zoom out", "Zoom in", "Flip part",
- * "Route (R)", "Board (O)", "DRC", "Add", "View".
+ * them verbatim: "Undo", "Redo", "Fit board", "Flip part", "Route (R)",
+ * "Board (O)", "Export…", "DRC", "Add", "View". Zoom in / Zoom out moved to the
+ * canvas-corner `CanvasZoomCluster` (same accessible names).
  */
 export function PcbTopToolbar({
   selectedPlacementCount,
@@ -629,9 +630,8 @@ export function PcbTopToolbar({
   canRedo,
   onUndo,
   onRedo,
-  onZoomIn,
-  onZoomOut,
   onFit,
+  onExport,
   routeMode,
   onToggleRouteMode,
   boardShapeMode,
@@ -664,9 +664,7 @@ export function PcbTopToolbar({
 
       <ToolbarSeparator />
 
-      <ToolbarButton label="Fit board" icon={<ScanSearch />} onClick={onFit} />
-      <ToolbarButton label="Zoom out" icon={<Minus />} onClick={onZoomOut} />
-      <ToolbarButton label="Zoom in" icon={<Plus />} onClick={onZoomIn} />
+      <ToolbarButton label="Fit board" icon={<Maximize />} onClick={onFit} />
 
       <ToolbarSeparator />
 
@@ -708,11 +706,21 @@ export function PcbTopToolbar({
 
       <ToolbarSpacer />
 
+      <ToolbarButton
+        label="Export…"
+        title="Export manufacturing files (Gerber + Drill + BOM + PnP)"
+        icon={<Factory />}
+        data-testid="pcb-export-button"
+        onClick={onExport}
+      >
+        Export…
+      </ToolbarButton>
+
       {/* The DRC dock tab is a UI panel toggle (not a canvas overlay) — it
           stays a toolbar button; the count flags outstanding violations. */}
       <ToolbarButton
         label="DRC"
-        icon={<ShieldAlert />}
+        icon={<ShieldCheck />}
         active={drcPanelOpen}
         pressable
         onClick={onToggleDrcPanel}

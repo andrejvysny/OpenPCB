@@ -17,7 +17,8 @@ const COLORS: Record<SnapKind, string> = {
   "pad-center": "#fde047",
   "trace-endpoint": "#34d058",
   "trace-segment-end": "#22d3ee",
-  "via-center": "#a78bfa",
+  // --selection (dark)
+  "via-center": "#33d1ff",
 };
 
 const RING_RADIUS_MM = 0.4;

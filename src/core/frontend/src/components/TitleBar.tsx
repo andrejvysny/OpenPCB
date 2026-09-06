@@ -1,6 +1,7 @@
 import * as React from "react";
 import { useRuntime } from "@/providers/RuntimeProvider";
 import { useTheme } from "@/providers/ThemeProvider";
+import { useWindowTitleStore } from "@/stores/window-title-store";
 
 // Keep in sync with TITLEBAR_HEIGHT in electron/src/main/index.ts and the
 // setTitleBarOverlay height, or the native Window Controls Overlay buttons
@@ -35,11 +36,18 @@ const OVERLAY: Record<
 export function TitleBar(): React.ReactElement | null {
   const { runtime } = useRuntime();
   const { mode } = useTheme();
+  const subtitle = useWindowTitleStore((state) => state.subtitle);
 
   React.useEffect(() => {
     if (isMac) return; // native traffic lights aren't recolorable this way
     void window.electronAPI?.window?.setOverlayTheme(OVERLAY[mode]);
   }, [mode]);
+
+  // Mirror the same context onto the document title — the web runtime has no
+  // custom title bar, and Electron's taskbar/window list reads it too.
+  React.useEffect(() => {
+    document.title = subtitle ? `${subtitle} — OpenPCB` : "OpenPCB";
+  }, [subtitle]);
 
   if (runtime !== "electron") return null;
 
@@ -57,8 +65,8 @@ export function TitleBar(): React.ReactElement | null {
       }
       className="flex shrink-0 select-none items-center justify-center border-b border-border bg-surface-rail"
     >
-      <span className="text-xs font-medium tracking-wide text-text-tertiary">
-        OpenPCB
+      <span className="truncate px-2 text-xs font-medium tracking-wide text-text-tertiary">
+        {subtitle ? `OpenPCB — ${subtitle}` : "OpenPCB"}
       </span>
     </div>
   );

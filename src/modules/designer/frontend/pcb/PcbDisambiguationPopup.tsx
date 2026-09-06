@@ -117,7 +117,8 @@ function kindColor(c: PcbHitCandidate): string {
     case "via":
       return "#34d058";
     case "placement":
-      return "#7c3aed";
+      // --selection (dark)
+      return "#33d1ff";
   }
 }
 

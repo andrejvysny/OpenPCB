@@ -61,6 +61,15 @@ interface PcbBoardPanelProps {
   onDrawShape: () => void;
   /** Open the DXF import dialog to define the outline from a CAD drawing. */
   onImportDxf: () => void;
+  /** Open the shared design-rules dialog (same save path as the DRC view). */
+  onEditRules: () => void;
+  /** False while the projection has not loaded — the dialog has no board yet. */
+  canEditRules: boolean;
+}
+
+/** `x.xx` for a millimetre rule value; `—` when the field is absent. */
+function formatMm(value: number | undefined): string {
+  return value === undefined ? "—" : value.toFixed(2);
 }
 
 function DimensionRow(props: {
@@ -131,6 +140,8 @@ export function PcbBoardPanel({
   onToggleEditMode,
   onDrawShape,
   onImportDxf,
+  onEditRules,
+  canEditRules,
 }: PcbBoardPanelProps): ReactElement {
   const widthRef = useRef<HTMLInputElement>(null);
   const [shapeType, setShapeType] = useState<ShapeType>(() =>
@@ -155,6 +166,8 @@ export function PcbBoardPanel({
   }, [editMode]);
 
   const canEdit = !!workspace.projection;
+  const board = workspace.projection?.board ?? null;
+  const designRules = board?.designRules ?? null;
   const center: PcbPointMm = currentOutline?.centerMm ?? { x: 0, y: 0 };
   const radiusMm = Number.parseFloat(radiusText);
   const radiusValid = Number.isFinite(radiusMm) && radiusMm >= 0;
@@ -408,9 +421,6 @@ export function PcbBoardPanel({
             <PropertyRow label="Height" mono hint="mm">
               {heightText}
             </PropertyRow>
-            <PropertyRow label="Layers" mono>
-              {workspace.projection?.board.layerCount ?? 2}
-            </PropertyRow>
           </PropertyGrid>
           <div className="flex items-center gap-1.5 px-2 py-2">
             <Button
@@ -431,6 +441,58 @@ export function PcbBoardPanel({
               Fit to parts
             </Button>
           </div>
+
+          <PanelSectionHeader variant="uppercase" title="Stackup" />
+          <PropertyGrid>
+            <PropertyRow label="Copper layers" mono>
+              {board?.layerCount ?? 2}
+            </PropertyRow>
+            {/* `boardThicknessMm` is optional; 1.6 mm (FR4) is the documented
+                reader default — the rules dialog seeds the same value. */}
+            <PropertyRow label="Thickness" mono hint="mm">
+              {board ? formatMm(board.boardThicknessMm ?? 1.6) : "—"}
+            </PropertyRow>
+            {/* Copper weight lives on the optional electrical block; omitted
+                entirely on boards that never set it. */}
+            {designRules?.electrical?.copperWeightOz !== undefined ? (
+              <PropertyRow label="Copper weight" mono hint="oz">
+                {designRules.electrical.copperWeightOz}
+              </PropertyRow>
+            ) : null}
+          </PropertyGrid>
+
+          <PanelSectionHeader variant="uppercase" title="Design rules" />
+          <PropertyGrid>
+            <PropertyRow label="Clearance" mono hint="mm">
+              {formatMm(designRules?.clearance.traceToTraceMm)}
+            </PropertyRow>
+            <PropertyRow label="Min track" mono hint="mm">
+              {formatMm(designRules?.minimums.traceWidthMm)}
+            </PropertyRow>
+            <PropertyRow label="Min via" mono hint="mm">
+              {formatMm(designRules?.minimums.viaDiameterMm)}
+            </PropertyRow>
+          </PropertyGrid>
+          <div className="flex items-center px-2 py-2">
+            <Button
+              variant="outline"
+              size="md"
+              disabled={!canEditRules}
+              onClick={onEditRules}
+            >
+              Edit rules…
+            </Button>
+          </div>
+
+          <PanelSectionHeader variant="uppercase" title="Summary" />
+          <PropertyGrid>
+            <PropertyRow label="Components" mono>
+              {workspace.projection?.placements.length ?? 0}
+            </PropertyRow>
+            <PropertyRow label="Nets" mono>
+              {Object.keys(workspace.projection?.netNames ?? {}).length}
+            </PropertyRow>
+          </PropertyGrid>
         </>
       )}
 
