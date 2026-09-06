@@ -256,13 +256,13 @@ export function PcbAutorouteDialog({
       role="dialog"
       aria-label="Auto-route"
       aria-labelledby="pcb-autoroute-dialog-title"
-      className="fixed bottom-4 right-4 z-40 flex max-h-[78vh] w-[420px] max-w-[92vw] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-950"
+      className="fixed bottom-4 right-4 z-40 flex max-h-[78vh] w-[420px] max-w-[92vw] flex-col overflow-hidden rounded-float border border-border bg-surface-raised shadow-2xl"
     >
       <div className="contents">
-        <header className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+        <header className="flex items-center justify-between border-b border-border px-4 py-3">
           <h2
             id="pcb-autoroute-dialog-title"
-            className="text-sm font-semibold text-slate-900 dark:text-slate-100"
+            className="text-sm font-semibold text-text-strong"
           >
             Auto-route
           </h2>
@@ -270,15 +270,15 @@ export function PcbAutorouteDialog({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="rounded p-1 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+            className="rounded-control p-1 text-text-tertiary hover:bg-surface-hover"
           >
             <X className="h-4 w-4" />
           </button>
         </header>
 
-        <section className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4 text-sm text-slate-700 dark:text-slate-200">
+        <section className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4 text-sm text-text">
           {warnings.length > 0 ? (
-            <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200">
+            <div className="rounded-control border border-status-warning bg-status-warning-soft px-3 py-2 text-xs text-status-warning">
               <p className="flex items-center gap-1.5 font-medium">
                 <AlertTriangle className="h-3.5 w-3.5" />
                 {warnings.length} warning{warnings.length === 1 ? "" : "s"}
@@ -292,24 +292,24 @@ export function PcbAutorouteDialog({
           ) : null}
 
           {phase === "submitting" ? (
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-text-tertiary">
               Submitting board to the auto-router…
             </p>
           ) : null}
           {phase === "polling" ? (
-            <p className="text-xs text-violet-600 dark:text-violet-300">
+            <p className="text-xs text-selection">
               Routing…
             </p>
           ) : null}
           {phase === "error" ? (
-            <p className="rounded border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-200">
+            <p className="rounded-control border border-status-danger bg-status-danger-soft px-3 py-2 text-xs text-status-danger">
               {message ?? "Auto-route failed"}
             </p>
           ) : null}
 
           {result && (phase === "review" || phase === "applying") ? (
             <>
-              <div className="flex flex-wrap gap-x-4 gap-y-1 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+              <div className="flex flex-wrap gap-x-4 gap-y-1 rounded-control border border-border bg-surface-panel px-3 py-2 text-xs text-text-secondary">
                 <span>
                   Routed{" "}
                   <strong>
@@ -339,7 +339,7 @@ export function PcbAutorouteDialog({
               </div>
 
               {result.payload.diagnostics.length > 0 ? (
-                <ul className="list-disc space-y-0.5 pl-4 text-xs text-slate-500 dark:text-slate-400">
+                <ul className="list-disc space-y-0.5 pl-4 text-xs text-text-tertiary">
                   {result.payload.diagnostics.map((d, i) => (
                     <li key={i}>{d}</li>
                   ))}
@@ -347,7 +347,7 @@ export function PcbAutorouteDialog({
               ) : null}
 
               {ops.length === 0 ? (
-                <p className="rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+                <p className="rounded-control border border-border bg-surface-panel px-3 py-2 text-xs text-text-secondary">
                   No operations were produced.
                   {result.payload.unroutedNets.length > 0
                     ? ` ${result.payload.unroutedNets.length} net(s) could not be routed.`
@@ -357,7 +357,7 @@ export function PcbAutorouteDialog({
                 <ul className="space-y-1">
                   {ops.map((op) => (
                     <li key={op.id}>
-                      <label className="flex items-start gap-2 rounded px-1 py-0.5 hover:bg-slate-50 dark:hover:bg-slate-900">
+                      <label className="flex items-start gap-2 rounded-control px-1 py-0.5 hover:bg-surface-hover">
                         <input
                           type="checkbox"
                           className="mt-0.5"
@@ -366,10 +366,10 @@ export function PcbAutorouteDialog({
                           disabled={phase === "applying"}
                         />
                         <span className="min-w-0">
-                          <span className="block text-xs font-medium text-slate-800 dark:text-slate-100">
+                          <span className="block text-xs font-medium text-text-strong">
                             {op.title}
                           </span>
-                          <span className="block truncate text-[11px] text-slate-500 dark:text-slate-400">
+                          <span className="block truncate text-[11px] text-text-tertiary">
                             {op.summary}
                           </span>
                         </span>
@@ -385,8 +385,8 @@ export function PcbAutorouteDialog({
             <p
               className={
                 applied.errors > 0 || applied.failed > 0
-                  ? "rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200"
-                  : "rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200"
+                  ? "rounded-control border border-status-warning bg-status-warning-soft px-3 py-2 text-xs text-status-warning"
+                  : "rounded-control border border-status-success bg-status-success-soft px-3 py-2 text-xs text-status-success"
               }
             >
               Applied {applied.count} operation
@@ -399,11 +399,11 @@ export function PcbAutorouteDialog({
           ) : null}
         </section>
 
-        <footer className="flex justify-end gap-2 border-t border-slate-200 px-4 py-3 dark:border-slate-800">
+        <footer className="flex justify-end gap-2 border-t border-border px-4 py-3">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+            className="rounded-control border border-border-control px-3 py-1.5 text-xs font-medium text-text hover:bg-surface-hover hover:text-text-strong"
           >
             {phase === "applied" ? "Done" : "Cancel"}
           </button>
@@ -412,7 +412,7 @@ export function PcbAutorouteDialog({
               type="button"
               onClick={() => void handleApply()}
               disabled={phase === "applying" || selectedOps.length === 0}
-              className="inline-flex items-center gap-1.5 rounded-md bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-control bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {phase === "applying"
                 ? "Applying…"

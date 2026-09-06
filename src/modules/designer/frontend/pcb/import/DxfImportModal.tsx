@@ -94,7 +94,7 @@ export function DxfImportModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-[440px] max-w-[92vw] rounded-card border border-slate-200 bg-surface-raised p-4 shadow-xl dark:border-slate-700">
+      <div className="w-[440px] max-w-[92vw] rounded-card border border-border bg-surface-raised p-4 shadow-xl">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-text-primary">
             Import board outline from DXF
@@ -114,7 +114,7 @@ export function DxfImportModal({
               type="button"
               disabled={busy}
               onClick={() => fileRef.current?.click()}
-              className="cursor-pointer rounded-control border border-dashed border-slate-300 px-3 py-6 text-center text-xs text-text-secondary hover:border-accent hover:text-accent disabled:opacity-50 dark:border-slate-700"
+              className="cursor-pointer rounded-control border border-dashed border-border-control px-3 py-6 text-center text-xs text-text-secondary hover:border-accent hover:text-accent disabled:opacity-50"
             >
               {busy ? "Reading…" : "Choose a .dxf file"}
             </button>
@@ -144,7 +144,7 @@ export function DxfImportModal({
                   inputMode="decimal"
                   onChange={(e) => setUnitOverride(e.target.value)}
                   placeholder="auto"
-                  className="h-8 w-28 rounded-control border border-slate-300 bg-surface-input px-2 text-sm text-text-primary outline-none focus:border-accent dark:border-slate-700"
+                  className="h-8 w-28 rounded-control border border-border-control bg-surface-input px-2 text-sm text-text-primary outline-none focus:border-accent"
                 />
               </label>
               <Button variant="secondary" size="sm" disabled={busy} onClick={reInspect}>
@@ -152,7 +152,7 @@ export function DxfImportModal({
               </Button>
             </div>
 
-            <div className="max-h-52 overflow-y-auto rounded-control border border-slate-200 dark:border-slate-700">
+            <div className="max-h-52 overflow-y-auto rounded-control border border-border">
               {result.loops.length === 0 ? (
                 <p className="p-3 text-xs text-status-warning">
                   No closed loop found. Check the DXF forms a closed outline.
@@ -161,7 +161,7 @@ export function DxfImportModal({
                 result.loops.map((loop) => (
                   <label
                     key={loop.index}
-                    className={`flex cursor-pointer items-center gap-2 border-b border-slate-100 px-3 py-2 text-xs last:border-b-0 dark:border-slate-800 ${
+                    className={`flex cursor-pointer items-center gap-2 border-b border-border-subtle px-3 py-2 text-xs last:border-b-0 ${
                       loop.valid ? "" : "opacity-50"
                     }`}
                   >

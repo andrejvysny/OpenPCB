@@ -2,7 +2,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
-  /** Adds hover border/shadow affordance (for clickable cards). */
+  /** Adds hover border affordance (for clickable cards). */
   interactive?: boolean;
 }
 
@@ -11,9 +11,9 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
     <div
       ref={ref}
       className={cn(
-        "rounded-card border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900",
+        "rounded-control border border-border bg-surface-panel",
         interactive &&
-          "group relative transition-[border-color,box-shadow] duration-75 hover:border-violet-500 hover:shadow-md dark:hover:border-violet-500",
+          "group relative transition-colors duration-75 hover:border-text-tertiary",
         className,
       )}
       {...props}

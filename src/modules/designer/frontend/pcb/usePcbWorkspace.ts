@@ -940,6 +940,7 @@ export function usePcbWorkspace(params: {
     cleanupPourTraces,
     nets: pcbNets,
     refresh,
+    refreshHistory,
     updateBoardSize,
     updateBoardOutline,
     fitBoardToParts,

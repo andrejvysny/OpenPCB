@@ -1,38 +1,58 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-export type PillTone = "success" | "warning" | "danger" | "neutral" | "accent";
+export type PillTone = "success" | "warning" | "danger" | "info" | "neutral" | "accent";
 
 const TONES: Record<PillTone, string> = {
   success: "bg-status-success-soft text-status-success",
   warning: "bg-status-warning-soft text-status-warning",
   danger: "bg-status-danger-soft text-status-danger",
+  info: "bg-status-info-soft text-status-info",
   neutral: "bg-status-neutral-soft text-status-neutral",
-  accent: "bg-accent-soft text-accent-text",
+  accent: "bg-selection-soft text-text-strong",
+};
+
+const DOTS: Record<PillTone, string> = {
+  success: "bg-status-success",
+  warning: "bg-status-warning",
+  danger: "bg-status-danger",
+  info: "bg-status-info",
+  neutral: "bg-status-neutral",
+  accent: "bg-selection",
 };
 
 export interface PillProps extends React.HTMLAttributes<HTMLSpanElement> {
   tone?: PillTone;
+  /** Replaces the leading status dot. */
   icon?: React.ReactNode;
+  /** Set false to drop the leading dot when no icon is supplied. */
+  dot?: boolean;
 }
 
 /**
- * Compact rounded label. `StatusPill` is the same component — the audit's
- * severity language (DRC/ERC/BOM/cloud) all route through these tones so a
- * given color carries one meaning everywhere in the app.
+ * Compact status label — the one place a pill radius is used. `StatusPill` is
+ * the same component; the audit's severity language (DRC/ERC/BOM/cloud) all
+ * routes through these tones so a given colour carries one meaning everywhere.
  */
 export const Pill = React.forwardRef<HTMLSpanElement, PillProps>(
-  ({ tone = "neutral", icon, className, children, ...props }, ref) => (
+  ({ tone = "neutral", icon, dot = true, className, children, ...props }, ref) => (
     <span
       ref={ref}
       className={cn(
-        "inline-flex items-center gap-1 rounded-pill px-2 py-0.5 text-[11px] font-medium",
+        "inline-flex h-[18px] shrink-0 items-center gap-1.5 rounded-pill px-2 text-2xs font-medium",
+        "[&_svg]:h-3 [&_svg]:w-3 [&_svg]:shrink-0",
         TONES[tone],
         className,
       )}
       {...props}
     >
-      {icon}
+      {icon ??
+        (dot ? (
+          <span
+            aria-hidden="true"
+            className={cn("h-1.5 w-1.5 shrink-0 rounded-full", DOTS[tone])}
+          />
+        ) : null)}
       {children}
     </span>
   ),

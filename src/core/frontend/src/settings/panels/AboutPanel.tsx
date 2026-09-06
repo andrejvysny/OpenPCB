@@ -51,8 +51,8 @@ function OpenPcbMark() {
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900/40">
-      <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+    <section className="space-y-3 rounded-control border border-border bg-surface-panel p-5">
+      <h3 className="text-sm font-semibold text-text-strong">
         {title}
       </h3>
       {children}
@@ -63,8 +63,8 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-4 text-sm">
-      <dt className="text-slate-500 dark:text-slate-400">{label}</dt>
-      <dd className="font-mono text-xs text-slate-700 dark:text-slate-300">
+      <dt className="text-text-tertiary">{label}</dt>
+      <dd className="font-mono text-xs text-text">
         {value}
       </dd>
     </div>
@@ -83,7 +83,7 @@ function ExternalRow({
       href={href}
       target="_blank"
       rel="noreferrer"
-      className="inline-flex items-center gap-1.5 text-sm text-slate-600 underline-offset-2 hover:text-slate-900 hover:underline dark:text-slate-300 dark:hover:text-slate-100"
+      className="inline-flex items-center gap-1.5 text-sm text-text-secondary underline-offset-2 hover:text-text-strong hover:underline"
     >
       <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.8} />
       {children}
@@ -137,20 +137,20 @@ export function AboutPanel() {
   return (
     <div className="space-y-8 pb-24">
       <div className="flex items-start gap-4">
-        <div className="h-12 w-12 flex-shrink-0 text-slate-900 dark:text-slate-100">
+        <div className="h-12 w-12 flex-shrink-0 text-text-strong">
           <OpenPcbMark />
         </div>
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+            <h2 className="text-xl font-semibold text-text-strong">
               OpenPCB
             </h2>
             {channel ? <Pill tone="accent">{channel}</Pill> : null}
           </div>
-          <p className="text-sm text-slate-600 dark:text-slate-300">
+          <p className="text-sm text-text-secondary">
             {TAGLINE}
           </p>
-          <p className="text-xs text-slate-500 dark:text-slate-500">
+          <p className="text-xs text-text-tertiary">
             {version ? `Version ${version}` : "Development build (browser)"}
           </p>
         </div>
@@ -168,7 +168,7 @@ export function AboutPanel() {
 
       <Section title="Modules">
         {modules.length === 0 ? (
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+          <p className="text-sm text-text-tertiary">
             Module list unavailable.
           </p>
         ) : (
@@ -178,7 +178,7 @@ export function AboutPanel() {
                 key={module.id}
                 className="flex items-center justify-between gap-4 text-sm"
               >
-                <span className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                <span className="flex items-center gap-2 text-text">
                   {module.label}
                   {module.status !== "loaded" ? (
                     <Pill
@@ -188,7 +188,7 @@ export function AboutPanel() {
                     </Pill>
                   ) : null}
                 </span>
-                <span className="font-mono text-xs text-slate-500 dark:text-slate-400">
+                <span className="font-mono text-xs text-text-tertiary">
                   v{module.version}
                 </span>
               </li>
@@ -198,7 +198,7 @@ export function AboutPanel() {
       </Section>
 
       <Section title="Release notes">
-        <p className="text-sm text-slate-600 dark:text-slate-300">
+        <p className="text-sm text-text-secondary">
           See what changed in each release on GitHub.
         </p>
         <Button
@@ -213,20 +213,20 @@ export function AboutPanel() {
       </Section>
 
       <Section title="About & legal">
-        <p className="text-sm text-slate-600 dark:text-slate-300">
+        <p className="text-sm text-text-secondary">
           Licensed under{" "}
           <a
             href={`${REPO_URL}/blob/master/LICENSE`}
             target="_blank"
             rel="noreferrer"
-            className="underline underline-offset-2 hover:text-slate-900 dark:hover:text-slate-100"
+            className="underline underline-offset-2 hover:text-text-strong"
           >
             AGPL-3.0-or-later
           </a>
           . Commercial licensing available at{" "}
           <a
             href="mailto:licensing@openpcb.app"
-            className="underline underline-offset-2 hover:text-slate-900 dark:hover:text-slate-100"
+            className="underline underline-offset-2 hover:text-text-strong"
           >
             licensing@openpcb.app
           </a>
@@ -244,12 +244,12 @@ export function AboutPanel() {
             Security policy
           </ExternalRow>
         </div>
-        <p className="text-xs text-slate-500 dark:text-slate-500">
+        <p className="text-xs text-text-tertiary">
           © OpenPCB · Manage data sharing in{" "}
           <button
             type="button"
             onClick={() => setSettingsTab("privacy")}
-            className="cursor-pointer underline underline-offset-2 hover:text-slate-700 dark:hover:text-slate-300"
+            className="cursor-pointer underline underline-offset-2 hover:text-text"
           >
             Privacy settings
           </button>

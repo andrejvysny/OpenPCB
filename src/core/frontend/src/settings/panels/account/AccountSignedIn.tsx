@@ -21,19 +21,19 @@ export function AccountSignedIn({ session }: { session: AccountSession }) {
   return (
     <div className="space-y-4">
       <header>
-        <h2 className="text-lg font-medium text-slate-900 dark:text-slate-100">
+        <h2 className="text-lg font-medium text-text-strong">
           Account
         </h2>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+        <p className="mt-1 text-sm text-text-tertiary">
           Signed in to OpenPCB Cloud.
         </p>
       </header>
 
-      <div className="rounded-lg border border-slate-200 bg-white px-4 py-[14px] dark:border-slate-800 dark:bg-slate-900">
+      <div className="rounded-control border border-border bg-surface-panel px-4 py-[14px]">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="truncate text-sm text-slate-900 dark:text-slate-100">
-              <span className="text-slate-500 dark:text-slate-400">
+            <p className="truncate text-sm text-text-strong">
+              <span className="text-text-tertiary">
                 Signed in as{" "}
               </span>
               <span className="font-medium">{session.email}</span>
@@ -46,7 +46,7 @@ export function AccountSignedIn({ session }: { session: AccountSession }) {
           <button
             type="button"
             onClick={() => void signOut()}
-            className="h-9 shrink-0 cursor-pointer rounded-md border border-slate-300 px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+            className="h-9 shrink-0 cursor-pointer rounded-control border border-border-control px-3 text-sm font-medium text-text transition-colors hover:bg-surface-hover"
           >
             Sign out
           </button>
@@ -54,13 +54,13 @@ export function AccountSignedIn({ session }: { session: AccountSession }) {
       </div>
 
       {syncFeatureEnabled && (
-        <section className="rounded-lg border border-slate-200 bg-white px-4 py-[14px] dark:border-slate-800 dark:bg-slate-900">
+        <section className="rounded-control border border-border bg-surface-panel px-4 py-[14px]">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+              <p className="text-sm font-medium text-text-strong">
                 Sync projects to cloud
               </p>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              <p className="mt-1 text-xs text-text-tertiary">
                 When on, your designs sync to your OpenPCB Cloud workspace. Turn
                 off to keep all project data on this machine.
               </p>
@@ -74,8 +74,8 @@ export function AccountSignedIn({ session }: { session: AccountSession }) {
               className={cn(
                 "relative mt-0.5 h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors",
                 projectSyncEnabled
-                  ? "bg-violet-600"
-                  : "bg-slate-300 dark:bg-slate-700",
+                  ? "bg-primary"
+                  : "bg-surface-control",
               )}
             >
               <span

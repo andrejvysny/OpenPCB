@@ -10,7 +10,7 @@ import { openContextMenu } from "@shared/frontend/context-menu";
 
 function LoadingScreen() {
   return (
-    <div className="flex h-full w-full items-center justify-center bg-slate-50 text-sm text-slate-600 dark:bg-slate-950 dark:text-slate-300">
+    <div className="flex h-full w-full items-center justify-center bg-surface-app text-sm text-text-secondary">
       Initializing OpenPCB...
     </div>
   );
@@ -18,8 +18,8 @@ function LoadingScreen() {
 
 function ErrorScreen({ message }: { message: string }) {
   return (
-    <div className="flex h-full w-full items-center justify-center bg-slate-50 p-6 dark:bg-slate-950">
-      <div className="max-w-xl rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
+    <div className="flex h-full w-full items-center justify-center bg-surface-app p-6">
+      <div className="max-w-xl rounded-control border border-status-danger/30 bg-status-danger-soft px-4 py-3 text-sm text-status-danger">
         {message}
       </div>
     </div>
@@ -56,7 +56,7 @@ export function AppShell() {
 
   return (
     <>
-      <div className="flex h-full w-full flex-col">
+      <div className="flex h-full w-full flex-col bg-surface-app text-text">
         <TitleBar />
         <div
           className="grid min-h-0 flex-1 grid-cols-[80px_1fr]"

@@ -4,141 +4,301 @@
 @source "../../../shared";
 @custom-variant dark (&:where(.dark, .dark *));
 
+/*
+ * OpenPCB — neutral EDA design tokens (direction 1c, merged 2a).
+ * Source of truth for the whole app chrome. Violet is retired from chrome; the
+ * only chromatic accent is the selection cyan, used for selection, focus rings
+ * and net highlight. Status, layer and net-class colours are three
+ * non-overlapping families. See docs/design/design-tokens.md.
+ */
 @theme {
-  /* Blue-grey slate overrides — light mode tint */
-  --color-slate-50: #f0f4fb;
-  --color-slate-100: #e4eaf4;
-  --color-slate-200: #d2dded;
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  /* Radii (theme-invariant) */
-  --radius-card: 14px;
-  --radius-control: 8px;
-  --radius-pill: 999px;
+  /* Type scale — small sizes dominant, tabular numerals everywhere */
+  --text-2xs: 10px;  --text-2xs--line-height: 14px;
+  --text-xs: 11px;   --text-xs--line-height: 15px;
+  --text-sm: 12px;   --text-sm--line-height: 16px;
+  --text-base: 13px; --text-base--line-height: 18px;
+  --text-lg: 15px;   --text-lg--line-height: 20px;
+  --text-xl: 20px;   --text-xl--line-height: 26px;
 
-  /* Mono font (was missing) */
-  --font-mono:
-    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
-    monospace;
+  /* Shape */
+  --radius-none: 0px;      /* docked panels, table rows, tabs */
+  --radius-control: 2px;   /* buttons, inputs, chips */
+  --radius-float: 3px;     /* menus, tooltips, HUDs */
+  --radius-pill: 999px;    /* status pills only */
+  --radius-card: 2px;      /* compat alias — flattened with the rest */
+
+  /* Tailwind radius scale flattened so unmigrated files lose the pill
+     geometry. `rounded-full` stays round for dots and spinners. */
+  --radius-sm: 2px;
+  --radius-md: 2px;
+  --radius-lg: 2px;
+  --radius-xl: 2px;
+  --radius-2xl: 3px;
+  --radius-3xl: 3px;
+
+  /* Rhythm (4 px base) */
+  --spacing-row: 22px;        /* list / tree / table row */
+  --spacing-row-lg: 26px;     /* property-grid row with input */
+  --spacing-panel-head: 24px; /* panel section header */
+  --spacing-toolbar: 30px;
+  --spacing-tabbar: 34px;
+  --spacing-statusbar: 22px;
+  --spacing-rail: 80px;
+
+  /* Tailwind palette remap — documented stopgap so the ~150 not-yet-migrated
+     files render neutral instead of blue/violet. Migrate call sites to the
+     semantic tokens above; see docs/design/design-tokens.md. */
+  --color-slate-50: #f7f7f8;
+  --color-slate-100: #ececee;
+  --color-slate-200: #dcdce0;
+  --color-slate-300: #c4c4c9;
+  --color-slate-400: #a8a8ad;
+  --color-slate-500: #7f7f84;
+  --color-slate-600: #55555a;
+  --color-slate-700: #2c2c31;
+  --color-slate-800: #1c1c1f;
+  --color-slate-900: #111113;
+  --color-slate-950: #0c0c0d;
+
+  --color-violet-50: #f0f0f2;
+  --color-violet-100: #e4e4e7;
+  --color-violet-200: #d0d0d5;
+  --color-violet-300: #a8a8ad;
+  --color-violet-400: #8a8a90;
+  --color-violet-500: #55555a;
+  --color-violet-600: #3a3a40;
+  --color-violet-700: #2c2c31;
+  --color-violet-800: #1c1c1f;
+  --color-violet-900: #1c1c1f;
+  --color-violet-950: #151517;
+
+  /* Canvas — theme-invariant (PCB canvas is always dark) */
+  --color-canvas: #08090a;
+  --color-canvas-board: #121315;
+  --color-canvas-grid: rgba(255, 255, 255, 0.22);
+  --color-canvas-grid-major: rgba(255, 255, 255, 0.35);
+  --color-canvas-axis: #3a3a3a;
+  --color-canvas-ratsnest: #8a8a8a;
+  --color-canvas-refdes: #e6e6e6;
+  --color-canvas-pad-number: #ffffff;
+
+  /* Layer palette (2D editor) */
+  --color-layer-f-cu: #d43a3a;
+  --color-layer-in1-cu: #d9a441;
+  --color-layer-in2-cu: #3fb8c9;
+  --color-layer-b-cu: #3a63c4;
+  --color-layer-f-silks: #f1f1f1;
+  --color-layer-b-silks: #7dd3fc;
+  --color-layer-f-mask: #5b3a7a;
+  --color-layer-b-mask: #3a5a7a;
+  --color-layer-f-paste: #b8b8c8;
+  --color-layer-b-paste: #8a8a9a;
+  --color-layer-f-crtyd: #a78050;
+  --color-layer-b-crtyd: #604836;
+  --color-layer-edge-cuts: #b59a4a;
+  --color-layer-drill: #88e090;
+  --color-layer-metadata: #a3a3a3;
+  --opacity-copper: 0.92;
+
+  --color-tooltip-text: #f5f5f5;
+  --color-surface-schematic-well: #101012;
 }
 
 /*
- * Semantic design tokens. `inline` makes utilities (e.g. bg-surface-card,
+ * Semantic colour layer. `inline` makes utilities (e.g. bg-surface-panel,
  * text-status-warning) compile to var(--<token>) so they resolve per theme
- * from the :root / html.dark definitions below — incremental on top of the
- * existing slate theme, no full re-skin.
+ * from the :root / html.dark blocks below.
  */
 @theme inline {
+  /* Surfaces */
   --color-surface-app: var(--surface-app);
   --color-surface-rail: var(--surface-rail);
-  --color-surface-card: var(--surface-card);
-  --color-surface-card-hover: var(--surface-card-hover);
+  --color-surface-panel: var(--surface-panel);
+  --color-surface-panel-head: var(--surface-panel-head);
+  --color-surface-section: var(--surface-section);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-control: var(--surface-control);
   --color-surface-input: var(--surface-input);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-selected: var(--surface-selected);
+  --color-surface-canvas-well: var(--surface-canvas-well);
 
-  --color-accent: var(--accent-purple);
-  --color-accent-soft: var(--accent-purple-soft);
-  --color-accent-text: var(--accent-purple-text);
+  /* Menus / tooltips */
+  --color-menu-bg: var(--menu-bg);
+  --color-menu-border: var(--menu-border);
+  --color-menu-highlight: var(--menu-highlight);
+  --color-tooltip-bg: var(--tooltip-bg);
+  --color-tooltip-border: var(--tooltip-border);
 
-  --color-status-success: var(--status-success);
-  --color-status-success-soft: var(--status-success-soft);
-  --color-status-warning: var(--status-warning);
-  --color-status-warning-soft: var(--status-warning-soft);
-  --color-status-danger: var(--status-danger);
-  --color-status-danger-soft: var(--status-danger-soft);
-  --color-status-neutral: var(--status-neutral);
-  --color-status-neutral-soft: var(--status-neutral-soft);
+  /* Lines */
+  --color-border: var(--border);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-control: var(--border-control);
+  --color-divider: var(--divider);
 
-  --color-text-primary: var(--text-primary);
+  /* Text */
+  --color-text-strong: var(--text-strong);
+  --color-text: var(--text);
   --color-text-secondary: var(--text-secondary);
   --color-text-tertiary: var(--text-tertiary);
   --color-text-disabled: var(--text-disabled);
+  --color-text-caps: var(--text-caps);
 
+  /* Primary action (neutral, not chromatic) */
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  /* Selection — the only chromatic accent */
+  --color-selection: var(--selection);
+  --color-selection-soft: var(--selection-soft);
+
+  /* Status */
+  --color-status-danger: var(--status-danger);
+  --color-status-danger-soft: var(--status-danger-soft);
+  --color-status-warning: var(--status-warning);
+  --color-status-warning-soft: var(--status-warning-soft);
+  --color-status-success: var(--status-success);
+  --color-status-success-soft: var(--status-success-soft);
+  --color-status-info: var(--status-info);
+  --color-status-info-soft: var(--status-info-soft);
+  --color-status-neutral: var(--status-neutral);
+  --color-status-neutral-soft: var(--status-neutral-soft);
+
+  /* Net classes (domain colours) */
   --color-net-power: var(--net-power);
   --color-net-ground: var(--net-ground);
   --color-net-signal: var(--net-signal);
+  --color-net-bus: var(--net-bus);
+
+  /* Compatibility aliases — keep pre-redesign call sites compiling and
+     coherent until they are migrated to the names above. */
+  --color-surface-card: var(--surface-panel);
+  --color-surface-card-hover: var(--surface-hover);
+  --color-text-primary: var(--text-strong);
+  --color-accent: var(--selection);
+  --color-accent-soft: var(--selection-soft);
+  --color-accent-text: var(--text-strong);
 }
 
 :root {
-  font-family:
-    Inter,
-    system-ui,
-    -apple-system,
-    Segoe UI,
-    Roboto,
-    sans-serif;
-  color: #111827;
-  background-color: #f0f4fb;
-  --color-slate-50: #f0f4fb;
-  --color-slate-100: #e4eaf4;
-  --color-slate-200: #d2dded;
+  color-scheme: light;
+  color: var(--text);
+  background-color: var(--surface-app);
+  font-family: var(--font-sans);
 
-  /* Semantic tokens — light mode (mapped to current light surfaces) */
-  --surface-app: #f0f4fb;
-  --surface-rail: #ffffff;
-  --surface-card: #ffffff;
-  --surface-card-hover: #f8fafc;
-  --surface-input: #f8fafc;
+  --surface-app: #f2f2f3;
+  --surface-rail: #ececee;
+  --surface-panel: #f7f7f8;
+  --surface-panel-head: #ebebed;
+  --surface-section: #ebebed;
+  --surface-raised: #e2e2e5;
+  --surface-control: #d6d6da;
+  --surface-input: #ffffff;
+  --surface-hover: #e6e6e9;
+  --surface-selected: #e2e2e5;
+  --surface-canvas-well: #08090a;
 
-  --accent-purple: #7c3aed;
-  --accent-purple-soft: rgba(124, 58, 237, 0.1);
-  --accent-purple-text: #6d28d9;
+  --border: #d4d4d8;
+  --border-subtle: #e6e6e9;
+  --border-control: #cfcfd4;
+  --divider: #dcdce0;
 
-  /* Darker status hues so contrast holds on white */
-  --status-success: #059669;
-  --status-success-soft: rgba(5, 150, 105, 0.1);
-  --status-warning: #b45309;
-  --status-warning-soft: rgba(180, 83, 9, 0.1);
-  --status-danger: #dc2626;
-  --status-danger-soft: rgba(220, 38, 38, 0.08);
-  --status-neutral: #64748b;
-  --status-neutral-soft: rgba(100, 116, 139, 0.1);
+  --text-strong: #111114;
+  --text: #26262b;
+  --text-secondary: #55555c;
+  --text-tertiary: #7f7f86;
+  --text-disabled: #a8a8ae;
+  --text-caps: #6f6f76;
 
-  --text-primary: #111827;
-  --text-secondary: #475569;
-  --text-tertiary: #64748b;
-  --text-disabled: #94a3b8;
+  --primary: #1c1c1f;
+  --primary-foreground: #f5f5f5;
 
-  --net-power: #e0573a;
-  --net-ground: #5dcaa5;
-  --net-signal: #94a3b8;
+  --menu-bg: #ffffff;
+  --menu-border: #d4d4d8;
+  --menu-highlight: #e2e2e5;
+  --tooltip-bg: #26262b;
+  --tooltip-border: transparent;
+
+  --selection: #0891b2;
+  --selection-soft: rgba(8, 145, 178, 0.1);
+
+  --status-danger: #c2402f;
+  --status-danger-soft: rgba(194, 64, 47, 0.12);
+  --status-warning: #9a6b12;
+  --status-warning-soft: rgba(154, 107, 18, 0.12);
+  --status-success: #2f7a3d;
+  --status-success-soft: rgba(47, 122, 61, 0.12);
+  --status-info: #2f5f9a;
+  --status-info-soft: rgba(47, 95, 154, 0.12);
+  --status-neutral: #7f7f86;
+  --status-neutral-soft: rgba(127, 127, 134, 0.14);
+
+  --net-power: #c94a2f;
+  --net-ground: #2f8a6a;
+  --net-signal: #55606e;
+  --net-bus: #b07d12;
 }
 
 html.dark {
-  color: #e2e8f0;
-  background-color: #0f1520;
-  --color-slate-950: #0f1520;
-  --color-slate-900: #151e30;
-  --color-slate-800: #1a2438;
-  --color-slate-700: #2c3a55;
-  --color-slate-600: #3d5070;
+  color-scheme: dark;
+  color: var(--text);
+  background-color: var(--surface-app);
+  font-family: var(--font-sans);
 
-  /* Semantic tokens — dark mode (proposal palette, mapped to slate theme) */
-  --surface-app: #0f1520;
-  --surface-rail: #0b1018;
-  --surface-card: #151e30;
-  --surface-card-hover: #1a2438;
-  --surface-input: #10141b;
+  --surface-app: #0c0c0d;
+  --surface-rail: #0f0f10;
+  --surface-panel: #111113;
+  --surface-panel-head: #151517;
+  --surface-section: #151517;
+  --surface-raised: #1c1c1f;
+  --surface-control: #2c2c31;
+  --surface-input: #0c0c0d;
+  --surface-hover: #1c1c1f;
+  --surface-selected: #26262b;
+  --surface-canvas-well: #08090a;
 
-  --accent-purple: #7c3aed;
-  --accent-purple-soft: rgba(139, 92, 246, 0.15);
-  --accent-purple-text: #c4b5fd;
+  --border: #1e1e21;
+  --border-subtle: #16161a;
+  --border-control: #2a2a2e;
+  --divider: #232326;
 
-  --status-success: #34d399;
-  --status-success-soft: rgba(52, 211, 153, 0.1);
-  --status-warning: #fbbf24;
-  --status-warning-soft: rgba(251, 191, 36, 0.1);
-  --status-danger: #f87171;
-  --status-danger-soft: rgba(248, 113, 113, 0.08);
-  --status-neutral: #6b7280;
-  --status-neutral-soft: rgba(107, 114, 128, 0.12);
+  --text-strong: #f5f5f5;
+  --text: #d9d9d9;
+  --text-secondary: #a8a8ad;
+  --text-tertiary: #7f7f84;
+  --text-disabled: #55555a;
+  --text-caps: #6a6a70;
 
-  --text-primary: #f3f4f6;
-  --text-secondary: #9ca3af;
-  --text-tertiary: #6b7280;
-  --text-disabled: #4b5563;
+  --primary: #e8e8e8;
+  --primary-foreground: #111114;
+
+  --menu-bg: #1c1c1f;
+  --menu-border: #232326;
+  --menu-highlight: #2c2c31;
+  --tooltip-bg: #1c1c1f;
+  --tooltip-border: #232326;
+
+  --selection: #33d1ff;
+  --selection-soft: rgba(51, 209, 255, 0.08);
+
+  --status-danger: #e0705f;
+  --status-danger-soft: rgba(224, 112, 95, 0.12);
+  --status-warning: #d9a441;
+  --status-warning-soft: rgba(217, 164, 65, 0.12);
+  --status-success: #6fbf7a;
+  --status-success-soft: rgba(111, 191, 122, 0.12);
+  --status-info: #7aa7d9;
+  --status-info-soft: rgba(122, 167, 217, 0.12);
+  --status-neutral: #7f7f84;
+  --status-neutral-soft: rgba(127, 127, 132, 0.14);
 
   --net-power: #e0573a;
   --net-ground: #5dcaa5;
   --net-signal: #94a3b8;
+  --net-bus: #fbbf24;
 }
 
 html,
@@ -150,8 +310,12 @@ body,
 }
 
 body {
-  background: inherit;
-  color: inherit;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  background: var(--surface-app);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
 }
 
 /* TipTap placeholder — Placeholder extension tags the empty first node with

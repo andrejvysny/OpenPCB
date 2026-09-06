@@ -1,5 +1,6 @@
-import { CircleDot, LayoutGrid, Settings } from "lucide-react";
+import { CircleDot, CloudOff, LayoutGrid, Settings } from "lucide-react";
 import { Tooltip, TooltipProvider } from "@shared/frontend/ui/tooltip";
+import { useAuth } from "../cloud/AuthProvider";
 import { useNavigationStore } from "../stores/navigation-store";
 import { useBootstrap } from "../providers/BootstrapProvider";
 import type { ModuleRegistryItem } from "../../../contracts/modules/registry";
@@ -11,19 +12,11 @@ interface LeftSidebarProps {
 }
 
 function navButtonClass(active: boolean): string {
-  return `flex w-16 cursor-pointer flex-col items-center justify-center rounded-2xl border border-transparent py-2 transition-colors ${
-    active
-      ? "border-violet-600 bg-violet-100 text-violet-600 dark:border-violet-400 dark:bg-violet-900/40 dark:text-violet-300"
-      : "text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-  }`;
+  return `flex ${active ? "w-16 bg-surface-hover text-text-strong" : "w-[72px] text-text-tertiary hover:bg-surface-hover/60 hover:text-text"} cursor-pointer flex-col items-center gap-1 rounded-control py-2 pb-1.5 transition-colors`;
 }
 
 function navLabelClass(active: boolean): string {
-  return `mt-1 text-xs leading-tight text-center ${
-    active
-      ? "font-medium text-violet-600 dark:text-violet-300"
-      : "text-slate-500 dark:text-slate-400"
-  }`;
+  return `text-2xs leading-tight text-center ${active ? "font-medium" : ""}`;
 }
 
 export function LeftSidebar({ onSettingsClick }: LeftSidebarProps) {
@@ -33,6 +26,10 @@ export function LeftSidebar({ onSettingsClick }: LeftSidebarProps) {
     (state) => state.navigateToModule,
   );
   const { moduleRegistry } = useBootstrap();
+  // Same gate the designer header uses: no cloud config, or cloud configured
+  // but not signed in, means this session is local-only.
+  const { enabled: cloudEnabled, session } = useAuth();
+  const localOnly = !cloudEnabled || !session;
 
   const loadedModules = (moduleRegistry?.modules ?? []).filter(
     (module: ModuleRegistryItem) => {
@@ -61,7 +58,7 @@ export function LeftSidebar({ onSettingsClick }: LeftSidebarProps) {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <aside className="flex w-20 flex-col items-center justify-between border-r border-slate-200 bg-white py-3 dark:border-slate-700 dark:bg-slate-900">
+      <aside className="flex w-20 flex-col items-center justify-between border-r border-border bg-surface-rail py-2.5">
         <div className="w-10 h-10">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -99,7 +96,7 @@ export function LeftSidebar({ onSettingsClick }: LeftSidebarProps) {
             aria-label="Home"
             onClick={navigateHome}
           >
-            <LayoutGrid className="h-6 w-6" strokeWidth={1.8} />
+            <LayoutGrid className="h-5 w-5" strokeWidth={1.5} />
             <span className={navLabelClass(currentRoute.kind === "home")}>
               Home
             </span>
@@ -120,7 +117,7 @@ export function LeftSidebar({ onSettingsClick }: LeftSidebarProps) {
                   aria-label={module.sidebar.label}
                   onClick={() => navigateToModule(module.id)}
                 >
-                  <ModuleIcon className="h-6 w-6" strokeWidth={1.8} />
+                  <ModuleIcon className="h-5 w-5" strokeWidth={1.5} />
                   <span className={navLabelClass(active)}>
                     {module.sidebar.label}
                   </span>
@@ -131,25 +128,40 @@ export function LeftSidebar({ onSettingsClick }: LeftSidebarProps) {
         </nav>
 
         <div className="flex flex-col items-center gap-2">
+          {localOnly ? (
+            <Tooltip label="Local only — not signed in" side="right">
+              <span
+                role="img"
+                aria-label="Local only — not signed in"
+                className="flex h-8 w-8 items-center justify-center text-text-tertiary"
+              >
+                <CloudOff className="h-4 w-4" strokeWidth={1.5} />
+              </span>
+            </Tooltip>
+          ) : null}
           <Tooltip label="Report a bug or request a feature" side="right">
             <a
               href="https://github.com/andrejvysny/OpenPCB/issues/new"
               target="_blank"
               rel="noreferrer"
               aria-label="Report a bug or request a feature"
-              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-control text-text-tertiary transition-colors hover:bg-surface-hover hover:text-text"
             >
-              <CircleDot className="h-4 w-4" strokeWidth={1.8} />
+              <CircleDot className="h-[18px] w-[18px]" strokeWidth={1.5} />
             </a>
           </Tooltip>
           <button
             type="button"
             aria-label="Settings"
             aria-current={currentRoute.kind === "settings" ? "page" : undefined}
-            className={navButtonClass(currentRoute.kind === "settings")}
+            className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-control transition-colors hover:bg-surface-hover ${
+              currentRoute.kind === "settings"
+                ? "text-text-strong"
+                : "text-text-tertiary hover:text-text"
+            }`}
             onClick={onSettingsClick}
           >
-            <Settings className="h-6 w-6" strokeWidth={1.8} />
+            <Settings className="h-[18px] w-[18px]" strokeWidth={1.5} />
           </button>
         </div>
       </aside>

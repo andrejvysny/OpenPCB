@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { MoreHorizontal } from "lucide-react";
+import { TableRow } from "@shared/frontend/ui/data-table";
 
 export interface OutlineRowAction {
   label: string;
@@ -18,10 +19,12 @@ export interface OutlineRowAction {
 }
 
 interface OutlineRowProps {
-  icon?: ReactNode;
-  primary: string;
-  secondary?: string | null;
-  tertiary?: string | null;
+  /** `grid-template-columns` for this tab's table; must match the header. */
+  cols: string;
+  /** The row's cells, one per column. */
+  children: ReactNode;
+  /** Value seeded into the inline rename input. */
+  renameValue: string;
   selected: boolean;
   onSelect(): void;
   onActivate?(): void;
@@ -31,11 +34,11 @@ interface OutlineRowProps {
   onRenameCancel?(): void;
 }
 
+/** One 22px outline row (design D2 §6). */
 export function OutlineRow({
-  icon,
-  primary,
-  secondary,
-  tertiary,
+  cols,
+  children,
+  renameValue,
   selected,
   onSelect,
   onActivate,
@@ -107,7 +110,9 @@ export function OutlineRow({
 
   return (
     <div ref={wrapperRef} className="relative">
-      <div
+      <TableRow
+        cols={renaming ? "1fr" : cols}
+        selected={selected}
         role="button"
         tabIndex={0}
         onClick={onSelect}
@@ -131,90 +136,47 @@ export function OutlineRow({
             }
           }
         }}
-        className={`group flex items-center gap-2 px-2 py-1 text-xs transition-colors cursor-pointer ${
-          selected
-            ? "bg-violet-100 text-violet-900 dark:bg-violet-950/60 dark:text-violet-100"
-            : "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900"
-        }`}
-        data-selected={selected || undefined}
+        className="group relative cursor-pointer gap-1.5 outline-none focus-visible:bg-surface-hover"
       >
-        {icon && (
-          <span
-            className={`flex h-4 w-4 shrink-0 items-center justify-center ${
-              selected
-                ? "text-violet-500 dark:text-violet-300"
-                : "text-slate-400 dark:text-slate-500"
-            }`}
-          >
-            {icon}
-          </span>
-        )}
         {renaming ? (
           <input
             ref={inputRef}
-            defaultValue={primary}
+            defaultValue={renameValue}
+            aria-label="Rename"
             onClick={(event) => event.stopPropagation()}
             onKeyDown={handleInputKeyDown}
             onBlur={commitRename}
-            className="min-w-0 flex-1 rounded border border-violet-400 bg-white px-1 py-0 text-xs text-slate-800 outline-none dark:border-violet-600 dark:bg-slate-800 dark:text-slate-100"
+            className="h-[18px] min-w-0 rounded-control border border-selection bg-surface-input px-1 font-mono text-xs text-text-strong outline-none"
           />
         ) : (
           <>
-            <span
-              className="min-w-0 flex-1 truncate font-medium"
-              title={primary}
-            >
-              {primary}
-            </span>
-            {secondary && (
-              <span
-                className={`min-w-0 max-w-[40%] truncate text-[11px] ${
-                  selected
-                    ? "text-violet-700/80 dark:text-violet-200/80"
-                    : "text-slate-500 dark:text-slate-500"
-                }`}
-                title={secondary}
-              >
-                {secondary}
-              </span>
-            )}
-            {tertiary && (
-              <span
-                className={`shrink-0 text-[10px] tabular-nums ${
-                  selected
-                    ? "text-violet-600/70 dark:text-violet-300/70"
-                    : "text-slate-400 dark:text-slate-600"
-                }`}
-                title={tertiary}
-              >
-                {tertiary}
-              </span>
-            )}
-            {actions && actions.length > 0 && (
+            {children}
+            {actions && actions.length > 0 ? (
               <button
                 type="button"
                 onClick={handleKebabClick}
                 aria-label="Actions"
-                className={`shrink-0 rounded p-0.5 opacity-0 transition-opacity hover:bg-slate-200 group-hover:opacity-100 dark:hover:bg-slate-800 ${
+                className={`absolute right-1 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-control text-text-tertiary opacity-0 transition-opacity hover:bg-surface-control hover:text-text-strong group-hover:opacity-100 ${
                   selected ? "opacity-100" : ""
                 }`}
               >
-                <MoreHorizontal className="h-3.5 w-3.5" />
+                <MoreHorizontal className="h-3 w-3" />
               </button>
-            )}
+            ) : null}
           </>
         )}
-      </div>
-      {menuOpen && menuPos && actions && (
+      </TableRow>
+      {menuOpen && menuPos && actions ? (
         <div
           role="menu"
           style={{ position: "fixed", top: menuPos.y, left: menuPos.x }}
-          className="z-50 min-w-[10rem] rounded-md border border-slate-200 bg-white py-1 shadow-xl dark:border-slate-700 dark:bg-slate-900"
+          className="z-50 min-w-[9rem] rounded-float border border-border bg-surface-raised py-1 shadow-lg"
         >
           {actions.map((action) => (
             <button
               key={action.label}
               type="button"
+              role="menuitem"
               disabled={action.disabled}
               onClick={(event) => {
                 event.stopPropagation();
@@ -222,24 +184,24 @@ export function OutlineRow({
                 setMenuOpen(false);
                 action.onSelect();
               }}
-              className={`flex w-full items-center justify-between gap-3 px-3 py-1 text-left text-xs transition-colors ${
+              className={`flex w-full items-center justify-between gap-3 px-2 py-1 text-left text-xs transition-colors ${
                 action.disabled
-                  ? "cursor-not-allowed text-slate-400 dark:text-slate-600"
+                  ? "cursor-not-allowed text-text-disabled"
                   : action.destructive
-                    ? "text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"
-                    : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                    ? "text-status-danger hover:bg-surface-hover"
+                    : "text-text hover:bg-surface-hover hover:text-text-strong"
               }`}
             >
               <span>{action.label}</span>
-              {action.shortcut && (
-                <kbd className="rounded border border-slate-200 bg-slate-50 px-1 py-0 text-[10px] font-mono text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+              {action.shortcut ? (
+                <kbd className="rounded-control border border-border-control px-1 font-mono text-2xs text-text-tertiary">
                   {action.shortcut}
                 </kbd>
-              )}
+              ) : null}
             </button>
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

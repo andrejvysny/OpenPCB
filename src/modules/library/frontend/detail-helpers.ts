@@ -7,6 +7,7 @@ import type {
   ComponentFootprintVariant,
   ComponentSourceProvenance,
 } from "./types";
+import { classifyTag } from "./tag-grouping";
 
 export function asSymbolRender(value: unknown): SymbolRenderModel | null {
   if (!value || typeof value !== "object") {
@@ -119,4 +120,60 @@ export function packageLabel(
     variant.packageCode.imperial ??
     variant.variantLabel
   );
+}
+
+/**
+ * The list DTO (`LibraryComponent`) carries no explicit family/package/mount
+ * columns — the backend derives its facet buckets from the same flat tag list,
+ * so the table derives its columns the same way (see `classifyTag`).
+ */
+export interface ComponentTagSummary {
+  family: string | null;
+  package: string | null;
+  mount: string | null;
+}
+
+export function summarizeComponentTags(
+  tags: readonly string[],
+): ComponentTagSummary {
+  let family: string | null = null;
+  let pkg: string | null = null;
+  let mount: string | null = null;
+  for (const raw of tags) {
+    const tag = raw.trim().toLowerCase();
+    if (!tag) continue;
+    switch (classifyTag(tag)) {
+      case "family":
+        family ??= tag;
+        break;
+      case "package":
+        pkg ??= tag;
+        break;
+      case "mount":
+        mount ??= tag;
+        break;
+      default:
+        break;
+    }
+  }
+  return { family, package: pkg, mount };
+}
+
+/** Provenance tags that identify a KiCad-imported component. */
+const KICAD_TAGS = new Set(["kicad", "kicad-derived"]);
+
+/**
+ * Short source key for the list row. The list DTO has no `sourceId`, so this
+ * mirrors the backend's `isBuiltin ? "core" : "user"` fallback, refined to
+ * "kicad" when the component carries a KiCad provenance tag.
+ */
+export function componentSourceKey(component: {
+  isBuiltin: boolean;
+  tags: readonly string[];
+}): string {
+  if (component.isBuiltin) return "core";
+  for (const raw of component.tags) {
+    if (KICAD_TAGS.has(raw.trim().toLowerCase())) return "kicad";
+  }
+  return "user";
 }

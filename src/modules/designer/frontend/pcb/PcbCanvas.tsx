@@ -19,6 +19,7 @@ import type {
   PcbBoardContour,
   PcbBoardOutline,
   PcbCopperLayerId,
+  PcbLayerId,
   PcbOverlayText,
   PcbPlacedPart,
   PcbPointMm,
@@ -90,10 +91,10 @@ import {
   type CommentDraft,
 } from "../components/comments/CanvasCommentLayer";
 import { useCanvasProjection } from "../components/comments/useCanvasProjection";
-import {
-  PcbSelectionInspector,
-  type PcbInspectorSelection,
-} from "./PcbSelectionInspector";
+import type { PcbInspectorSelection } from "./PcbSelectionInspector";
+import { PcbPropertiesPanel } from "./PcbPropertiesPanel";
+import { PcbLayerTabStrip } from "./PcbLayerTabStrip";
+import { CanvasZoomCluster } from "@shared/frontend/ui/canvas-zoom-cluster";
 import { useMarqueeSelection } from "../../../../shared/frontend/canvas/selection";
 import {
   PcbScene,
@@ -101,7 +102,7 @@ import {
   type PcbCameraControls,
 } from "./PcbScene";
 import type { ViewportState } from "../types";
-import { PcbTopToolbar } from "./PcbTopToolbar";
+import { PcbRouteParamRow, PcbTopToolbar } from "./PcbTopToolbar";
 import { PcbExportDialog } from "./PcbExportDialog";
 import { PcbAutorouteDialog } from "./PcbAutorouteDialog";
 import { PcbAutoplaceDialog } from "./PcbAutoplaceDialog";
@@ -122,7 +123,9 @@ import {
 } from "./usePcbPlacePreview";
 import { createDesignerApi, type CloudHeadersProvider } from "../api";
 import { PcbBoardPanel } from "./PcbBoardPanel";
+import { PcbComponentsPanel } from "./PcbComponentsPanel";
 import { PcbLayersPanel } from "./PcbLayersPanel";
+import { usePcbDesignRulesDialog } from "./use-pcb-design-rules-dialog";
 import { pickRouteStartLayer } from "./route-start-layer";
 import { PcbSelectionFilter } from "./PcbSelectionFilter";
 import { findSnapTarget, type SnapTarget } from "./snap";
@@ -211,7 +214,7 @@ import {
   PCB_LAYER_PRESETS,
   PCB_TRACE_COLORS,
 } from "../../../../shared/frontend/canvas/layers";
-import { RouteHud } from "./RouteHud";
+import { RouteHudRows, RouteHudStatus } from "./RouteHud";
 import { buildRouteHudModel, routeLengthMm } from "./tools/route-hud-model";
 import { buildPcbSpatialIndex, pointQueryBox } from "./spatial-index";
 import { nextRouteLayer } from "./tools/route-layer";
@@ -422,8 +425,35 @@ interface PcbCanvasProps {
     pointNm: { x: number; y: number },
   ) => void;
   commentAttachmentUrl?: (attachmentId: string) => string;
-  boardPanelTarget?: HTMLElement | null;
   layersPanelTarget?: HTMLElement | null;
+  /** Trailing slot in the sidebar "Layers" section header (preset dropdown). */
+  layersHeaderTarget?: HTMLElement | null;
+  /** Sidebar "Components" section body. */
+  componentsPanelTarget?: HTMLElement | null;
+  /**
+   * Schematic part id → value. The PCB projection has no value field, so the
+   * designer shell supplies the schematic projection's map for the Components
+   * list and the Properties "Value" row.
+   */
+  partValues?: ReadonlyMap<string, string>;
+  /** Docked 30px toolbar row (Space.tsx renders the empty slot). */
+  toolbarTarget?: HTMLElement | null;
+  /** 28px contextual parameter row; empty (collapsed) while no tool is active. */
+  paramRowTarget?: HTMLElement | null;
+  /** 22px layer tab strip under the canvas. */
+  layerStripTarget?: HTMLElement | null;
+  /** Right dock → Properties tab body. */
+  propertiesTarget?: HTMLElement | null;
+  /** Board-space cursor position for the status bar; `null` when off-canvas. */
+  onCursorChange?: (point: { xMm: number; yMm: number } | null) => void;
+  /** Effective copper layer (routing layer, else the board's active layer). */
+  onActiveLayerChange?: (layer: PcbLayerId) => void;
+  /** Contextual status-bar hint for the active tool / selection. */
+  onHintChange?: (hint: string) => void;
+  /** Human-readable status-bar selection summary. */
+  onSelectionSummaryChange?: (summary: string) => void;
+  /** Placement count, for the sidebar "Components" section header badge. */
+  onPlacementCountChange?: (count: number) => void;
   selectionRequest?: {
     placementIds: readonly string[];
     /** Cross-probe by refdes (resolved against loaded placements). */
@@ -434,83 +464,24 @@ interface PcbCanvasProps {
   onViewportChange?: (zoom: number, posX: number, posY: number) => void;
 }
 
-function RouteHintStrip({ active }: { active: boolean }): ReactElement {
-  if (!active) {
-    return (
-      <div className="rounded-full border border-slate-700/80 bg-slate-950/80 px-3 py-1 text-[11px] font-medium text-slate-300 shadow-lg backdrop-blur">
-        Click a pad, trace, or via to start routing · Esc cancel
-      </div>
-    );
-  }
-  const keys: ReadonlyArray<[string, string]> = [
-    ["F", "Flip Elbow"],
-    ["V", "Switch Layer"],
-    ["W", "Cycle Width"],
-    ["Shift", "Unconstrain"],
-    ["/", "Posture"],
-    ["Backspace", "Undo Segment"],
-    ["Esc", "Cancel"],
-  ];
-  return (
-    <div className="flex items-center gap-2 rounded-full border border-slate-700/80 bg-slate-950/90 px-3 py-1 text-[11px] text-slate-300 shadow-xl backdrop-blur">
-      {keys.map(([key, label]) => (
-        <span key={key} className="inline-flex items-center gap-1">
-          <kbd className="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-slate-100 shadow-inner">
-            {key}
-          </kbd>
-          <span>{label}</span>
-        </span>
-      ))}
-    </div>
-  );
-}
+/** Stable identity for the optional `partValues` prop. */
+const EMPTY_PART_VALUES: ReadonlyMap<string, string> = new Map();
 
-function MeasureHintStrip({ active }: { active: boolean }): ReactElement {
-  return (
-    <div className="flex items-center gap-2 rounded-full border border-slate-700/80 bg-slate-950/90 px-3 py-1 text-[11px] text-slate-300 shadow-xl backdrop-blur">
-      <span>{active ? "Click endpoint to lock" : "Click start point"}</span>
-      <span>·</span>
-      <span>
-        Hold{" "}
-        <kbd className="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-slate-100 shadow-inner">
-          Shift
-        </kbd>{" "}
-        for ΔX/ΔY
-      </span>
-      <span>· Esc clear</span>
-    </div>
-  );
-}
-
-function SketchHintStrip({ active }: { active: boolean }): ReactElement {
-  if (!active) {
-    return (
-      <div className="rounded-full border border-slate-700/80 bg-slate-950/80 px-3 py-1 text-[11px] font-medium text-slate-300 shadow-lg backdrop-blur">
-        Click to place the first corner · Esc exit
-      </div>
-    );
-  }
-  const keys: ReadonlyArray<[string, string]> = [
-    ["type", "Length"],
-    ["Tab", "∠ Angle"],
-    ["Shift", "45° lock"],
-    ["Enter", "Close/Place"],
-    ["⌫", "Undo"],
-    ["Esc", "Cancel"],
-  ];
-  return (
-    <div className="flex items-center gap-2 rounded-full border border-slate-700/80 bg-slate-950/90 px-3 py-1 text-[11px] text-slate-300 shadow-xl backdrop-blur">
-      {keys.map(([key, label]) => (
-        <span key={key} className="inline-flex items-center gap-1">
-          <kbd className="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-slate-100 shadow-inner">
-            {key}
-          </kbd>
-          <span>{label}</span>
-        </span>
-      ))}
-    </div>
-  );
-}
+/**
+ * Status-bar hints (design D2 §9). These replace the floating hint strips that
+ * used to sit at the bottom of the canvas — same wording, one home.
+ */
+const HINT_SELECT = "Click to select · Shift+click to add · drag to box-select";
+const HINT_ROUTE_IDLE = "Click a pad, trace, or via to start routing · Esc cancel";
+const HINT_ROUTE_ACTIVE =
+  "F flip elbow · V switch layer · W cycle width · Shift unconstrain · / posture · Backspace undo segment · Esc cancel";
+const HINT_MEASURE_IDLE =
+  "Click start point · hold Shift for ΔX/ΔY · Esc clear";
+const HINT_MEASURE_ACTIVE =
+  "Click endpoint to lock · hold Shift for ΔX/ΔY · Esc clear";
+const HINT_SKETCH_IDLE = "Click to place the first corner · Esc exit";
+const HINT_SKETCH_ACTIVE =
+  "type Length · Tab ∠ angle · Shift 45° lock · Enter close/place · ⌫ undo · Esc cancel";
 
 export function PcbCanvas(props: PcbCanvasProps): ReactElement {
   const gridEnabled = props.gridVisible ?? false;
@@ -718,7 +689,6 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
   // last computed anchors, hysteresis reads the last side pick.
   const walkaroundEnabled = useFeatureFlag("pcb.routeWalkaround");
   const lengthTuningEnabled = useFeatureFlag("pcb.lengthTuning");
-  const bundleRoutingEnabled = useFeatureFlag("pcb.bundleRouting");
   const walkChoiceRef = useRef<{
     clusterSignature: string;
     side: "cw" | "ccw";
@@ -5014,6 +4984,230 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
     onSelectionCountChange?.(selectionCount);
   }, [selectionCount, onSelectionCountChange]);
 
+  // Board-space cursor for the status bar (X / Y readout).
+  const onCursorChange = props.onCursorChange;
+  useEffect(() => {
+    onCursorChange?.(
+      cursorMm ? { xMm: cursorMm.x, yMm: cursorMm.y } : null,
+    );
+  }, [cursorMm, onCursorChange]);
+  useEffect(() => {
+    return () => onCursorChange?.(null);
+  }, [onCursorChange]);
+
+  // Effective copper layer for the status-bar chip + layer tab strip.
+  const onActiveLayerChange = props.onActiveLayerChange;
+  useEffect(() => {
+    onActiveLayerChange?.(displayedCopperLayer);
+  }, [displayedCopperLayer, onActiveLayerChange]);
+
+  // Status-bar hint + selection summary. Both derive from the tool mode and the
+  // selection only — never from the cursor — so pointer moves never re-render
+  // the editor shell (the X/Y readout has its own store for that).
+  const routeSessionActive = routeState.kind === "routing";
+  const measureSessionActive = measureState.kind === "measuring";
+  const sketchSessionActive = sketchState.kind === "drawing";
+
+  const selectedPlacement = useMemo(() => {
+    if (selection.placementIds.size !== 1) return null;
+    const [id] = [...selection.placementIds];
+    return workspace.projection?.placements.find((p) => p.id === id) ?? null;
+  }, [selection.placementIds, workspace.projection?.placements]);
+
+  const statusHint = useMemo(() => {
+    if (toolMode === "route") {
+      return routeSessionActive ? HINT_ROUTE_ACTIVE : HINT_ROUTE_IDLE;
+    }
+    if (toolMode === "measure") {
+      return measureSessionActive ? HINT_MEASURE_ACTIVE : HINT_MEASURE_IDLE;
+    }
+    if (toolMode === "boardShape") {
+      return sketchSessionActive ? HINT_SKETCH_ACTIVE : HINT_SKETCH_IDLE;
+    }
+    if (selectionCount === 1 && selectedPlacement) {
+      return `${selectedPlacement.reference} — drag to move · R rotate · F flip · Del delete`;
+    }
+    return HINT_SELECT;
+  }, [
+    measureSessionActive,
+    routeSessionActive,
+    selectedPlacement,
+    selectionCount,
+    sketchSessionActive,
+    toolMode,
+  ]);
+
+  const statusSelectionSummary = useMemo(() => {
+    if (selectionCount === 0) return "No selection";
+    if (selectionCount > 1) return `${selectionCount} selected`;
+    const proj = workspace.projection;
+    const netLabel = (netId: string | null | undefined): string | null => {
+      if (!netId) return null;
+      return proj?.netNames[netId] ?? netId;
+    };
+    if (selectedPlacement) {
+      return `${selectedPlacement.reference} · ${selectedPlacement.footprint.name}`;
+    }
+    const traceId = [...selection.traceIds][0];
+    if (traceId) {
+      const net = netLabel(proj?.traces.find((t) => t.id === traceId)?.netId);
+      return net ? `Trace · ${net}` : "Trace";
+    }
+    const viaId = [...selection.viaIds][0];
+    if (viaId) {
+      const net = netLabel(proj?.vias.find((v) => v.id === viaId)?.netId);
+      return net ? `Via · ${net}` : "Via";
+    }
+    const holeId = [...(selection.freeHoleIds ?? [])][0];
+    if (holeId) {
+      const hole = proj?.freeHoles.find((h) => h.id === holeId);
+      return hole ? `Hole · Ø ${hole.drillMm} mm` : "Hole";
+    }
+    const padId = [...(selection.freePadIds ?? [])][0];
+    if (padId) {
+      const pad = proj?.freePads.find((p) => p.id === padId);
+      return pad ? `Pad · ${pad.widthMm} × ${pad.heightMm} mm` : "Pad";
+    }
+    const textId = [...(selection.overlayTextIds ?? [])][0];
+    if (textId) {
+      const text = proj?.overlayTexts.find((t) => t.id === textId);
+      return text ? `Text · ${text.text}` : "Text";
+    }
+    return "1 selected";
+  }, [selection, selectionCount, selectedPlacement, workspace.projection]);
+
+  const onHintChange = props.onHintChange;
+  useEffect(() => {
+    onHintChange?.(statusHint);
+  }, [statusHint, onHintChange]);
+
+  const onSelectionSummaryChange = props.onSelectionSummaryChange;
+  useEffect(() => {
+    onSelectionSummaryChange?.(statusSelectionSummary);
+  }, [statusSelectionSummary, onSelectionSummaryChange]);
+
+  const onPlacementCountChange = props.onPlacementCountChange;
+  const placementCount = workspace.projection?.placements.length ?? 0;
+  useEffect(() => {
+    onPlacementCountChange?.(placementCount);
+  }, [placementCount, onPlacementCountChange]);
+
+  // "Edit rules…" from the Board properties and "Edit rules" in the DRC view
+  // share one dialog + one `pcb_set_design_rules` envelope (see the hook).
+  const handleRulesSaved = useCallback(() => {
+    // Rules go through the PCB undo stack; refresh history so Undo enables.
+    void workspace.refresh().then(() => workspace.refreshHistory());
+  }, [workspace.refresh, workspace.refreshHistory]);
+  const rulesDialog = usePcbDesignRulesDialog({
+    backendURL: props.backendURL,
+    moduleId: props.moduleId,
+    designId: props.designId,
+    sessionId: "designer-pcb-session",
+    projection: workspace.projection ?? null,
+    onSaved: handleRulesSaved,
+  });
+
+  /**
+   * Board settings body. Rendered inside the right dock's Properties tab
+   * (its idle state).
+   */
+  const boardPanelElement = (
+    <PcbBoardPanel
+      workspace={workspace}
+      widthText={widthText}
+      setWidthText={setWidthText}
+      heightText={heightText}
+      setHeightText={setHeightText}
+      widthMm={widthMm}
+      heightMm={heightMm}
+      valid={valid}
+      currentOutline={workspace.projection?.board.outline ?? null}
+      outsideCount={outsideCount}
+      onApplyOutline={(outline) =>
+        void workspace
+          .updateBoardOutline(outline)
+          .then(() => cameraControlsRef.current?.fit())
+      }
+      onFitToParts={() =>
+        void workspace
+          .fitBoardToParts()
+          .then(() => cameraControlsRef.current?.fit())
+      }
+      editMode={boardDimMode}
+      onToggleEditMode={() =>
+        setBoardDimMode((prev) => {
+          // Entering edit mode forces the select tool so the edge handles are
+          // interactive (route/measure would intercept).
+          if (!prev) setToolMode("select");
+          return !prev;
+        })
+      }
+      onDrawShape={() => {
+        dispatchSketch({ kind: "cancel" });
+        dispatchRoute({ kind: "cancel" });
+        dispatchMeasure({ kind: "clear" });
+        setBoardDimMode(false);
+        setToolMode("boardShape");
+      }}
+      onImportDxf={() => {
+        setBoardDimMode(false);
+        setDxfImportOpen(true);
+      }}
+      onEditRules={rulesDialog.open}
+      canEditRules={rulesDialog.available}
+    />
+  );
+
+  /**
+   * Sidebar Components row click: single-select the placement (clearing every
+   * other kind, exactly like a canvas click) and centre the camera on it.
+   */
+  const handleSelectComponent = useCallback(
+    (placementId: string) => {
+      // Mirror the toolbar exits: leave any in-flight tool session before
+      // switching to select, otherwise routing/measure state lingers.
+      dispatchRoute({ kind: "cancel" });
+      dispatchMeasure({ kind: "clear" });
+      dispatchSketch({ kind: "cancel" });
+      dispatchTune({ kind: "cancel" });
+      setToolMode("select");
+      setSelection({
+        ...emptyPcbSelection(),
+        placementIds: new Set([placementId]),
+      });
+      const placement = workspace.projection?.placements.find(
+        (p) => p.id === placementId,
+      );
+      if (!placement) return;
+      // The board mirror group flips X in bottom view, so flip the target too.
+      const scaleX = workspace.viewSide === "bottom" ? -1 : 1;
+      cameraControlsRef.current?.centerOnMm({
+        x: scaleX * placement.positionMm.x,
+        y: placement.positionMm.y,
+      });
+    },
+    [workspace.projection?.placements, workspace.viewSide],
+  );
+
+  /**
+   * Single entry point for "make this the active layer" — shared by the Layers
+   * panel rows and the layer tab strip so both follow the same path.
+   */
+  const handleSetActiveLayer = useCallback(
+    (layer: PcbLayerId) => {
+      if (
+        layer === "F.Cu" ||
+        layer === "B.Cu" ||
+        layer === "In1.Cu" ||
+        layer === "In2.Cu"
+      ) {
+        setFocusedLayer((prev) => (prev === layer ? null : layer));
+        void setActiveCopperLayer(layer);
+      }
+    },
+    [setActiveCopperLayer],
+  );
+
   const routeStartPadId =
     routeState.kind === "routing" ? routeState.session.startPadId : undefined;
   const routeGuideExcludePadIds = useMemo(
@@ -5214,7 +5408,7 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
 
   if (!props.designId) {
     return (
-      <div className="flex h-full items-center justify-center bg-slate-950 text-sm text-slate-500">
+      <div className="flex h-full items-center justify-center bg-surface-canvas-well text-sm text-text-tertiary">
         Select or create a design to open PCB layout
       </div>
     );
@@ -5227,7 +5421,7 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
   return (
     <div
       ref={wrapperRef}
-      className="relative h-full w-full bg-slate-950"
+      className="relative h-full w-full bg-surface-canvas-well"
       style={canvasCursor ? { cursor: canvasCursor } : undefined}
     >
       {workspace.projection ? (
@@ -5341,6 +5535,13 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
           }}
         />
       ) : null}
+      {workspace.projection ? (
+        <CanvasZoomCluster
+          onZoomIn={() => cameraControlsRef.current?.zoomIn()}
+          onZoomOut={() => cameraControlsRef.current?.zoomOut()}
+          onFit={() => cameraControlsRef.current?.fit()}
+        />
+      ) : null}
       {workspace.projection && selectionFilterPanelOpen ? (
         <PcbSelectionFilter
           filter={selectionFilter}
@@ -5349,32 +5550,6 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
           }
           onClose={() =>
             usePcbViewStore.getState().toggleSelectionFilterPanel()
-          }
-        />
-      ) : null}
-      {inspectorSelection ? (
-        <PcbSelectionInspector
-          selection={inspectorSelection}
-          onClose={() => setSelection(emptyPcbSelection())}
-          onUpdateFreeHole={(id, patch) => workspace.updateFreeHole(id, patch)}
-          onDeleteFreeHole={(id) =>
-            workspace
-              .deleteFreeHole(id)
-              .then(() => setSelection(emptyPcbSelection()))
-          }
-          onUpdateFreePad={(id, patch) => workspace.updateFreePad(id, patch)}
-          onDeleteFreePad={(id) =>
-            workspace
-              .deleteFreePad(id)
-              .then(() => setSelection(emptyPcbSelection()))
-          }
-          onUpdateOverlayText={(id, patch) =>
-            workspace.updateOverlayText(id, patch)
-          }
-          onDeleteOverlayText={(id) =>
-            workspace
-              .deleteOverlayText(id)
-              .then(() => setSelection(emptyPcbSelection()))
           }
         />
       ) : null}
@@ -5411,13 +5586,13 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
               DOM overlay only — does not affect R3F clear color. */}
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-0 z-10 bg-blue-500/[0.04]"
+            className="pointer-events-none absolute inset-0 z-10 bg-status-info/[0.04]"
             data-testid="pcb-flip-tint"
           />
           {/* Status badge — always visible when flipped, even if toolbar is
               occluded. */}
           <div
-            className="pointer-events-none absolute left-3 top-3 z-20 inline-flex items-center gap-1.5 rounded-full border border-violet-500/60 bg-violet-100/95 px-2 py-0.5 text-[11px] font-medium text-violet-700 shadow-sm backdrop-blur dark:bg-violet-900/60 dark:text-violet-200"
+            className="pointer-events-none absolute left-3 top-3 z-20 inline-flex items-center gap-1.5 rounded-control border border-selection/60 bg-selection-soft px-2 py-0.5 text-[11px] font-medium text-selection shadow-sm backdrop-blur"
             data-testid="pcb-viewing-bottom-badge"
           >
             <FlipHorizontal2 className="h-3 w-3" />
@@ -5425,9 +5600,8 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
           </div>
         </>
       ) : null}
-      {workspace.projection ? (
-        <div className="pointer-events-none absolute left-1/2 top-2 z-20 -translate-x-1/2">
-          <div className="pointer-events-auto">
+      {workspace.projection && props.toolbarTarget
+        ? createPortal(
             <PcbTopToolbar
               selectedPlacementCount={selection.placementIds.size}
               onFlipSelection={() => {
@@ -5451,11 +5625,9 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
               canRedo={workspace.canRedo}
               onUndo={() => void workspace.undo()}
               onRedo={() => void workspace.redo()}
-              onZoomIn={() => cameraControlsRef.current?.zoomIn()}
-              onZoomOut={() => cameraControlsRef.current?.zoomOut()}
               onFit={() => cameraControlsRef.current?.fit()}
+              onExport={() => setExportDialogOpen(true)}
               routeMode={toolMode === "route"}
-              routeSessionActive={routeState.kind === "routing"}
               onToggleRouteMode={() => {
                 setToolMode((prev) => (prev === "route" ? "select" : "route"));
                 if (toolMode === "route") dispatchRoute({ kind: "cancel" });
@@ -5471,43 +5643,6 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
                   prev === "boardShape" ? "select" : "boardShape",
                 );
               }}
-              measureMode={toolMode === "measure"}
-              onToggleMeasureMode={() => {
-                setToolMode((prev) => {
-                  if (prev === "measure") {
-                    dispatchMeasure({ kind: "clear" });
-                    return "select";
-                  }
-                  return "measure";
-                });
-                dispatchRoute({ kind: "cancel" });
-              }}
-              {...(lengthTuningEnabled
-                ? {
-                    tuneMode: toolMode === "tune",
-                    onToggleTuneMode: () => {
-                      setToolMode((prev) =>
-                        prev === "tune" ? "select" : "tune",
-                      );
-                      dispatchTune({ kind: "cancel" });
-                      dispatchRoute({ kind: "cancel" });
-                      dispatchMeasure({ kind: "clear" });
-                    },
-                  }
-                : {})}
-              {...(bundleRoutingEnabled
-                ? {
-                    bundleMode: toolMode === "bundle",
-                    onToggleBundleMode: () => {
-                      setToolMode((prev) =>
-                        prev === "bundle" ? "select" : "bundle",
-                      );
-                      dispatchBundle({ kind: "cancel" });
-                      dispatchRoute({ kind: "cancel" });
-                      dispatchMeasure({ kind: "clear" });
-                    },
-                  }
-                : {})}
               commentMode={props.commentMode ?? false}
               onToggleCommentMode={
                 props.onToggleCommentMode
@@ -5532,95 +5667,18 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
                 dispatchRoute({ kind: "cancel" });
                 dispatchMeasure({ kind: "clear" });
               }}
-              layerCount={workspace.projection?.board.layerCount ?? 2}
-              segmentMode={
-                routeState.kind === "routing"
-                  ? routeState.session.segmentMode
-                  : "manhattan-45"
-              }
-              onToggleSegmentMode={() => {
-                if (routeState.kind === "routing") {
-                  dispatchRoute({
-                    kind: "set-mode",
-                    mode:
-                      routeState.session.segmentMode === "manhattan-90"
-                        ? "manhattan-45"
-                        : "manhattan-90",
-                  });
-                }
-              }}
-              activeWidthMm={
-                routeState.kind === "routing"
-                  ? routeState.session.widthMm
-                  : (defaultNetClass?.traceWidthMm ?? 0.25)
-              }
-              tracePresets={tracePresets}
-              onPickWidth={(w) => void setSessionWidth(w, "preset")}
-              viaDiameterMm={
-                routeState.kind === "routing" &&
-                routeState.session.viaDiameterMmOverride !== undefined
-                  ? routeState.session.viaDiameterMmOverride
-                  : (defaultNetClass?.viaDiameterMm ?? 0.6)
-              }
-              viaDrillMm={
-                routeState.kind === "routing" &&
-                routeState.session.viaDrillMmOverride !== undefined
-                  ? routeState.session.viaDrillMmOverride
-                  : (defaultNetClass?.viaDrillMm ?? 0.3)
-              }
-              viaDiameterDefaultMm={defaultNetClass?.viaDiameterMm ?? 0.6}
-              viaDrillDefaultMm={defaultNetClass?.viaDrillMm ?? 0.3}
-              viaDiameterPresets={VIA_DIAMETER_PRESETS_MM}
-              viaDrillPresets={VIA_DRILL_PRESETS_MM}
-              onPickViaDiameter={(mm) =>
-                dispatchRoute({
-                  kind: "set-via-diameter",
-                  diameterMmOverride: mm,
-                })
-              }
-              onPickViaDrill={(mm) =>
-                dispatchRoute({
-                  kind: "set-via-drill",
-                  drillMmOverride: mm,
-                })
-              }
-              onPickViaPreset={(preset) => {
-                dispatchRoute({
-                  kind: "set-via-diameter",
-                  diameterMmOverride: preset.diameterMm,
-                });
-                dispatchRoute({
-                  kind: "set-via-drill",
-                  drillMmOverride: preset.drillMm,
-                });
-              }}
-              posture={
-                routeState.kind === "routing"
-                  ? routeState.session.posture
-                  : "auto"
-              }
-              onCyclePosture={() => dispatchRoute({ kind: "cycle-posture" })}
-            />
-          </div>
-        </div>
-      ) : null}
+            />,
+            props.toolbarTarget,
+          )
+        : null}
       {!workspace.projection ? (
-        <div className="flex h-full items-center justify-center text-sm text-slate-500">
+        <div className="flex h-full items-center justify-center text-sm text-text-tertiary">
           {workspace.loading ? "Loading PCB..." : "PCB projection unavailable"}
         </div>
       ) : null}
 
       {workspace.projection && props.designId ? (
         <>
-          <button
-            type="button"
-            onClick={() => setExportDialogOpen(true)}
-            title="Export manufacturing files (Gerber + Drill + BOM + PnP)"
-            data-testid="pcb-export-button"
-            className="absolute bottom-3 right-3 z-20 inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white/95 px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm backdrop-blur hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-200 dark:hover:bg-slate-800"
-          >
-            Export…
-          </button>
           <PcbExportDialog
             backendURL={props.backendURL}
             moduleId={props.moduleId}
@@ -5637,7 +5695,7 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
                     onClick={() => setAutoLayoutOpen(true)}
                     title="Place and route the whole board in OpenPCB Cloud, then pick from complete candidates"
                     data-testid="pcb-autolayout-button"
-                    className="inline-flex items-center gap-1.5 rounded-md border border-violet-300 bg-white/95 px-2.5 py-1 text-xs font-medium text-violet-700 shadow-sm backdrop-blur hover:bg-violet-50 dark:border-violet-800 dark:bg-slate-900/90 dark:text-violet-300 dark:hover:bg-slate-800"
+                    className="inline-flex items-center gap-1.5 rounded-control border border-selection bg-surface-raised px-2.5 py-1 text-xs font-medium text-selection shadow-sm hover:bg-selection-soft"
                   >
                     Auto Layout…
                   </button>
@@ -5646,7 +5704,7 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
                     onClick={() => setRouteBoardOpen(true)}
                     title="Route the board as placed — components are never moved"
                     data-testid="pcb-route-board-button"
-                    className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white/95 px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm backdrop-blur hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-200 dark:hover:bg-slate-800"
+                    className="inline-flex items-center gap-1.5 rounded-control border border-border bg-surface-raised px-2.5 py-1 text-xs font-medium text-text shadow-sm hover:bg-surface-hover"
                   >
                     Route Board…
                   </button>
@@ -5655,7 +5713,7 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
                     onClick={() => setAutoPlaceOpen(true)}
                     title="Advanced: optimize placement only, then review the ghost before applying"
                     data-testid="pcb-autoplace-button"
-                    className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white/95 px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm backdrop-blur hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-200 dark:hover:bg-slate-800"
+                    className="inline-flex items-center gap-1.5 rounded-control border border-border bg-surface-raised px-2.5 py-1 text-xs font-medium text-text shadow-sm hover:bg-surface-hover"
                   >
                     Auto Place…
                   </button>
@@ -5722,8 +5780,8 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
                   role="status"
                   className={
                     placeAppliedNote.issues
-                      ? "absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-[11px] text-amber-800 shadow-lg dark:border-amber-800 dark:bg-amber-950/80 dark:text-amber-200"
-                      : "absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-md border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-[11px] text-emerald-800 shadow-lg dark:border-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-200"
+                      ? "absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-control border border-status-warning bg-status-warning-soft px-3 py-1.5 text-[11px] text-status-warning shadow-lg"
+                      : "absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-control border border-status-success bg-status-success-soft px-3 py-1.5 text-[11px] text-status-success shadow-lg"
                   }
                 >
                   {placeAppliedNote.text}
@@ -5737,74 +5795,25 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
           {workspaceErrorVisible && workspace.error ? (
             <div
               role="alert"
-              className="absolute top-3 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-md border border-red-300 bg-red-50 px-3 py-1.5 text-[11px] text-red-700 shadow-lg dark:border-red-900 dark:bg-red-950/90 dark:text-red-300"
+              className="absolute top-3 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-control border border-status-danger bg-status-danger-soft px-3 py-1.5 text-[11px] text-status-danger shadow-lg"
             >
               {workspace.error}
               <button
                 type="button"
                 aria-label="Dismiss error"
-                className="rounded px-1 hover:bg-red-100 dark:hover:bg-red-900"
+                className="rounded-control px-1 hover:bg-status-danger-soft"
                 onClick={() => setWorkspaceErrorVisible(false)}
               >
                 ×
               </button>
             </div>
           ) : null}
-          {toolMode === "route" && !previewActive ? (
-            <RouteHud
-              model={routeHudModel}
-              layerColor={copperLayerColor(
-                routeState.kind === "routing"
-                  ? routeState.session.layer
-                  : activeCopperLayer,
-              )}
-              widthInputOpen={widthInputOpen}
-              onOpenWidthInput={() => setWidthInputOpen(true)}
-              onWidthInputSubmit={(w) => void setSessionWidth(w, "manual")}
-              onWidthInputClose={() => setWidthInputOpen(false)}
-              onResetWidthToNetClass={resetSessionWidthToNetClass}
-              blockedConflictCount={blockedConflictCount}
-              allowDrcViolations={allowDrcViolations}
-              onToggleAllowDrcViolations={() => {
-                setAllowDrcViolations((prev) => !prev);
-                setBlockedConflictCount(null);
-              }}
-              autoFinishProposal={
-                autoFinishProposal
-                  ? {
-                      lengthMm: routeLengthMm(autoFinishProposal.pathNm),
-                      targetName: autoFinishProposal.targetName,
-                    }
-                  : null
-              }
-              onAcceptAutoFinish={acceptAutoFinish}
-              onDismissAutoFinish={() => setAutoFinishProposal(null)}
-              autoFinishNotice={autoFinishNotice}
-            />
-          ) : null}
-          {toolMode === "tune" && !previewActive ? (
-            <TuneHud
-              model={tuneHudModel}
-              targetInputOpen={tuneTargetInputOpen}
-              onOpenTargetInput={() => setTuneTargetInputOpen(true)}
-              onTargetInputSubmit={(t) =>
-                dispatchTune({ kind: "set-target-override", targetMm: t })
-              }
-              onTargetInputClose={() => setTuneTargetInputOpen(false)}
-              onClearTargetOverride={() =>
-                dispatchTune({ kind: "set-target-override", targetMm: undefined })
-              }
-            />
-          ) : null}
-          {toolMode === "bundle" && !previewActive ? (
-            <BundleHud model={bundleHudModel} notice={bundleBlocked} />
-          ) : null}
         </>
       ) : null}
 
       {boardResizeSession && cursorClientPx ? (
         <div
-          className="pointer-events-none fixed z-30 flex items-center gap-2 rounded-full border border-violet-500/60 bg-slate-950/95 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-slate-100 shadow-lg backdrop-blur"
+          className="pointer-events-none fixed z-30 flex items-center gap-2 rounded-control border border-selection/60 bg-surface-raised/95 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-text-strong shadow-lg backdrop-blur"
           style={{
             left: cursorClientPx.x + 14,
             top: cursorClientPx.y + 14,
@@ -5826,7 +5835,7 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
             if (dw === 0 && dh === 0) return null;
             const fmt = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
             return (
-              <span className="text-slate-400">
+              <span className="text-text-tertiary">
                 Δ {fmt(dw)}, {fmt(dh)}
               </span>
             );
@@ -5844,7 +5853,7 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
             if (!v) return null;
             return (
               <div
-                className="pointer-events-none fixed z-30 rounded-full border border-violet-500/60 bg-slate-950/95 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-slate-100 shadow-lg backdrop-blur"
+                className="pointer-events-none fixed z-30 rounded-control border border-selection/60 bg-surface-raised/95 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-text-strong shadow-lg backdrop-blur"
                 style={{ left: cursorClientPx.x + 14, top: cursorClientPx.y + 14 }}
               >
                 {roundDimMm(v.x)}, {roundDimMm(v.y)} mm
@@ -5855,7 +5864,7 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
 
       {toolMode === "route" && cursorClientPx ? (
         <div
-          className="pointer-events-none fixed z-30 flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-950/90 px-2 py-0.5 text-[10px] font-medium text-slate-100 shadow-lg backdrop-blur"
+          className="pointer-events-none fixed z-30 flex items-center gap-1.5 rounded-control border border-border bg-surface-raised/95 px-2 py-0.5 text-[10px] font-medium text-text-strong shadow-lg backdrop-blur"
           style={{
             left: cursorClientPx.x + 14,
             top: cursorClientPx.y + 14,
@@ -5883,7 +5892,7 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
             const sev = DRC_SEVERITY[v.severity];
             return (
               <div
-                className="pointer-events-none fixed z-40 max-w-[280px] rounded-md border border-slate-700 bg-slate-950/95 px-2.5 py-1.5 text-[11px] text-slate-100 shadow-lg backdrop-blur"
+                className="pointer-events-none fixed z-40 max-w-[280px] rounded-float border border-border bg-surface-raised/95 px-2.5 py-1.5 text-[11px] text-text-strong shadow-lg backdrop-blur"
                 style={{
                   left: cursorClientPx.x + 14,
                   top: cursorClientPx.y + 14,
@@ -5897,7 +5906,7 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
                   />
                   {CODE_LABEL[v.code] ?? v.code}
                 </div>
-                <div className="mt-0.5 text-slate-300">
+                <div className="mt-0.5 text-text-secondary">
                   {v.anchors
                     .map((a) =>
                       resolveAnchorLabel(a, workspace.projection ?? null),
@@ -5906,14 +5915,14 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
                 </div>
                 {v.layer ||
                 (v.measuredMm !== undefined && v.requiredMm !== undefined) ? (
-                  <div className="mt-0.5 text-[10px] text-slate-400">
+                  <div className="mt-0.5 text-[10px] text-text-tertiary">
                     {v.layer ? <span className="mr-2">{v.layer}</span> : null}
                     {v.measuredMm !== undefined && v.requiredMm !== undefined
                       ? `${v.measuredMm.toFixed(3)} / ${v.requiredMm.toFixed(3)} mm`
                       : null}
                   </div>
                 ) : null}
-                <div className="mt-1 text-[10px] leading-snug text-slate-400">
+                <div className="mt-1 text-[10px] leading-snug text-text-tertiary">
                   {v.message}
                 </div>
               </div>
@@ -5921,21 +5930,6 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
           })()
         : null}
 
-      {toolMode === "route" ? (
-        <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 -translate-x-1/2">
-          <RouteHintStrip active={routeState.kind === "routing"} />
-        </div>
-      ) : null}
-      {toolMode === "measure" ? (
-        <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 -translate-x-1/2">
-          <MeasureHintStrip active={measureState.kind === "measuring"} />
-        </div>
-      ) : null}
-      {toolMode === "boardShape" ? (
-        <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 -translate-x-1/2">
-          <SketchHintStrip active={sketchState.kind === "drawing"} />
-        </div>
-      ) : null}
       {toolMode === "boardShape" && sketchState.kind === "drawing" ? (
         <SketchDimEntry
           entry={sketchEntry}
@@ -5948,22 +5942,13 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
       {workspace.projection && props.layersPanelTarget
         ? createPortal(
             <PcbLayersPanel
+              headerTarget={props.layersHeaderTarget ?? null}
               activeLayer={focusedLayer}
               lockedVisibleLayer={displayedCopperLayer}
               routingLayer={
                 routeState.kind === "routing" ? routeState.session.layer : null
               }
-              onSetActiveLayer={(layer) => {
-                if (
-                  layer === "F.Cu" ||
-                  layer === "B.Cu" ||
-                  layer === "In1.Cu" ||
-                  layer === "In2.Cu"
-                ) {
-                  setFocusedLayer((prev) => (prev === layer ? null : layer));
-                  void setActiveCopperLayer(layer);
-                }
-              }}
+              onSetActiveLayer={handleSetActiveLayer}
               visibleLayers={workspace.projection.board.visibleLayers}
               onSetVisibleLayers={(layers) =>
                 void workspace.setVisibleLayers(layers)
@@ -5985,8 +5970,6 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
                 // see `pcb-projection.ts`); no per-layer net/connection picker.
               }}
               onCleanupPourTraces={() => void workspace.cleanupPourTraces()}
-              viewSide={workspace.viewSide}
-              onToggleViewSide={handleToggleViewSide}
               onSelectLayerPreset={(preset) => {
                 if (preset === "custom") return;
                 // Resolve the preset spec, then apply via workspace methods
@@ -6046,53 +6029,199 @@ export function PcbCanvas(props: PcbCanvasProps): ReactElement {
             props.layersPanelTarget,
           )
         : null}
-      {workspace.projection && props.boardPanelTarget
+      {/* Contextual 28px parameter row. Renders nothing while no tool is
+          active so the slot collapses to zero height. */}
+      {workspace.projection && props.paramRowTarget
         ? createPortal(
-            <PcbBoardPanel
-              workspace={workspace}
-              widthText={widthText}
-              setWidthText={setWidthText}
-              heightText={heightText}
-              setHeightText={setHeightText}
-              widthMm={widthMm}
-              heightMm={heightMm}
-              valid={valid}
-              currentOutline={workspace.projection?.board.outline ?? null}
-              outsideCount={outsideCount}
-              onApplyOutline={(outline) =>
-                void workspace
-                  .updateBoardOutline(outline)
-                  .then(() => cameraControlsRef.current?.fit())
-              }
-              onFitToParts={() =>
-                void workspace
-                  .fitBoardToParts()
-                  .then(() => cameraControlsRef.current?.fit())
-              }
-              editMode={boardDimMode}
-              onToggleEditMode={() =>
-                setBoardDimMode((prev) => {
-                  // Entering edit mode forces the select tool so the edge
-                  // handles are interactive (route/measure would intercept).
-                  if (!prev) setToolMode("select");
-                  return !prev;
-                })
-              }
-              onDrawShape={() => {
-                dispatchSketch({ kind: "cancel" });
-                dispatchRoute({ kind: "cancel" });
-                dispatchMeasure({ kind: "clear" });
-                setBoardDimMode(false);
-                setToolMode("boardShape");
-              }}
-              onImportDxf={() => {
-                setBoardDimMode(false);
-                setDxfImportOpen(true);
-              }}
-            />,
-            props.boardPanelTarget,
+            toolMode === "route" && !previewActive ? (
+              <>
+                <PcbRouteParamRow
+                  segmentMode={
+                    routeState.kind === "routing"
+                      ? routeState.session.segmentMode
+                      : "manhattan-45"
+                  }
+                  onToggleSegmentMode={() => {
+                    if (routeState.kind === "routing") {
+                      dispatchRoute({
+                        kind: "set-mode",
+                        mode:
+                          routeState.session.segmentMode === "manhattan-90"
+                            ? "manhattan-45"
+                            : "manhattan-90",
+                      });
+                    }
+                  }}
+                  posture={
+                    routeState.kind === "routing"
+                      ? routeState.session.posture
+                      : "auto"
+                  }
+                  onCyclePosture={() => dispatchRoute({ kind: "cycle-posture" })}
+                  activeWidthMm={
+                    routeState.kind === "routing"
+                      ? routeState.session.widthMm
+                      : (defaultNetClass?.traceWidthMm ?? 0.25)
+                  }
+                  tracePresets={tracePresets}
+                  onPickWidth={(w) => void setSessionWidth(w, "preset")}
+                  layerCount={workspace.projection?.board.layerCount ?? 2}
+                  routeSessionActive={routeState.kind === "routing"}
+                  viaDiameterMm={
+                    routeState.kind === "routing" &&
+                    routeState.session.viaDiameterMmOverride !== undefined
+                      ? routeState.session.viaDiameterMmOverride
+                      : (defaultNetClass?.viaDiameterMm ?? 0.6)
+                  }
+                  viaDrillMm={
+                    routeState.kind === "routing" &&
+                    routeState.session.viaDrillMmOverride !== undefined
+                      ? routeState.session.viaDrillMmOverride
+                      : (defaultNetClass?.viaDrillMm ?? 0.3)
+                  }
+                  viaDiameterDefaultMm={defaultNetClass?.viaDiameterMm ?? 0.6}
+                  viaDrillDefaultMm={defaultNetClass?.viaDrillMm ?? 0.3}
+                  viaDiameterPresets={VIA_DIAMETER_PRESETS_MM}
+                  viaDrillPresets={VIA_DRILL_PRESETS_MM}
+                  onPickViaDiameter={(mm) =>
+                    dispatchRoute({
+                      kind: "set-via-diameter",
+                      diameterMmOverride: mm,
+                    })
+                  }
+                  onPickViaDrill={(mm) =>
+                    dispatchRoute({
+                      kind: "set-via-drill",
+                      drillMmOverride: mm,
+                    })
+                  }
+                  onPickViaPreset={(preset) => {
+                    dispatchRoute({
+                      kind: "set-via-diameter",
+                      diameterMmOverride: preset.diameterMm,
+                    });
+                    dispatchRoute({
+                      kind: "set-via-drill",
+                      drillMmOverride: preset.drillMm,
+                    });
+                  }}
+                  layer={displayedCopperLayer}
+                  layerColor={copperLayerColor(displayedCopperLayer)}
+                  netClassName={routeHudModel?.netClassName ?? null}
+                  status={
+                    <RouteHudStatus
+                      model={routeHudModel}
+                      widthInputOpen={widthInputOpen}
+                      onOpenWidthInput={() => setWidthInputOpen(true)}
+                      onWidthInputSubmit={(w) =>
+                        void setSessionWidth(w, "manual")
+                      }
+                      onWidthInputClose={() => setWidthInputOpen(false)}
+                      onResetWidthToNetClass={resetSessionWidthToNetClass}
+                    />
+                  }
+                />
+                <RouteHudRows
+                  model={routeHudModel}
+                  blockedConflictCount={blockedConflictCount}
+                  allowDrcViolations={allowDrcViolations}
+                  onToggleAllowDrcViolations={() => {
+                    setAllowDrcViolations((prev) => !prev);
+                    setBlockedConflictCount(null);
+                  }}
+                  autoFinishProposal={
+                    autoFinishProposal
+                      ? {
+                          lengthMm: routeLengthMm(autoFinishProposal.pathNm),
+                          targetName: autoFinishProposal.targetName,
+                        }
+                      : null
+                  }
+                  onAcceptAutoFinish={acceptAutoFinish}
+                  onDismissAutoFinish={() => setAutoFinishProposal(null)}
+                  autoFinishNotice={autoFinishNotice}
+                />
+              </>
+            ) : toolMode === "tune" && !previewActive ? (
+              <TuneHud
+                model={tuneHudModel}
+                targetInputOpen={tuneTargetInputOpen}
+                onOpenTargetInput={() => setTuneTargetInputOpen(true)}
+                onTargetInputSubmit={(t) =>
+                  dispatchTune({ kind: "set-target-override", targetMm: t })
+                }
+                onTargetInputClose={() => setTuneTargetInputOpen(false)}
+                onClearTargetOverride={() =>
+                  dispatchTune({
+                    kind: "set-target-override",
+                    targetMm: undefined,
+                  })
+                }
+              />
+            ) : toolMode === "bundle" && !previewActive ? (
+              <BundleHud model={bundleHudModel} notice={bundleBlocked} />
+            ) : null,
+            props.paramRowTarget,
           )
         : null}
+      {workspace.projection && props.layerStripTarget
+        ? createPortal(
+            <PcbLayerTabStrip
+              activeLayer={displayedCopperLayer}
+              onSetActiveLayer={handleSetActiveLayer}
+              layerCount={workspace.projection.board.layerCount}
+              viewSide={workspace.viewSide}
+              onToggleViewSide={handleToggleViewSide}
+            />,
+            props.layerStripTarget,
+          )
+        : null}
+      {workspace.projection && props.propertiesTarget
+        ? createPortal(
+            <PcbPropertiesPanel
+              selection={selection}
+              projection={workspace.projection}
+              boardPanel={boardPanelElement}
+              inspectorSelection={inspectorSelection}
+              partValues={props.partValues ?? EMPTY_PART_VALUES}
+              onUpdateFreeHole={(id, patch) =>
+                workspace.updateFreeHole(id, patch)
+              }
+              onDeleteFreeHole={(id) =>
+                workspace
+                  .deleteFreeHole(id)
+                  .then(() => setSelection(emptyPcbSelection()))
+              }
+              onUpdateFreePad={(id, patch) => workspace.updateFreePad(id, patch)}
+              onDeleteFreePad={(id) =>
+                workspace
+                  .deleteFreePad(id)
+                  .then(() => setSelection(emptyPcbSelection()))
+              }
+              onUpdateOverlayText={(id, patch) =>
+                workspace.updateOverlayText(id, patch)
+              }
+              onDeleteOverlayText={(id) =>
+                workspace
+                  .deleteOverlayText(id)
+                  .then(() => setSelection(emptyPcbSelection()))
+              }
+            />,
+            props.propertiesTarget,
+          )
+        : null}
+      {workspace.projection && props.componentsPanelTarget
+        ? createPortal(
+            <PcbComponentsPanel
+              placements={workspace.projection.placements}
+              partValues={props.partValues ?? EMPTY_PART_VALUES}
+              selectedIds={selection.placementIds}
+              onSelect={handleSelectComponent}
+            />,
+            props.componentsPanelTarget,
+          )
+        : null}
+      {rulesDialog.dialog}
       {dxfImportOpen ? (
         <DxfImportModal
           backendURL={props.backendURL ?? null}

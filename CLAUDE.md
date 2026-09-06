@@ -404,11 +404,15 @@ detailed reference material — use them instead of guessing EDA conventions.
 | `/pcb-layout`        | Trace routing (Manhattan + 45°), vias, pad rendering, ratsnest (MST), board outline, placement, net classes, footprint rendering from KiCad payload, grid presets, Gerber export   |
 | `/r3f-eda-rendering` | **Any** visual rendering in EDA editors. R3F orthographic + demand rendering (`invalidate()`), render-order constants, InstancedMesh, LineSegments2, text, hit-testing patterns    |
 | `/eda-standards`     | IPC-2221B clearance tables, trace-width formula and lookup, manufacturer presets (JLCPCB / PCBWay), layer naming, via specs, copper weight, grid standards, DRC rule values. **Values only, no code patterns** |
+| `/pcb-hardening-review` | **Opt-in, explicit invocation only.** Delegates a DRC / PCB-geometry / manual-routing / copper-pour / ERC correctness question to GPT-6-Astra via the Codex CLI, read-only, attack-framed (finds counterexamples, specifies fixes — never writes code). Scoped only to `backend/drc/`, `shared/pcb-geometry/`, `shared/pcb-routing/`, `shared/schematic-routing/` + `backend/erc/`, `shared/rendering/copper-fill/`. Refuses and redirects for anything else. |
 
 Selection guidance:
 
 - Touching any canvas or visual code → `/r3f-eda-rendering` first, then the domain skill.
 - Library module backend or frontend → `/library`.
 - Need a DRC value, clearance rule or trace width → `/eda-standards`; never invent one.
+- Hard DRC/geometry/routing/electrical correctness question — attacking a design or an
+  implementation, not everyday review → `/pcb-hardening-review` (explicit invocation only, never
+  auto-triggered).
 - Skills carry `references/` subdirectories with detailed specs (routing algorithms, hit-testing, net
   extraction, design rules), loaded automatically.

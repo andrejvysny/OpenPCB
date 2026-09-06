@@ -49,7 +49,7 @@ export function CloudPresenceIndicator({
         return (
           <span
             key={peer.userId}
-            className="flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-semibold text-white ring-1 ring-white dark:ring-slate-900"
+            className="flex h-4 w-4 items-center justify-center rounded-full text-2xs font-medium text-white ring-1 ring-surface-rail"
             style={{ backgroundColor: peer.color }}
             title={peer.email ?? peer.userId}
           >
@@ -58,7 +58,7 @@ export function CloudPresenceIndicator({
         );
       })}
       {peers.length > 4 && (
-        <span className="text-xs text-slate-500">+{peers.length - 4}</span>
+        <span className="text-2xs text-text-tertiary">+{peers.length - 4}</span>
       )}
     </div>
   );

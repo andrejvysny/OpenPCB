@@ -16,21 +16,21 @@ const BENEFITS: Array<{ icon: LucideIcon; label: string }> = [
 
 export function CloudValueCard() {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white px-4 py-[14px] dark:border-slate-800 dark:bg-slate-900">
+    <section className="rounded-control border border-border bg-surface-panel px-4 py-[14px]">
       <div className="flex items-center gap-2">
         <Cloud
-          className="h-[18px] w-[18px] text-violet-600 dark:text-violet-300"
+          className="h-[18px] w-[18px] text-selection"
           strokeWidth={1.8}
         />
-        <h3 className="text-sm font-medium text-slate-900 dark:text-slate-100">
+        <h3 className="text-sm font-medium text-text-strong">
           OpenPCB Cloud
         </h3>
-        <span className="ml-auto rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">
+        <span className="ml-auto rounded-full bg-selection-soft px-2 py-0.5 text-xs font-medium text-selection">
           Paid
         </span>
       </div>
 
-      <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
+      <p className="mt-3 text-sm text-text-secondary">
         What an account unlocks:
       </p>
 
@@ -38,10 +38,10 @@ export function CloudValueCard() {
         {BENEFITS.map(({ icon: Icon, label }) => (
           <li
             key={label}
-            className="flex items-center gap-2.5 text-sm text-slate-700 dark:text-slate-200"
+            className="flex items-center gap-2.5 text-sm text-text"
           >
             <Icon
-              className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500"
+              className="h-4 w-4 shrink-0 text-text-tertiary"
               strokeWidth={1.8}
             />
             {label}

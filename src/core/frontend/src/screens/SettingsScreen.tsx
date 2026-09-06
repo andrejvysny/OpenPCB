@@ -49,32 +49,30 @@ export function SettingsScreen({ tab }: { tab: SettingsTab }) {
   const Panel = panelComponents[activeTab];
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col bg-white dark:bg-slate-950">
-      <header className="flex h-[52px] flex-shrink-0 items-center gap-3 border-b border-slate-200 px-3 dark:border-slate-800">
+    <div className="flex h-full min-h-0 w-full flex-col bg-surface-app">
+      <header className="flex h-[52px] flex-shrink-0 items-center gap-3 border-b border-border px-3">
         <button
           type="button"
           aria-label="Back"
           onClick={closeSettings}
-          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-control text-text-tertiary transition-colors hover:bg-surface-hover hover:text-text"
         >
-          <ArrowLeft className="h-[18px] w-[18px]" strokeWidth={1.8} />
+          <ArrowLeft className="h-[18px] w-[18px]" strokeWidth={1.5} />
         </button>
-        <h1 className="text-base font-medium text-slate-900 dark:text-slate-100">
-          Settings
-        </h1>
+        <h1 className="text-base font-medium text-text-strong">Settings</h1>
         <div className="flex-1" />
         <label className="relative block w-[200px]">
           <span className="sr-only">Search settings</span>
           <Search
-            className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500"
-            strokeWidth={1.8}
+            className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-tertiary"
+            strokeWidth={1.5}
           />
           <input
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search settings"
-            className="h-8 w-full rounded-md border border-slate-300 bg-white pl-8 pr-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
+            className="h-8 w-full rounded-control border border-border-control bg-surface-input pl-8 pr-2 text-sm text-text placeholder:text-text-tertiary focus:border-selection focus:outline-none focus-visible:ring-1 ring-selection"
           />
         </label>
       </header>

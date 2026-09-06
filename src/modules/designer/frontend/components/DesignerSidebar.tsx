@@ -13,8 +13,12 @@ interface DesignerSidebarProps {
   state: DesignerWorkspaceState;
   actions: DesignerWorkspaceActions;
   activeView: DesignerView;
-  pcbSlotRef?: (el: HTMLDivElement | null) => void;
   pcbLayersSlotRef?: (el: HTMLDivElement | null) => void;
+  /** Trailing slot in the Layers section header (hosts the preset dropdown). */
+  pcbLayersHeaderSlotRef?: (el: HTMLDivElement | null) => void;
+  pcbComponentsSlotRef?: (el: HTMLDivElement | null) => void;
+  /** Placements on the board, for the Components section header badge. */
+  pcbComponentCount?: number;
   threeDSlotRef?: (el: HTMLDivElement | null) => void;
   onPlaceComponent(): void;
   onAddNetLabel(): void;
@@ -32,12 +36,17 @@ interface DesignerSidebarProps {
   }): void;
 }
 
+const ASIDE_CLASS =
+  "flex h-full min-h-0 flex-col border-r border-border bg-surface-panel";
+
 export function DesignerSidebar({
   state,
   actions,
   activeView,
-  pcbSlotRef,
   pcbLayersSlotRef,
+  pcbLayersHeaderSlotRef,
+  pcbComponentsSlotRef,
+  pcbComponentCount,
   threeDSlotRef,
   onPlaceComponent,
   onAddNetLabel,
@@ -46,13 +55,26 @@ export function DesignerSidebar({
   onSelectOnCanvas,
 }: DesignerSidebarProps): ReactElement {
   if (activeView === "pcb") {
+    // Board settings moved into the right dock's Properties tab (its idle
+    // state); the PCB sidebar hosts Layers + Components. Both bodies are
+    // portal targets filled by PcbCanvas.
     return (
-      <aside className="flex h-full min-h-0 flex-col overflow-y-auto border-r border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950">
-        <CollapsibleSection id="pcb.sidebar.board" title="Board" defaultOpen>
-          <div ref={pcbSlotRef} />
-        </CollapsibleSection>
-        <CollapsibleSection id="pcb.sidebar.layers" title="Layers" defaultOpen>
+      <aside className={`${ASIDE_CLASS} overflow-y-auto`}>
+        <CollapsibleSection
+          id="pcb.sidebar.layers"
+          title="Layers"
+          defaultOpen
+          trailing={<div ref={pcbLayersHeaderSlotRef} />}
+        >
           <div ref={pcbLayersSlotRef} />
+        </CollapsibleSection>
+        <CollapsibleSection
+          id="pcb.sidebar.components"
+          title="Components"
+          count={pcbComponentCount}
+          defaultOpen
+        >
+          <div ref={pcbComponentsSlotRef} />
         </CollapsibleSection>
       </aside>
     );
@@ -60,16 +82,14 @@ export function DesignerSidebar({
 
   if (activeView === "3d") {
     return (
-      <aside className="flex h-full min-h-0 flex-col overflow-hidden border-r border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950">
+      <aside className={`${ASIDE_CLASS} overflow-hidden`}>
         <div ref={threeDSlotRef} className="min-h-0 flex-1" />
       </aside>
     );
   }
 
   if (activeView !== "schem") {
-    return (
-      <aside className="flex h-full min-h-0 flex-col border-r border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950" />
-    );
+    return <aside className={ASIDE_CLASS} />;
   }
 
   return (

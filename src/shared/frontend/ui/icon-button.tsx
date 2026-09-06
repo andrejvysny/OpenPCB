@@ -6,19 +6,45 @@ export interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonEl
   /** Accessible label; also shown as a tooltip when provided. */
   label: string;
   size?: "sm" | "md";
+  /** `outline` (default) draws the 1px control border; `ghost` is borderless. */
+  variant?: "outline" | "ghost";
+  /** Renders the pressed/active look (and `aria-pressed`). */
+  active?: boolean;
+  /** Set false to skip the tooltip wrapper (the aria-label is still applied). */
+  tooltip?: boolean;
 }
 
 /** Square icon-only button with an attached tooltip + aria-label. */
 export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
-  ({ label, size = "md", className, children, ...props }, ref) => {
+  (
+    {
+      label,
+      size = "md",
+      variant = "outline",
+      active,
+      tooltip = true,
+      className,
+      children,
+      ...props
+    },
+    ref,
+  ) => {
     const button = (
       <button
         ref={ref}
         type="button"
         aria-label={label}
+        aria-pressed={typeof active === "boolean" ? active : undefined}
         className={cn(
-          "inline-flex items-center justify-center rounded-control text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200",
-          size === "sm" ? "h-7 w-7" : "h-8 w-8",
+          "inline-flex shrink-0 items-center justify-center rounded-control transition-colors outline-none",
+          "focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-selection",
+          "disabled:cursor-not-allowed disabled:opacity-50",
+          "[&_svg]:h-[12px] [&_svg]:w-[12px] [&_svg]:shrink-0",
+          variant === "outline" && "border border-border-control",
+          active
+            ? "bg-surface-control text-text-strong"
+            : "text-text-secondary hover:bg-surface-hover hover:text-text-strong",
+          size === "sm" ? "h-5 w-5" : "h-[22px] w-[22px]",
           className,
         )}
         {...props}
@@ -26,6 +52,7 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
         {children}
       </button>
     );
+    if (!tooltip) return button;
     return <Tooltip label={label}>{button}</Tooltip>;
   },
 );

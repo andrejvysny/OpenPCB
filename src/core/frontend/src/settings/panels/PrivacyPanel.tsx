@@ -43,32 +43,32 @@ export function PrivacyPanel() {
   return (
     <div className="space-y-8 pb-24">
       <div className="space-y-1">
-        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+        <h2 className="text-base font-semibold text-text-strong">
           Privacy
         </h2>
-        <p className="text-sm text-slate-600 dark:text-slate-300">
+        <p className="text-sm text-text-secondary">
           Control what OpenPCB sends outside your machine. OpenPCB runs fully
           offline by default — no project data, no schematics, and no design
           files ever leave your computer.
         </p>
       </div>
 
-      <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900/40">
+      <section className="space-y-3 rounded-control border border-border bg-surface-panel p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
             <label
               htmlFor="telemetry-opt-in"
-              className="text-sm font-medium text-slate-900 dark:text-slate-100"
+              className="text-sm font-medium text-text-strong"
             >
               Crash and error reporting
             </label>
-            <p className="text-xs text-slate-600 dark:text-slate-400">
+            <p className="text-xs text-text-secondary">
               Send anonymous crash reports and uncaught errors to the OpenPCB
               team via Sentry. Helps us find and fix bugs faster. No project
               files, schematic content, or personally identifying information is
               included.
             </p>
-            <p className="text-xs text-slate-500 dark:text-slate-500">
+            <p className="text-xs text-text-tertiary">
               Changes take effect on next launch.
             </p>
           </div>
@@ -78,7 +78,7 @@ export function PrivacyPanel() {
             checked={optIn ?? false}
             disabled={!available || optIn === null || saving}
             onChange={() => void toggle()}
-            className="mt-1 h-5 w-5 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600"
+            className="mt-1 h-5 w-5 cursor-pointer rounded border-border-control text-selection focus:ring-selection disabled:cursor-not-allowed disabled:opacity-50"
           />
         </div>
 
@@ -101,13 +101,13 @@ export function PrivacyPanel() {
         ) : null}
       </section>
 
-      <p className="text-xs text-slate-500 dark:text-slate-500">
+      <p className="text-xs text-text-tertiary">
         See{" "}
         <a
           href="https://github.com/OpenPCB-app/OpenPCB/blob/main/SECURITY.md"
           target="_blank"
           rel="noreferrer"
-          className="underline hover:text-slate-900 dark:hover:text-slate-200"
+          className="underline hover:text-text-strong"
         >
           SECURITY.md
         </a>{" "}

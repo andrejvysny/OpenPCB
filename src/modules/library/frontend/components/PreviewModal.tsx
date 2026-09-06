@@ -29,26 +29,26 @@ export function PreviewModal({
       aria-modal="true"
       aria-label={title}
       onClick={onClose}
-      className="fixed inset-0 z-50 flex flex-col bg-slate-950/80 p-4 backdrop-blur-sm sm:p-8"
+      className="fixed inset-0 z-50 flex flex-col bg-surface-app/90 p-4 sm:p-8"
     >
       <div
         onClick={(event) => event.stopPropagation()}
-        className="mx-auto flex h-full w-full max-w-[1280px] flex-col overflow-hidden rounded-xl border border-slate-700 bg-slate-900 shadow-2xl"
+        className="mx-auto flex h-full w-full max-w-[1280px] flex-col overflow-hidden rounded-float border border-border bg-surface-panel shadow-lg"
       >
-        <header className="flex items-center justify-between border-b border-slate-700 px-4 py-3">
-          <span className="font-mono text-xs font-semibold uppercase tracking-wider text-slate-300">
+        <header className="flex h-[34px] items-center justify-between border-b border-border px-3">
+          <span className="font-mono text-2xs uppercase tracking-[.04em] text-text-secondary">
             {title}
           </span>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close preview"
-            className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-slate-600 text-slate-300 transition-colors hover:bg-slate-800"
+            className="inline-flex h-[22px] w-[22px] cursor-pointer items-center justify-center rounded-control border border-border-control text-text-secondary outline-none transition-colors hover:bg-surface-hover hover:text-text-strong"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3 w-3" />
           </button>
         </header>
-        <div className="min-h-0 flex-1 bg-slate-950">{children}</div>
+        <div className="min-h-0 flex-1 bg-surface-canvas-well">{children}</div>
       </div>
     </div>
   );

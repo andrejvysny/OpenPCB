@@ -102,7 +102,7 @@ export function CloudSyncBadge({
   if (!session) {
     return (
       <span
-        className="text-xs text-slate-400"
+        className="text-2xs text-text-tertiary"
         title="Sign in via Settings → Account to enable cloud sync"
       >
         cloud: signed-out
@@ -112,7 +112,7 @@ export function CloudSyncBadge({
   if (!projectSyncEnabled) {
     return (
       <span
-        className="text-xs text-slate-400"
+        className="text-2xs text-text-tertiary"
         title="Project sync is off — turn it on in Settings → Account"
       >
         cloud: sync off
@@ -123,7 +123,7 @@ export function CloudSyncBadge({
 
   if (!link) {
     return (
-      <span className="text-xs text-slate-400" title="Syncing to cloud…">
+      <span className="text-2xs text-text-tertiary" title="Syncing to cloud…">
         {linking ? "cloud: syncing…" : "cloud: …"}
       </span>
     );
@@ -132,10 +132,10 @@ export function CloudSyncBadge({
   const conflict = link.lastError?.startsWith("REVISION_CONFLICT") ?? false;
   const failing = link.failedAttempts > 0;
   const statusClass = conflict
-    ? "text-xs text-rose-600 dark:text-rose-400"
+    ? "text-2xs text-status-danger"
     : failing
-      ? "text-xs text-amber-600 dark:text-amber-400"
-      : "text-xs text-emerald-600 dark:text-emerald-400";
+      ? "text-2xs text-status-warning"
+      : "text-2xs text-status-success";
   const statusText = conflict
     ? "cloud: conflict"
     : failing

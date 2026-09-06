@@ -321,10 +321,10 @@ export function AssistantPanel() {
   const defaultProviderId = settings?.defaultProviderId;
 
   return (
-    <div className="space-y-5 pb-24 text-slate-900 dark:text-slate-100">
+    <div className="space-y-5 pb-24 text-text-strong">
       <div>
         <h2 className="text-lg font-semibold">Assistant</h2>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+        <p className="mt-1 text-sm text-text-tertiary">
           Bring your own key. Free on desktop — keys stored encrypted locally.
         </p>
       </div>
@@ -342,7 +342,7 @@ export function AssistantPanel() {
 
       {/* Default assistant defaults */}
       <section>
-        <div className="mb-2.5 text-[10px] font-medium uppercase tracking-wide text-slate-400">
+        <div className="mb-2.5 text-[10px] font-medium uppercase tracking-wide text-text-caps">
           Default assistant
         </div>
         <div className="grid gap-3 md:grid-cols-2">
@@ -410,7 +410,7 @@ export function AssistantPanel() {
             </Select>
           </Field>
         </div>
-        <label className="mt-3 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+        <label className="mt-3 flex items-center gap-2 text-xs text-text-tertiary">
           <input
             type="checkbox"
             checked={settings?.allowRawToolData ?? false}
@@ -422,7 +422,7 @@ export function AssistantPanel() {
             className="h-3.5 w-3.5"
           />
           Allow raw tool data
-          <span className="rounded bg-slate-100 px-1.5 text-[9px] dark:bg-slate-800">
+          <span className="rounded bg-surface-hover px-1.5 text-[9px]">
             Advanced
           </span>
         </label>
@@ -436,13 +436,13 @@ export function AssistantPanel() {
       {/* Providers — stacked accordion */}
       <section>
         <div className="mb-2.5 flex items-center justify-between">
-          <div className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
+          <div className="text-[10px] font-medium uppercase tracking-wide text-text-caps">
             Providers · {providers.length}
           </div>
           <button
             type="button"
             onClick={() => void addProvider().catch(reportError)}
-            className="inline-flex items-center gap-1 rounded-control border border-violet-400/40 bg-accent-soft px-2.5 py-1 text-xs text-accent-text hover:bg-violet-500/15"
+            className="inline-flex items-center gap-1 rounded-control border border-selection/40 bg-selection-soft px-2.5 py-1 text-xs text-text-strong hover:bg-selection-soft/70"
           >
             <Plus className="h-3 w-3" /> Add provider
           </button>
@@ -504,14 +504,14 @@ export function AssistantPanel() {
                         onClick={() =>
                           void deleteProvider(provider).catch(reportError)
                         }
-                        className="rounded-control border border-slate-200 p-1.5 text-slate-400 hover:text-red-500 disabled:opacity-40 dark:border-slate-700"
+                        className="rounded-control border border-border p-1.5 text-text-tertiary hover:text-status-danger disabled:opacity-40"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                       <ChevronDown className="h-4 w-4 rotate-180 text-accent-text" />
                     </>
                   ) : (
-                    <ChevronDown className="h-4 w-4 text-slate-400" />
+                    <ChevronDown className="h-4 w-4 text-text-tertiary" />
                   )
                 }
               >
@@ -546,7 +546,7 @@ export function AssistantPanel() {
           <button
             type="button"
             onClick={() => void addProvider().catch(reportError)}
-            className="flex items-center justify-center gap-1.5 rounded-control border border-dashed border-slate-300 px-3.5 py-3 text-xs text-slate-400 hover:border-slate-400 hover:text-slate-500 dark:border-slate-700 dark:hover:border-slate-600"
+            className="flex items-center justify-center gap-1.5 rounded-control border border-dashed border-border-control px-3.5 py-3 text-xs text-text-tertiary hover:border-text-tertiary hover:text-text-secondary"
           >
             <Plus className="h-3.5 w-3.5" /> Add another provider
           </button>
@@ -559,8 +559,8 @@ export function AssistantPanel() {
 function ProviderIcon({ kind }: { kind: AiProviderKind }) {
   const Icon = isLocal(kind) ? Cpu : Server;
   return (
-    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800">
-      <Icon className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-control bg-surface-hover">
+      <Icon className="h-4 w-4 text-text-tertiary" />
     </div>
   );
 }
@@ -613,11 +613,11 @@ function ProviderSummary({
               <AlertTriangle className="h-3 w-3" /> Needs API key to activate
             </span>
           ) : !provider.enabled ? (
-            <span className="text-slate-400">Disabled</span>
+            <span className="text-text-tertiary">Disabled</span>
           ) : (
             <span className="inline-flex items-center gap-1.5 text-status-success">
               <span className="h-1.5 w-1.5 rounded-full bg-status-success" />
-              <span className="text-slate-500 dark:text-slate-400">
+              <span className="text-text-tertiary">
                 Active ·{" "}
                 <span className="font-mono">{provider.defaultModel}</span>
               </span>
@@ -702,7 +702,7 @@ function ProviderForm({
 
       <div className="mb-3">
         <div className="mb-1 flex items-center justify-between">
-          <label className="text-[11px] text-slate-500 dark:text-slate-400">
+          <label className="text-[11px] text-text-tertiary">
             API key{optionalKey ? " (optional)" : ""}
           </label>
           {provider.hasApiKey ? (
@@ -712,9 +712,9 @@ function ProviderForm({
           ) : null}
         </div>
         {showMasked ? (
-          <div className="flex items-center gap-2 rounded-control border border-slate-200 bg-white px-2.5 py-2 dark:border-slate-700 dark:bg-slate-950">
-            <KeyRound className="h-3 w-3 text-slate-400" />
-            <span className="flex-1 truncate font-mono text-xs tracking-wider text-slate-400">
+          <div className="flex items-center gap-2 rounded-control border border-border bg-surface-input px-2.5 py-2">
+            <KeyRound className="h-3 w-3 text-text-tertiary" />
+            <span className="flex-1 truncate font-mono text-xs tracking-wider text-text-tertiary">
               {showKey ? `${mask.dots}${mask.hint}` : mask.dots}
             </span>
             {mask.hint ? (
@@ -724,7 +724,7 @@ function ProviderForm({
               type="button"
               aria-label="Show key hint"
               onClick={() => setShowKey(!showKey)}
-              className="px-1 text-slate-400 hover:text-slate-600"
+              className="px-1 text-text-tertiary hover:text-text-secondary"
             >
               {showKey ? (
                 <EyeOff className="h-3.5 w-3.5" />
@@ -732,7 +732,7 @@ function ProviderForm({
                 <Eye className="h-3.5 w-3.5" />
               )}
             </button>
-            <div className="h-3.5 w-px bg-slate-200 dark:bg-slate-700" />
+            <div className="h-3.5 w-px bg-border" />
             <button
               type="button"
               onClick={() => setReplacingKey(true)}
@@ -744,7 +744,7 @@ function ProviderForm({
               type="button"
               onClick={onRemoveKey}
               title="Remove the saved API key"
-              className="inline-flex items-center gap-1 px-1 text-xs text-slate-400 hover:text-red-500"
+              className="inline-flex items-center gap-1 px-1 text-xs text-text-tertiary hover:text-status-danger"
             >
               <Trash2 className="h-3 w-3" /> Remove
             </button>
@@ -764,7 +764,7 @@ function ProviderForm({
           />
         )}
         {optionalKey && !showMasked ? (
-          <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
+          <p className="mt-1 text-[10px] text-text-tertiary">
             Optional for local / self-hosted servers (vLLM, Ollama, LM Studio).
             Leave empty if your server needs no key.
           </p>
@@ -773,7 +773,7 @@ function ProviderForm({
 
       <div className="mb-3">
         <div className="mb-1 flex items-center justify-between">
-          <label className="text-[11px] text-slate-500 dark:text-slate-400">
+          <label className="text-[11px] text-text-tertiary">
             Default model
           </label>
           <button
@@ -812,11 +812,11 @@ function ProviderForm({
 
       <div className="mb-3">
         <div className="mb-1 flex items-center justify-between">
-          <label className="text-[11px] text-slate-500 dark:text-slate-400">
+          <label className="text-[11px] text-text-tertiary">
             Tool calling
           </label>
         </div>
-        <div className="inline-flex overflow-hidden rounded-control border border-slate-200 dark:border-slate-700">
+        <div className="inline-flex overflow-hidden rounded-control border border-border">
           {(["auto", "on", "off"] as const).map((mode) => (
             <button
               key={mode}
@@ -825,15 +825,15 @@ function ProviderForm({
               className={cn(
                 "px-3 py-1 text-xs capitalize",
                 toolCallingMode === mode
-                  ? "bg-violet-600 text-white"
-                  : "bg-white text-slate-500 hover:bg-slate-50 dark:bg-slate-950 dark:text-slate-400 dark:hover:bg-slate-900",
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-surface-panel text-text-tertiary hover:bg-surface-hover",
               )}
             >
               {mode}
             </button>
           ))}
         </div>
-        <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
+        <p className="mt-1 text-[10px] text-text-tertiary">
           Auto follows the capability probe. Use On to force tools for a server
           that supports them but failed probing; Off disables grounded tools.
         </p>
@@ -841,7 +841,7 @@ function ProviderForm({
 
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <label className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+          <label className="flex items-center gap-1.5 text-xs text-text-tertiary">
             <input
               type="checkbox"
               checked={draft.enabled}
@@ -852,7 +852,7 @@ function ProviderForm({
             />
             Enabled
           </label>
-          <label className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+          <label className="flex items-center gap-1.5 text-xs text-text-tertiary">
             <input
               type="checkbox"
               checked={includeCompletion}
@@ -865,16 +865,16 @@ function ProviderForm({
         <button
           type="button"
           onClick={onSave}
-          className="rounded-control bg-violet-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-violet-500"
+          className="rounded-control bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90"
         >
           Save provider
         </button>
       </div>
 
       {/* Usage tiles (layout now, data Phase 2). */}
-      <div className="mt-4 border-t border-violet-300/30 pt-3 dark:border-violet-800/30">
+      <div className="mt-4 border-t border-border pt-3">
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-[10px] uppercase tracking-wide text-slate-400">
+          <span className="text-[10px] uppercase tracking-wide text-text-caps">
             This month
           </span>
           <button
@@ -894,9 +894,9 @@ function ProviderForm({
           ].map((tile) => (
             <div
               key={tile.label}
-              className="rounded-control border border-slate-200 bg-white px-2.5 py-1.5 dark:border-slate-700 dark:bg-slate-950"
+              className="rounded-control border border-border bg-surface-input px-2.5 py-1.5"
             >
-              <div className="text-[10px] uppercase tracking-wide text-slate-400">
+              <div className="text-[10px] uppercase tracking-wide text-text-caps">
                 {tile.label}
               </div>
               <div className="font-mono text-sm font-medium">{tile.value}</div>
@@ -919,7 +919,7 @@ function Field({
 }) {
   return (
     <label className={cn("block", className)}>
-      <span className="mb-1 block text-[11px] text-slate-500 dark:text-slate-400">
+      <span className="mb-1 block text-[11px] text-text-tertiary">
         {label}
       </span>
       {children}
@@ -948,7 +948,7 @@ function TextInput({
       autoComplete="off"
       onChange={(e) => onChange(e.target.value)}
       className={cn(
-        "w-full rounded-control border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none dark:border-slate-700 dark:bg-slate-950",
+        "w-full rounded-control border border-border bg-surface-input px-2.5 py-1.5 text-xs outline-none",
         mono && "font-mono",
       )}
     />
@@ -971,7 +971,7 @@ function Select({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       className={cn(
-        "w-full rounded-control border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none dark:border-slate-700 dark:bg-slate-950",
+        "w-full rounded-control border border-border bg-surface-input px-2.5 py-1.5 text-xs outline-none",
         mono && "font-mono",
       )}
     >
@@ -999,7 +999,7 @@ function HeaderButton({
         "inline-flex items-center gap-1 rounded-control border px-2 py-1 text-[11px]",
         tone === "success"
           ? "border-emerald-400/30 bg-status-success-soft text-status-success"
-          : "border-slate-200 text-slate-500 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800",
+          : "border-border text-text-tertiary hover:bg-surface-hover",
       )}
     >
       {icon}

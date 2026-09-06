@@ -1,55 +1,156 @@
 import type { ReactElement } from "react";
+import { StatusBar, StatusSegment } from "@shared/frontend/ui/status-bar";
+import { SeverityDiamond } from "@shared/frontend/ui/severity-diamond";
+import {
+  PCB_LAYER_COLORS,
+  PCB_LAYER_LABELS,
+} from "../../../../shared/frontend/canvas/layers";
+import type { PcbLayerId } from "../../../../sdks";
+import { usePcbCursorStore } from "../pcb/pcb-cursor-store";
+import { useSchematicCursorStore } from "../stores/schematic-cursor-store";
+
+const LAYER_COLORS = PCB_LAYER_COLORS as Record<string, string | undefined>;
+const LAYER_LABELS = PCB_LAYER_LABELS as Record<string, string | undefined>;
 
 interface DesignerStatusBarProps {
-  gridMm: number;
+  /** Snap/grid pitch; omit when the editor has no grid snapping in effect. */
+  gridMm?: number;
+  /** Zoom, in percent. */
   zoom: number;
   selection: string;
   drcCount?: number;
-  /** When provided, the DRC chip becomes a button that toggles the DRC dock. */
+  /** When provided, the DRC segment becomes a button that opens the DRC tab. */
   onDrcClick?: () => void;
+  /** Label for the violation-count segment — "ERC" on the schematic. */
+  drcLabel?: string;
+  /** Native tooltip for the violation-count segment. */
+  drcTitle?: string;
+  /** Render the X / Y cursor segments. */
+  showCursor?: boolean;
+  /** Which editor's cursor store the X / Y readout subscribes to. */
+  cursorSource?: "pcb" | "schematic";
+  /** Active copper layer chip (PCB only). */
+  activeLayer?: PcbLayerId | null;
+  /** Contextual tool hint; fills the remaining width. */
+  hint?: string;
+  /** Board view side chip; omitted when unknown. */
+  viewSide?: "top" | "bottom" | null;
+  /** Trailing unit segment. */
+  unit?: string;
 }
 
+function formatMm(value: number): string {
+  return value.toFixed(3);
+}
+
+function CursorSegment({
+  point,
+}: {
+  point: { xMm: number; yMm: number } | null;
+}): ReactElement {
+  return (
+    <StatusSegment>
+      <span className="text-text-caps">X</span>
+      <span className="text-text-strong">{point ? formatMm(point.xMm) : "—"}</span>
+      <span className="text-text-caps">Y</span>
+      <span className="text-text-strong">{point ? formatMm(point.yMm) : "—"}</span>
+    </StatusSegment>
+  );
+}
+
+/**
+ * X / Y cursor segments. Each variant subscribes to its editor's cursor store
+ * itself so pointer moves re-render only this segment, never the editor shell.
+ * Two components rather than one with a conditional hook call.
+ */
+function PcbCursorReadout(): ReactElement {
+  return <CursorSegment point={usePcbCursorStore((s) => s.point)} />;
+}
+
+function SchematicCursorReadout(): ReactElement {
+  return <CursorSegment point={useSchematicCursorStore((s) => s.point)} />;
+}
+
+/** 22px editor status bar (design D2 §9). */
 export function DesignerStatusBar({
   gridMm,
   zoom,
   selection,
   drcCount,
   onDrcClick,
+  drcLabel = "DRC",
+  drcTitle = "Design rule violations",
+  showCursor = false,
+  cursorSource = "pcb",
+  activeLayer,
+  hint = "",
+  viewSide,
+  unit = "mm",
 }: DesignerStatusBarProps): ReactElement {
+  const layerColor = activeLayer ? LAYER_COLORS[activeLayer] : undefined;
+  const layerLabel = activeLayer ? (LAYER_LABELS[activeLayer] ?? activeLayer) : null;
+
   return (
-    <footer className="flex h-6 items-center justify-between border-t border-slate-200 bg-slate-50 px-3 text-[11px] text-slate-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400">
-      <div className="flex items-center gap-4">
-        <span>Grid: {gridMm.toFixed(2)}mm</span>
-        <span>Zoom: {zoom.toFixed(0)}%</span>
-      </div>
-      <div className="flex items-center gap-3">
-        {drcCount !== undefined ? (
-          onDrcClick ? (
-            <button
-              type="button"
-              onClick={onDrcClick}
-              title="Toggle DRC panel"
-              className={`cursor-pointer rounded px-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 ${
-                drcCount > 0 ? "font-medium text-red-300" : "text-slate-500"
-              }`}
-            >
-              {drcCount} DRC
-            </button>
-          ) : (
-            <span
-              title="Design rule violations"
-              className={
-                drcCount > 0
-                  ? "rounded px-1.5 font-medium text-red-300"
-                  : "rounded px-1.5 text-slate-500"
-              }
-            >
-              {drcCount} DRC
-            </span>
-          )
-        ) : null}
-        <span>{selection}</span>
-      </div>
-    </footer>
+    <StatusBar>
+      {showCursor ? (
+        cursorSource === "schematic" ? (
+          <SchematicCursorReadout />
+        ) : (
+          <PcbCursorReadout />
+        )
+      ) : null}
+      {gridMm !== undefined && (
+        <StatusSegment>
+          <span className="text-text-caps">grid</span>
+          <span className="text-text-strong">{gridMm.toFixed(2)} mm</span>
+        </StatusSegment>
+      )}
+      <StatusSegment>
+        <span className="text-text-caps">zoom</span>
+        <span className="text-text-strong">{zoom.toFixed(0)}%</span>
+      </StatusSegment>
+      {activeLayer ? (
+        <StatusSegment>
+          <span
+            aria-hidden="true"
+            className="inline-block h-2 w-2 shrink-0 ring-1 ring-black/40"
+            style={{ backgroundColor: layerColor }}
+          />
+          <span className="font-sans text-text-strong">{layerLabel}</span>
+          <span className="text-text-disabled">{activeLayer}</span>
+        </StatusSegment>
+      ) : null}
+      <StatusSegment flex sans className="text-text-tertiary">
+        {hint}
+      </StatusSegment>
+      {drcCount !== undefined ? (
+        <StatusSegment
+          title={drcTitle}
+          {...(onDrcClick
+            ? { onClick: onDrcClick, "aria-label": `${drcCount} ${drcLabel}` }
+            : {})}
+        >
+          <SeverityDiamond severity={drcCount > 0 ? "error" : "info"} />
+          <span
+            className={
+              drcCount > 0 ? "font-medium text-status-danger" : undefined
+            }
+          >
+            {drcCount}
+          </span>
+          <span className="text-text-caps">{drcLabel}</span>
+        </StatusSegment>
+      ) : null}
+      <StatusSegment sans className="max-w-[240px] truncate">
+        {selection}
+      </StatusSegment>
+      {viewSide ? (
+        <StatusSegment>
+          <span className="text-text-caps">view</span>
+          <span className="text-text-strong">{viewSide}</span>
+        </StatusSegment>
+      ) : null}
+      <StatusSegment>{unit}</StatusSegment>
+    </StatusBar>
   );
 }

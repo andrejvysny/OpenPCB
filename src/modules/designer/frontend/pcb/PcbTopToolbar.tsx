@@ -1,29 +1,52 @@
-import { useEffect, useRef, useState, type ReactElement } from "react";
-import type { PcbLayerCount } from "../../../../sdks";
+import { useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
+import type { PcbLayerCount, PcbLayerId } from "../../../../sdks";
 import {
   Cable,
   PenTool,
   CircleDot,
   Eye,
   EyeOff,
+  Factory,
   FlipHorizontal2,
   Magnet,
+  Maximize,
   MessageSquarePlus,
-  Minus,
   Network,
   Plus,
   Redo2,
-  ScanSearch,
-  ShieldAlert,
+  ShieldCheck,
   Square,
   Type,
   Undo2,
 } from "lucide-react";
 import type { PcbTraceSegmentMode } from "../../../../sdks";
+import {
+  Toolbar,
+  ToolbarButton,
+  ToolbarSeparator,
+  ToolbarSpacer,
+} from "@shared/frontend/ui/toolbar";
+import { SegmentedControl } from "@shared/frontend/ui/segmented-control";
+import { PCB_LAYER_LABELS } from "../../../../shared/frontend/canvas/layers";
 import type { RoutePosture } from "./tools/route-tool-state";
 import { VIA_PRESETS, type PcbViaPreset } from "../../backend/pcb/via-presets";
 import { LAYER_PAIR_PRESETS } from "./tools/route-layer";
 import { usePcbViewStore } from "./pcb-view-store";
+
+const LAYER_LABELS = PCB_LAYER_LABELS as Record<string, string | undefined>;
+
+/** Shared look for the parameter row's dropdown triggers + value chips. */
+const CHIP_CLASS =
+  "inline-flex h-[20px] shrink-0 items-center gap-1.5 rounded-control border border-border-control bg-surface-input px-1.5 text-2xs text-text-secondary transition-colors hover:text-text-strong";
+
+const MENU_CLASS =
+  "absolute top-full z-30 mt-1 overflow-hidden rounded-float border border-border bg-surface-raised text-xs shadow-lg";
+
+const MENU_ITEM_CLASS =
+  "block w-full px-3 py-1 text-left text-text transition-colors hover:bg-surface-hover hover:text-text-strong";
+
+const MENU_ITEM_ACTIVE_CLASS =
+  "block w-full bg-surface-selected px-3 py-1 text-left font-medium text-text-strong";
 
 /**
  * Smart-via layer pair selector (4-layer boards): where the V key jumps.
@@ -38,7 +61,7 @@ function LayerPairSelect(): ReactElement {
       value={value}
       title="Smart-via layer pair — V jumps between these layers"
       aria-label="Smart-via layer pair"
-      className="h-7 rounded-md border border-transparent bg-transparent px-1 text-xs font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+      className="h-[20px] shrink-0 rounded-control border border-border-control bg-surface-input px-1 text-2xs text-text-secondary outline-none"
       onChange={(e) => {
         const preset = LAYER_PAIR_PRESETS.find(
           (p) => `${p[0]}|${p[1]}` === e.target.value,
@@ -63,7 +86,7 @@ interface PcbTopToolbarProps {
   /** Figma-style alignment guides + magnetic snap (Shift+G). */
   alignmentGuidesVisible: boolean;
   onToggleAlignmentGuides: () => void;
-  /** Whether the in-PCB-tab DRC results dock is open. */
+  /** Whether the right dock's DRC tab is showing. */
   drcPanelOpen: boolean;
   onToggleDrcPanel: () => void;
   /** Active batch-DRC error count; drives the red alarm dot on the button. */
@@ -75,50 +98,15 @@ interface PcbTopToolbarProps {
   canRedo: boolean;
   onUndo: () => void;
   onRedo: () => void;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
   onFit: () => void;
+  /** Opens the manufacturing export dialog (Gerber + Drill + BOM + PnP). */
+  onExport: () => void;
   routeMode: boolean;
-  routeSessionActive: boolean;
   onToggleRouteMode: () => void;
   boardShapeMode: boolean;
   onToggleBoardShape: () => void;
-  measureMode: boolean;
-  onToggleMeasureMode: () => void;
-  /** Length-Tune tool (pcb.lengthTuning). Button hidden when not provided. */
-  tuneMode?: boolean;
-  onToggleTuneMode?: () => void;
-  /** Bundle routing (pcb.bundleRouting). Button hidden when not provided. */
-  bundleMode?: boolean;
-  onToggleBundleMode?: () => void;
   commentMode?: boolean;
   onToggleCommentMode?: () => void;
-  segmentMode: PcbTraceSegmentMode;
-  onToggleSegmentMode: () => void;
-  /** Copper layer count; the V-key layer-pair selector shows on 4-layer boards. */
-  layerCount?: PcbLayerCount;
-  activeWidthMm: number;
-  tracePresets: ReadonlyArray<number>;
-  onPickWidth: (widthMm: number) => void;
-  /** Active via diameter (mm). When `viaDiameterOverride` is undefined this is the net-class default. */
-  viaDiameterMm: number;
-  /** Active via drill (mm). Same fallback semantics as diameter. */
-  viaDrillMm: number;
-  /** Net-class default; surfaced in the dropdown so the user can revert. */
-  viaDiameterDefaultMm: number;
-  viaDrillDefaultMm: number;
-  /** Optional preset list for diameter/drill cycling. */
-  viaDiameterPresets: ReadonlyArray<number>;
-  viaDrillPresets: ReadonlyArray<number>;
-  onPickViaDiameter: (mm: number | undefined) => void;
-  onPickViaDrill: (mm: number | undefined) => void;
-  /**
-   * Apply a paired via preset (drill + diameter together). Net-class default
-   * remains the implicit fallback when both overrides are cleared.
-   */
-  onPickViaPreset: (preset: PcbViaPreset) => void;
-  posture: RoutePosture;
-  onCyclePosture: () => void;
   /** F5 mounting-hole drop tool. Click on canvas drops a free hole. */
   holeMode: boolean;
   onToggleHoleMode: () => void;
@@ -136,6 +124,24 @@ const POSTURE_LABEL: Record<RoutePosture, string> = {
   diagonal: "Diag",
 };
 
+/** Outside-click-to-close for the hand-rolled dropdowns. */
+function useOutsideClose(
+  open: boolean,
+  ref: React.RefObject<HTMLDivElement | null>,
+  close: () => void,
+): void {
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        close();
+      }
+    };
+    window.addEventListener("mousedown", handler);
+    return () => window.removeEventListener("mousedown", handler);
+  }, [close, open, ref]);
+}
+
 function WidthDropdown({
   activeWidthMm,
   presets,
@@ -147,16 +153,7 @@ function WidthDropdown({
 }): ReactElement {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    window.addEventListener("mousedown", handler);
-    return () => window.removeEventListener("mousedown", handler);
-  }, [open]);
+  useOutsideClose(open, ref, () => setOpen(false));
 
   return (
     <div ref={ref} className="relative">
@@ -164,19 +161,19 @@ function WidthDropdown({
         type="button"
         onClick={() => setOpen((v) => !v)}
         title="Trace width — W cycles forward, Shift+W backward, Alt+W custom"
-        className="inline-flex h-7 items-center gap-1 rounded-md border border-transparent px-2 text-xs font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+        className={CHIP_CLASS}
       >
-        <span>W</span>
-        <span className="font-mono text-slate-700 dark:text-slate-200">
+        <span className="text-text-caps">W</span>
+        <span className="font-mono text-text-strong">
           {activeWidthMm.toFixed(3)}
         </span>
-        <span className="text-slate-400">mm</span>
-        <span aria-hidden className="text-slate-400">
+        <span className="text-text-disabled">mm</span>
+        <span aria-hidden className="text-text-disabled">
           ▾
         </span>
       </button>
       {open ? (
-        <div className="absolute left-0 top-full z-30 mt-1 min-w-[140px] overflow-hidden rounded-md border border-slate-200 bg-white text-xs shadow-xl dark:border-slate-700 dark:bg-slate-950">
+        <div className={`${MENU_CLASS} left-0 min-w-[140px]`}>
           {presets.map((w) => {
             const active = Math.abs(w - activeWidthMm) < 1e-6;
             return (
@@ -187,11 +184,7 @@ function WidthDropdown({
                   onPick(w);
                   setOpen(false);
                 }}
-                className={`block w-full px-3 py-1.5 text-left font-mono ${
-                  active
-                    ? "bg-violet-600 text-white"
-                    : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
-                }`}
+                className={`font-mono ${active ? MENU_ITEM_ACTIVE_CLASS : MENU_ITEM_CLASS}`}
               >
                 {w.toFixed(3)} mm
               </button>
@@ -210,7 +203,7 @@ function WidthDropdown({
               }
               setOpen(false);
             }}
-            className="block w-full border-t border-slate-200 px-3 py-1.5 text-left text-slate-600 hover:bg-slate-100 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
+            className={`border-t border-border ${MENU_ITEM_CLASS}`}
           >
             Custom… (Alt+W)
           </button>
@@ -237,16 +230,7 @@ function ViaSizeDropdown({
 }): ReactElement {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    window.addEventListener("mousedown", handler);
-    return () => window.removeEventListener("mousedown", handler);
-  }, [open]);
+  useOutsideClose(open, ref, () => setOpen(false));
 
   const isOverride = Math.abs(activeMm - defaultMm) > 1e-9;
 
@@ -256,34 +240,24 @@ function ViaSizeDropdown({
         type="button"
         onClick={() => setOpen((v) => !v)}
         title={hotkeyTitle}
-        className={`inline-flex h-7 items-center gap-1 rounded-md border border-transparent px-2 text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-800 ${
-          isOverride
-            ? "text-violet-600 dark:text-violet-300"
-            : "text-slate-500 dark:text-slate-300"
-        }`}
+        className={`${CHIP_CLASS} ${isOverride ? "border-selection" : ""}`}
       >
-        <span>{label}</span>
-        <span className="font-mono text-slate-700 dark:text-slate-200">
-          {activeMm.toFixed(2)}
-        </span>
-        <span className="text-slate-400">mm</span>
-        <span aria-hidden className="text-slate-400">
+        <span className="text-text-caps">{label}</span>
+        <span className="font-mono text-text-strong">{activeMm.toFixed(2)}</span>
+        <span className="text-text-disabled">mm</span>
+        <span aria-hidden className="text-text-disabled">
           ▾
         </span>
       </button>
       {open ? (
-        <div className="absolute left-0 top-full z-30 mt-1 min-w-[160px] overflow-hidden rounded-md border border-slate-200 bg-white text-xs shadow-xl dark:border-slate-700 dark:bg-slate-950">
+        <div className={`${MENU_CLASS} left-0 min-w-[160px]`}>
           <button
             type="button"
             onClick={() => {
               onPick(undefined);
               setOpen(false);
             }}
-            className={`block w-full px-3 py-1.5 text-left ${
-              !isOverride
-                ? "bg-violet-600 text-white"
-                : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
-            }`}
+            className={!isOverride ? MENU_ITEM_ACTIVE_CLASS : MENU_ITEM_CLASS}
           >
             Net-class default ({defaultMm.toFixed(2)} mm)
           </button>
@@ -297,11 +271,7 @@ function ViaSizeDropdown({
                   onPick(mm);
                   setOpen(false);
                 }}
-                className={`block w-full px-3 py-1.5 text-left font-mono ${
-                  active
-                    ? "bg-violet-600 text-white"
-                    : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
-                }`}
+                className={`font-mono ${active ? MENU_ITEM_ACTIVE_CLASS : MENU_ITEM_CLASS}`}
               >
                 {mm.toFixed(2)} mm
               </button>
@@ -320,7 +290,7 @@ function ViaSizeDropdown({
               }
               setOpen(false);
             }}
-            className="block w-full border-t border-slate-200 px-3 py-1.5 text-left text-slate-600 hover:bg-slate-100 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
+            className={`border-t border-border ${MENU_ITEM_CLASS}`}
           >
             Custom…
           </button>
@@ -341,16 +311,7 @@ function ViaPresetDropdown({
 }): ReactElement {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    window.addEventListener("mousedown", handler);
-    return () => window.removeEventListener("mousedown", handler);
-  }, [open]);
+  useOutsideClose(open, ref, () => setOpen(false));
 
   const matched = VIA_PRESETS.find(
     (p) =>
@@ -364,17 +325,15 @@ function ViaPresetDropdown({
         type="button"
         onClick={() => setOpen((v) => !v)}
         title="Via preset (paired drill + diameter)"
-        className="inline-flex h-7 items-center gap-1 rounded-md border border-transparent px-2 text-xs font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+        className={CHIP_CLASS}
       >
-        <span className="text-slate-700 dark:text-slate-200">
-          {matched?.name ?? "Custom"}
-        </span>
-        <span aria-hidden className="text-slate-400">
+        <span className="text-text-strong">{matched?.name ?? "Custom"}</span>
+        <span aria-hidden className="text-text-disabled">
           ▾
         </span>
       </button>
       {open ? (
-        <div className="absolute left-0 top-full z-30 mt-1 min-w-[260px] overflow-hidden rounded-md border border-slate-200 bg-white text-xs shadow-xl dark:border-slate-700 dark:bg-slate-950">
+        <div className={`${MENU_CLASS} left-0 min-w-[260px]`}>
           {VIA_PRESETS.map((preset) => {
             const active = matched?.id === preset.id;
             return (
@@ -385,11 +344,7 @@ function ViaPresetDropdown({
                   onPick(preset);
                   setOpen(false);
                 }}
-                className={`block w-full px-3 py-1.5 text-left ${
-                  active
-                    ? "bg-violet-600 text-white"
-                    : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
-                }`}
+                className={active ? MENU_ITEM_ACTIVE_CLASS : MENU_ITEM_CLASS}
               >
                 <div className="flex items-baseline justify-between gap-3 font-mono">
                   <span className="font-sans font-medium">{preset.name}</span>
@@ -398,9 +353,7 @@ function ViaPresetDropdown({
                     mm
                   </span>
                 </div>
-                <div
-                  className={`text-[10px] ${active ? "text-violet-100" : "text-slate-500 dark:text-slate-400"}`}
-                >
+                <div className="text-2xs text-text-tertiary">
                   {preset.description}
                 </div>
               </button>
@@ -434,16 +387,7 @@ function AddDropdown({
 }): ReactElement {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    window.addEventListener("mousedown", handler);
-    return () => window.removeEventListener("mousedown", handler);
-  }, [open]);
+  useOutsideClose(open, ref, () => setOpen(false));
 
   const items = [
     {
@@ -455,8 +399,6 @@ function AddDropdown({
       Icon: CircleDot,
       active: holeMode,
       onToggle: onToggleHoleMode,
-      activeClass:
-        "border-lime-500 bg-lime-100 text-lime-700 dark:bg-lime-900/40 dark:text-lime-300",
     },
     {
       key: "pad",
@@ -467,8 +409,6 @@ function AddDropdown({
       Icon: Square,
       active: padMode,
       onToggle: onTogglePadMode,
-      activeClass:
-        "border-amber-500 bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
     },
     {
       key: "text",
@@ -479,8 +419,6 @@ function AddDropdown({
       Icon: Type,
       active: textMode,
       onToggle: onToggleTextMode,
-      activeClass:
-        "border-cyan-500 bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300",
     },
     ...(onToggleCommentMode
       ? [
@@ -492,8 +430,6 @@ function AddDropdown({
             Icon: MessageSquarePlus,
             active: commentMode ?? false,
             onToggle: onToggleCommentMode,
-            activeClass:
-              "border-violet-500 bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
           },
         ]
       : []),
@@ -501,30 +437,32 @@ function AddDropdown({
 
   const activeItem = items.find((it) => it.active);
   const ButtonIcon = activeItem ? activeItem.Icon : Plus;
+  const name = activeItem
+    ? activeItem.title
+    : "Add hole, pad, or silkscreen text";
 
   return (
     <div ref={ref} className="relative">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        title={
-          activeItem ? activeItem.title : "Add hole, pad, or silkscreen text"
-        }
+        title={name}
+        aria-label={activeItem ? activeItem.label : "Add"}
         aria-pressed={Boolean(activeItem)}
-        className={`inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-xs font-medium transition-colors ${
+        className={`inline-flex h-6 shrink-0 items-center gap-1 rounded-control px-1.5 text-xs transition-colors outline-none ${
           activeItem
-            ? activeItem.activeClass
-            : "border-transparent text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+            ? "bg-surface-control text-text-strong"
+            : "text-text-secondary hover:bg-surface-hover hover:text-text-strong"
         }`}
       >
-        <ButtonIcon className="h-3.5 w-3.5" />
+        <ButtonIcon className="h-[14px] w-[14px] shrink-0" strokeWidth={1.5} />
         {activeItem ? activeItem.label : "Add"}
-        <span aria-hidden className="text-slate-400">
+        <span aria-hidden className="text-text-disabled">
           ▾
         </span>
       </button>
       {open ? (
-        <div className="absolute left-0 top-full z-30 mt-1 min-w-[160px] overflow-hidden rounded-md border border-slate-200 bg-white text-xs shadow-xl dark:border-slate-700 dark:bg-slate-950">
+        <div className={`${MENU_CLASS} left-0 min-w-[160px]`}>
           {items.map((it) => (
             <button
               key={it.key}
@@ -534,17 +472,15 @@ function AddDropdown({
                 it.onToggle();
                 setOpen(false);
               }}
-              className={`flex w-full items-center gap-2 px-3 py-1.5 text-left ${
+              className={`flex w-full items-center gap-2 px-3 py-1 text-left transition-colors ${
                 it.active
-                  ? "bg-violet-600 text-white"
-                  : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                  ? "bg-surface-selected font-medium text-text-strong"
+                  : "text-text hover:bg-surface-hover hover:text-text-strong"
               }`}
             >
               <it.Icon className="h-3.5 w-3.5" />
               <span className="flex-1">{it.label}</span>
-              <span
-                className={`font-mono ${it.active ? "text-violet-100" : "text-slate-400"}`}
-              >
+              <span className="font-mono text-2xs text-text-disabled">
                 {it.hotkey}
               </span>
             </button>
@@ -558,9 +494,9 @@ function AddDropdown({
 /**
  * Canvas-overlay toggles (Ratsnest / Guides / DRC markers) collapsed into a
  * single dropdown — only things drawn on the board or that change canvas
- * behavior. UI panels (e.g. DRC panel) stay as toolbar buttons. Rows stay open
- * on click so several can be flipped at once; only an outside click closes.
- * Lives in its own toolbar container.
+ * behavior. UI panels (e.g. the DRC dock) stay as toolbar buttons. Rows stay
+ * open on click so several can be flipped at once; only an outside click
+ * closes.
  */
 function ViewToggleDropdown({
   ratsnestVisible,
@@ -579,16 +515,7 @@ function ViewToggleDropdown({
 }): ReactElement {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    window.addEventListener("mousedown", handler);
-    return () => window.removeEventListener("mousedown", handler);
-  }, [open]);
+  useOutsideClose(open, ref, () => setOpen(false));
 
   const rows = [
     {
@@ -625,43 +552,46 @@ function ViewToggleDropdown({
         type="button"
         onClick={() => setOpen((v) => !v)}
         title="Show/hide ratsnest, guides, and DRC overlays"
-        aria-pressed={open}
-        className={`relative inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-xs font-medium transition-colors ${
+        aria-label="View"
+        aria-expanded={open}
+        className={`inline-flex h-6 shrink-0 items-center gap-1 rounded-control px-1.5 text-xs transition-colors outline-none ${
           open
-            ? "border-violet-500 bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
-            : "border-transparent text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+            ? "bg-surface-control text-text-strong"
+            : "text-text-secondary hover:bg-surface-hover hover:text-text-strong"
         }`}
       >
-        <Eye className="h-3.5 w-3.5" />
+        <Eye className="h-[14px] w-[14px] shrink-0" strokeWidth={1.5} />
         View
         {activeCount > 0 ? (
-          <span className="font-mono text-slate-400">{activeCount}</span>
+          <span className="font-mono text-2xs text-text-disabled">
+            {activeCount}
+          </span>
         ) : null}
-        <span aria-hidden className="text-slate-400">
+        <span aria-hidden className="text-text-disabled">
           ▾
         </span>
       </button>
       {open ? (
-        <div className="absolute right-0 top-full z-30 mt-1 min-w-[190px] overflow-hidden rounded-md border border-slate-200 bg-white text-xs shadow-xl dark:border-slate-700 dark:bg-slate-950">
+        <div className={`${MENU_CLASS} right-0 min-w-[190px]`}>
           {rows.map((row) => (
             <button
               key={row.key}
               type="button"
               onClick={row.onToggle}
               aria-pressed={row.on}
-              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+              className="flex w-full items-center gap-2 px-3 py-1 text-left text-text transition-colors hover:bg-surface-hover hover:text-text-strong"
             >
               <row.Icon
-                className={`h-3.5 w-3.5 ${row.on ? "text-violet-600 dark:text-violet-300" : "text-slate-400"}`}
+                className={`h-3.5 w-3.5 ${row.on ? "text-text-strong" : "text-text-disabled"}`}
               />
               <span className="flex-1">{row.label}</span>
               {row.hint ? (
-                <span className="font-mono text-[10px] text-slate-400">
+                <span className="font-mono text-2xs text-text-disabled">
                   {row.hint}
                 </span>
               ) : null}
               <span
-                className={`text-[10px] font-semibold ${row.on ? "text-violet-600 dark:text-violet-300" : "text-slate-400"}`}
+                className={`text-2xs font-medium ${row.on ? "text-text-strong" : "text-text-disabled"}`}
               >
                 {row.on ? "On" : "Off"}
               </span>
@@ -673,6 +603,17 @@ function ViewToggleDropdown({
   );
 }
 
+/**
+ * Docked 30px PCB toolbar. Route-mode controls live in the parameter row
+ * below it (`PcbRouteParamRow`); Measure (M), Tune (U) and Bundle stay
+ * hotkey-only (their handlers are still wired through props).
+ *
+ * Frozen accessible names (`title` === `aria-label`, composed by
+ * `ToolbarButton` as `label` or `label (hotkey)`) — E2E locators depend on
+ * them verbatim: "Undo", "Redo", "Fit board", "Flip part", "Route (R)",
+ * "Board (O)", "Export…", "DRC", "Add", "View". Zoom in / Zoom out moved to the
+ * canvas-corner `CanvasZoomCluster` (same accessible names).
+ */
 export function PcbTopToolbar({
   selectedPlacementCount,
   onFlipSelection,
@@ -689,28 +630,180 @@ export function PcbTopToolbar({
   canRedo,
   onUndo,
   onRedo,
-  onZoomIn,
-  onZoomOut,
   onFit,
+  onExport,
   routeMode,
-  routeSessionActive,
   onToggleRouteMode,
   boardShapeMode,
   onToggleBoardShape,
-  measureMode,
-  onToggleMeasureMode,
-  tuneMode = false,
-  onToggleTuneMode,
-  bundleMode = false,
-  onToggleBundleMode,
   commentMode = false,
   onToggleCommentMode,
+  holeMode,
+  onToggleHoleMode,
+  padMode,
+  onTogglePadMode,
+  textMode,
+  onToggleTextMode,
+}: PcbTopToolbarProps): ReactElement {
+  return (
+    <Toolbar aria-label="PCB tools">
+      <ToolbarButton
+        label="Undo"
+        title="Undo (⌘/Ctrl+Z)"
+        icon={<Undo2 />}
+        onClick={onUndo}
+        disabled={!canUndo}
+      />
+      <ToolbarButton
+        label="Redo"
+        title="Redo (⌘/Ctrl+Shift+Z)"
+        icon={<Redo2 />}
+        onClick={onRedo}
+        disabled={!canRedo}
+      />
+
+      <ToolbarSeparator />
+
+      <ToolbarButton label="Fit board" icon={<Maximize />} onClick={onFit} />
+
+      <ToolbarSeparator />
+
+      <ToolbarButton
+        label="Flip part"
+        icon={<FlipHorizontal2 />}
+        onClick={onFlipSelection}
+        disabled={selectedPlacementCount === 0}
+      />
+      <ToolbarButton
+        label="Route"
+        hotkey="R"
+        icon={<Cable />}
+        active={routeMode}
+        pressable
+        onClick={onToggleRouteMode}
+      />
+      <ToolbarButton
+        label="Board"
+        hotkey="O"
+        icon={<PenTool />}
+        active={boardShapeMode}
+        pressable
+        onClick={onToggleBoardShape}
+      />
+
+      <ToolbarSeparator />
+
+      <AddDropdown
+        holeMode={holeMode}
+        onToggleHoleMode={onToggleHoleMode}
+        padMode={padMode}
+        onTogglePadMode={onTogglePadMode}
+        textMode={textMode}
+        onToggleTextMode={onToggleTextMode}
+        commentMode={commentMode}
+        onToggleCommentMode={onToggleCommentMode}
+      />
+
+      <ToolbarSpacer />
+
+      <ToolbarButton
+        label="Export…"
+        title="Export manufacturing files (Gerber + Drill + BOM + PnP)"
+        icon={<Factory />}
+        data-testid="pcb-export-button"
+        onClick={onExport}
+      >
+        Export…
+      </ToolbarButton>
+
+      {/* The DRC dock tab is a UI panel toggle (not a canvas overlay) — it
+          stays a toolbar button; the count flags outstanding violations. */}
+      <ToolbarButton
+        label="DRC"
+        icon={<ShieldCheck />}
+        active={drcPanelOpen}
+        pressable
+        onClick={onToggleDrcPanel}
+      >
+        DRC
+        {drcErrorCount !== undefined && drcErrorCount > 0 ? (
+          <span className="font-mono text-2xs text-status-danger">
+            {drcErrorCount}
+          </span>
+        ) : null}
+      </ToolbarButton>
+
+      <ViewToggleDropdown
+        ratsnestVisible={ratsnestVisible}
+        onToggleRatsnest={onToggleRatsnest}
+        alignmentGuidesVisible={alignmentGuidesVisible}
+        onToggleAlignmentGuides={onToggleAlignmentGuides}
+        drcMarkersVisible={drcMarkersVisible}
+        onToggleDrcMarkers={onToggleDrcMarkers}
+      />
+    </Toolbar>
+  );
+}
+
+/** One 28px parameter-row shell. Used by the route/tune/bundle rows. */
+export function PcbParamRow({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}): ReactElement {
+  return (
+    <div
+      className={`flex h-[28px] shrink-0 items-center gap-2.5 border-b border-border bg-surface-panel-head px-2.5 font-mono text-xs text-text-secondary ${className ?? ""}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+export interface PcbRouteParamRowProps {
+  segmentMode: PcbTraceSegmentMode;
+  onToggleSegmentMode: () => void;
+  posture: RoutePosture;
+  onCyclePosture: () => void;
+  activeWidthMm: number;
+  tracePresets: ReadonlyArray<number>;
+  onPickWidth: (widthMm: number) => void;
+  layerCount?: PcbLayerCount;
+  routeSessionActive: boolean;
+  viaDiameterMm: number;
+  viaDrillMm: number;
+  viaDiameterDefaultMm: number;
+  viaDrillDefaultMm: number;
+  viaDiameterPresets: ReadonlyArray<number>;
+  viaDrillPresets: ReadonlyArray<number>;
+  onPickViaDiameter: (mm: number | undefined) => void;
+  onPickViaDrill: (mm: number | undefined) => void;
+  onPickViaPreset: (preset: PcbViaPreset) => void;
+  /** Copper layer the route targets (chip on the left). */
+  layer: PcbLayerId;
+  layerColor: string;
+  /** Net class driving the defaults; shown as `Class <name>`. */
+  netClassName?: string | null;
+  /** Right-aligned live status (net, length, clearance) from the route HUD. */
+  status?: ReactNode;
+}
+
+/**
+ * 28px route parameter row: the controls that used to expand the floating
+ * toolbar, plus the route HUD's status text on the right.
+ */
+export function PcbRouteParamRow({
   segmentMode,
-  layerCount = 2,
   onToggleSegmentMode,
+  posture,
+  onCyclePosture,
   activeWidthMm,
   tracePresets,
   onPickWidth,
+  layerCount = 2,
+  routeSessionActive,
   viaDiameterMm,
   viaDrillMm,
   viaDiameterDefaultMm,
@@ -720,226 +813,84 @@ export function PcbTopToolbar({
   onPickViaDiameter,
   onPickViaDrill,
   onPickViaPreset,
-  posture,
-  onCyclePosture,
-  holeMode,
-  onToggleHoleMode,
-  padMode,
-  onTogglePadMode,
-  textMode,
-  onToggleTextMode,
-}: PcbTopToolbarProps): ReactElement {
+  layer,
+  layerColor,
+  netClassName,
+  status,
+}: PcbRouteParamRowProps): ReactElement {
   return (
-    <div className="inline-flex items-start gap-2">
-      <div className="inline-flex items-center gap-1 rounded-lg border border-slate-200/90 bg-white/95 px-2 py-1 shadow-sm backdrop-blur dark:border-slate-700/80 dark:bg-slate-900/90">
-        <button
-          type="button"
-          onClick={onUndo}
-          disabled={!canUndo}
-          title="Undo (⌘/Ctrl+Z)"
-          aria-label="Undo"
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 disabled:opacity-30 dark:text-slate-400 dark:hover:bg-slate-800"
-        >
-          <Undo2 className="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={onRedo}
-          disabled={!canRedo}
-          title="Redo (⌘/Ctrl+Shift+Z)"
-          aria-label="Redo"
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 disabled:opacity-30 dark:text-slate-400 dark:hover:bg-slate-800"
-        >
-          <Redo2 className="h-3.5 w-3.5" />
-        </button>
-
-        <div className="mx-1 h-5 w-px bg-slate-200 dark:bg-slate-700" />
-
-        <button
-          type="button"
-          onClick={onZoomOut}
-          title="Zoom out"
-          aria-label="Zoom out"
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-        >
-          <Minus className="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={onZoomIn}
-          title="Zoom in"
-          aria-label="Zoom in"
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-        >
-          <Plus className="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={onFit}
-          title="Fit"
-          aria-label="Fit board"
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-        >
-          <ScanSearch className="h-3.5 w-3.5" />
-        </button>
-
-        <div className="mx-1 h-5 w-px bg-slate-200 dark:bg-slate-700" />
-
-        <button
-          type="button"
-          onClick={onFlipSelection}
-          disabled={selectedPlacementCount === 0}
-          title={
-            selectedPlacementCount === 0
-              ? "Select a placement, then F to flip it to the other side"
-              : `Flip ${selectedPlacementCount} placement${selectedPlacementCount === 1 ? "" : "s"} to the opposite side (F)`
-          }
-          className="inline-flex h-7 items-center gap-1.5 rounded-md border border-transparent px-2 text-xs font-medium text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent dark:text-slate-300 dark:hover:bg-slate-800 dark:disabled:hover:bg-transparent"
-        >
-          <FlipHorizontal2 className="h-3.5 w-3.5" />
-          Flip part
-        </button>
-
-        <div className="mx-1 h-5 w-px bg-slate-200 dark:bg-slate-700" />
-
-        <button
-          type="button"
-          onClick={onToggleRouteMode}
-          title="Route trace (R)"
-          className={`inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-xs font-medium transition-colors ${
-            routeMode
-              ? "border-violet-500 bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
-              : "border-transparent text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-          }`}
-          aria-pressed={routeMode}
-        >
-          <Cable className="h-3.5 w-3.5" />
-          Route (R)
-        </button>
-
-        <button
-          type="button"
-          onClick={onToggleBoardShape}
-          title="Draw board outline (O) — click to place vertices, Enter to close"
-          className={`inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-xs font-medium transition-colors ${
-            boardShapeMode
-              ? "border-violet-500 bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
-              : "border-transparent text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-          }`}
-          aria-pressed={boardShapeMode}
-        >
-          <PenTool className="h-3.5 w-3.5" />
-          Board (O)
-        </button>
-
-        {/*
-        Measure (M), Tune (U), and Bundle tools are hidden from the toolbar to
-        avoid overflow — their implementation + hotkeys stay wired via props.
-        Comment moved into the Add dropdown below.
-      */}
-
-        {routeMode ? (
-          <>
-            <button
-              type="button"
-              onClick={onToggleSegmentMode}
-              title="Toggle 45°/90° corner (Shift+Space)"
-              className="inline-flex h-7 items-center rounded-md border border-transparent px-2 text-xs font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-            >
-              {segmentMode === "manhattan-45" ? "45°" : "90°"}
-            </button>
-            <button
-              type="button"
-              onClick={onCyclePosture}
-              title="Track posture: auto / axis-first / diagonal-first (/)"
-              className="inline-flex h-7 items-center rounded-md border border-transparent px-2 text-xs font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-            >
-              {POSTURE_LABEL[posture]}
-            </button>
-            <WidthDropdown
-              activeWidthMm={activeWidthMm}
-              presets={tracePresets}
-              onPick={onPickWidth}
-            />
-            {layerCount >= 4 ? <LayerPairSelect /> : null}
-            {routeSessionActive ? (
-              <>
-                <ViaPresetDropdown
-                  activeDiameterMm={viaDiameterMm}
-                  activeDrillMm={viaDrillMm}
-                  onPick={onPickViaPreset}
-                />
-                <ViaSizeDropdown
-                  label="Ø"
-                  hotkeyTitle="Via diameter (route-time override)"
-                  activeMm={viaDiameterMm}
-                  defaultMm={viaDiameterDefaultMm}
-                  presets={viaDiameterPresets}
-                  onPick={onPickViaDiameter}
-                />
-                <ViaSizeDropdown
-                  label="⌀"
-                  hotkeyTitle="Via drill (route-time override)"
-                  activeMm={viaDrillMm}
-                  defaultMm={viaDrillDefaultMm}
-                  presets={viaDrillPresets}
-                  onPick={onPickViaDrill}
-                />
-              </>
-            ) : null}
-          </>
-        ) : null}
-
-        <div className="mx-1 h-5 w-px bg-slate-200 dark:bg-slate-700" />
-
-        <AddDropdown
-          holeMode={holeMode}
-          onToggleHoleMode={onToggleHoleMode}
-          padMode={padMode}
-          onTogglePadMode={onTogglePadMode}
-          textMode={textMode}
-          onToggleTextMode={onToggleTextMode}
-          commentMode={commentMode}
-          onToggleCommentMode={onToggleCommentMode}
+    <PcbParamRow>
+      <span className="shrink-0 font-sans font-medium text-text-strong">
+        Route
+      </span>
+      <span className={CHIP_CLASS} title={`Routing on ${layer}`}>
+        <span
+          aria-hidden
+          className="inline-block h-2 w-2 shrink-0 ring-1 ring-black/40"
+          style={{ backgroundColor: layerColor }}
         />
-
-        <div className="mx-1 h-5 w-px bg-slate-200 dark:bg-slate-700" />
-
-        {/* DRC panel is a UI panel toggle (not a canvas overlay) — stays in the
-            toolbar; the red dot flags outstanding violations. */}
-        <button
-          type="button"
-          onClick={onToggleDrcPanel}
-          title="Toggle DRC panel"
-          className={`relative inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-xs font-medium transition-colors ${
-            drcPanelOpen
-              ? "border-violet-500 bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
-              : "border-transparent text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-          }`}
-          aria-pressed={drcPanelOpen}
-        >
-          <ShieldAlert className="h-3.5 w-3.5" />
-          DRC
-          {drcErrorCount !== undefined && drcErrorCount > 0 ? (
-            <span
-              aria-hidden
-              className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-slate-900"
-            />
-          ) : null}
-        </button>
-      </div>
-
-      {/* Canvas-overlay toggles live in their own container next to the toolbar. */}
-      <div className="inline-flex items-center rounded-lg border border-slate-200/90 bg-white/95 px-1.5 py-1 shadow-sm backdrop-blur dark:border-slate-700/80 dark:bg-slate-900/90">
-        <ViewToggleDropdown
-          ratsnestVisible={ratsnestVisible}
-          onToggleRatsnest={onToggleRatsnest}
-          alignmentGuidesVisible={alignmentGuidesVisible}
-          onToggleAlignmentGuides={onToggleAlignmentGuides}
-          drcMarkersVisible={drcMarkersVisible}
-          onToggleDrcMarkers={onToggleDrcMarkers}
-        />
-      </div>
-    </div>
+        <span className="font-sans text-text-strong">
+          {LAYER_LABELS[layer] ?? layer}
+        </span>
+        <span className="text-text-disabled">{layer}</span>
+      </span>
+      <WidthDropdown
+        activeWidthMm={activeWidthMm}
+        presets={tracePresets}
+        onPick={onPickWidth}
+      />
+      {layerCount >= 4 ? <LayerPairSelect /> : null}
+      {routeSessionActive ? (
+        <>
+          <ViaPresetDropdown
+            activeDiameterMm={viaDiameterMm}
+            activeDrillMm={viaDrillMm}
+            onPick={onPickViaPreset}
+          />
+          <ViaSizeDropdown
+            label="Ø"
+            hotkeyTitle="Via diameter (route-time override)"
+            activeMm={viaDiameterMm}
+            defaultMm={viaDiameterDefaultMm}
+            presets={viaDiameterPresets}
+            onPick={onPickViaDiameter}
+          />
+          <ViaSizeDropdown
+            label="⌀"
+            hotkeyTitle="Via drill (route-time override)"
+            activeMm={viaDrillMm}
+            defaultMm={viaDrillDefaultMm}
+            presets={viaDrillPresets}
+            onPick={onPickViaDrill}
+          />
+        </>
+      ) : null}
+      <SegmentedControl
+        size="sm"
+        aria-label="Corner mode"
+        options={[
+          { id: "manhattan-45", label: "45°", title: "45° corners (Shift+Space)" },
+          { id: "manhattan-90", label: "90°", title: "90° corners (Shift+Space)" },
+        ]}
+        value={segmentMode === "manhattan-90" ? "manhattan-90" : "manhattan-45"}
+        onChange={(next) => {
+          if (next !== segmentMode) onToggleSegmentMode();
+        }}
+      />
+      <button
+        type="button"
+        onClick={onCyclePosture}
+        title="Track posture: auto / axis-first / diagonal-first (/)"
+        className={CHIP_CLASS}
+      >
+        {POSTURE_LABEL[posture]}
+      </button>
+      <span className={`${CHIP_CLASS} pointer-events-none`}>
+        <span className="text-text-caps">Class</span>
+        <span className="text-text-strong">{netClassName ?? "Default"}</span>
+      </span>
+      <span className="flex-1" />
+      {status}
+    </PcbParamRow>
   );
 }

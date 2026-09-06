@@ -7,21 +7,22 @@ import {
   useState,
   type ReactElement,
 } from "react";
+import { Download, LayoutGrid, Plus, Rows3, Trash2, X } from "lucide-react";
 import {
-  ArrowDownAZ,
-  Plus,
-  Search,
-  Trash2,
-  Upload,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+  Button,
+  Checkbox,
+  SearchField,
+  SegmentedControl,
+  TooltipProvider,
+} from "@shared/frontend/ui";
 import type { LibraryComponent } from "../../../sdks/library";
 import { useNavigationStore } from "../../../core/frontend/src/stores/navigation-store";
 import { ComponentDetailPage } from "./ComponentDetailPage";
 import { ActiveFilterChips } from "./components/ActiveFilterChips";
 import { CloudLibrarySyncButton } from "./components/CloudLibrarySyncButton";
 import { FacetSidebar } from "./components/FacetSidebar";
+import { LibraryPreviewPane } from "./components/LibraryPreviewPane";
+import { LibraryTable } from "./components/LibraryTable";
 import { useLibraryFacets } from "./hooks/useLibraryFacets";
 import { commitKicadZipImportRequest } from "./import-wizard/import-api";
 import {
@@ -31,7 +32,20 @@ import {
 import { LibraryCard } from "./LibraryCard";
 import { toUserError } from "./utils";
 
-type LibrarySortKey = "name" | "recent";
+type LibraryView = "table" | "grid";
+
+/** Persisted Table/Grid choice (PLAN D11). */
+const VIEW_STORAGE_KEY = "openpcb.library.view";
+
+function readStoredView(): LibraryView {
+  try {
+    return window.localStorage.getItem(VIEW_STORAGE_KEY) === "grid"
+      ? "grid"
+      : "table";
+  } catch {
+    return "table";
+  }
+}
 
 interface ModuleSpaceProps {
   moduleId: string;
@@ -98,45 +112,6 @@ function buildSearchUrl(
   return url.toString();
 }
 
-function ActionButton({
-  icon: Icon,
-  label,
-  primary,
-  disabled,
-  title,
-  onClick,
-}: {
-  icon: LucideIcon;
-  label: string;
-  primary?: boolean;
-  disabled?: boolean;
-  title?: string;
-  onClick?: () => void;
-}): ReactElement {
-  const base =
-    "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border px-4 text-sm font-medium transition-all";
-  const style = primary
-    ? disabled
-      ? "border-violet-400 bg-violet-400 text-white cursor-not-allowed opacity-60"
-      : "border-violet-600 bg-violet-600 text-white hover:bg-violet-700 hover:border-violet-700 active:scale-[0.98]"
-    : disabled
-      ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500"
-      : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 active:scale-[0.98]";
-
-  return (
-    <button
-      type="button"
-      className={`${base} ${style}`}
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-    >
-      <Icon className="h-4 w-4" />
-      <span>{label}</span>
-    </button>
-  );
-}
-
 function NoticeViewport({
   notice,
   onDismiss,
@@ -148,47 +123,53 @@ function NoticeViewport({
 
   const variantClass =
     notice.variant === "error"
-      ? "border-red-300 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
+      ? "border-status-danger text-status-danger"
       : notice.variant === "warning"
-        ? "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
-        : "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200";
+        ? "border-status-warning text-status-warning"
+        : "border-status-success text-status-success";
 
   return (
-    <div className="pointer-events-none fixed right-5 top-5 z-50">
+    <div className="pointer-events-none fixed right-3 top-3 z-50">
       <div
         role="status"
         aria-live="polite"
-        className={`pointer-events-auto flex max-w-md gap-3 rounded-xl border px-4 py-3 text-sm shadow-lg backdrop-blur ${variantClass}`}
+        className={`pointer-events-auto flex max-w-md gap-3 rounded-control border bg-surface-raised px-3 py-2 text-xs shadow-lg ${variantClass}`}
       >
         <div className="min-w-0 flex-1">
-          <div className="font-semibold">{notice.title}</div>
-          <div className="mt-0.5 text-xs opacity-90">{notice.message}</div>
+          <div className="font-medium">{notice.title}</div>
+          <div className="mt-0.5 text-2xs text-text-secondary">
+            {notice.message}
+          </div>
         </div>
         <button
           type="button"
           onClick={onDismiss}
-          className="shrink-0 opacity-70 transition hover:opacity-100"
+          className="shrink-0 text-text-tertiary transition-colors hover:text-text-strong"
           aria-label="Dismiss notification"
         >
-          <X className="h-4 w-4" />
+          <X className="h-3 w-3" />
         </button>
       </div>
     </div>
   );
 }
 
-function sortComponents(
-  list: LibraryComponent[],
-  key: LibrarySortKey,
-): LibraryComponent[] {
-  const copy = [...list];
-  if (key === "name") {
-    copy.sort((a, b) => a.name.localeCompare(b.name));
-  }
-  // "recent" relies on backend ORDER BY name fallback today; preserved-as-fetched
-  // is the closest proxy for newest-first until createdAt surfaces in the DTO.
-  return copy;
+/**
+ * The list is always name-ascending: the backend already orders by name and the
+ * DTO carries no timestamp, so there is no second axis to offer.
+ */
+function sortByName(list: LibraryComponent[]): LibraryComponent[] {
+  return [...list].sort((a, b) => a.name.localeCompare(b.name));
 }
+
+const VIEW_OPTIONS = [
+  { id: "table" as const, label: "Table", icon: <Rows3 aria-hidden="true" /> },
+  {
+    id: "grid" as const,
+    label: "Grid",
+    icon: <LayoutGrid aria-hidden="true" />,
+  },
+];
 
 export function LibrarySpace({
   backendURL,
@@ -229,11 +210,23 @@ export function LibrarySpace({
   const [deleting, setDeleting] = useState(false);
   const [zipImporting, setZipImporting] = useState(false);
   const [notice, setNotice] = useState<LibraryNotice | null>(null);
-  const [sortKey, setSortKey] = useState<LibrarySortKey>("name");
+  const [view, setView] = useState<LibraryView>(readStoredView);
+  /** Row highlighted in the table; drives the preview pane (PLAN D11). */
+  const [selectedComponentId, setSelectedComponentId] = useState<string | null>(
+    null,
+  );
   const zipInputRef = useRef<HTMLInputElement | null>(null);
   const installedCoreShaRef = useRef<string | null>(null);
 
   const selectionMode = selectedIds.size > 0;
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(VIEW_STORAGE_KEY, view);
+    } catch {
+      // Storage disabled (private mode): the choice just doesn't persist.
+    }
+  }, [view]);
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -265,42 +258,58 @@ export function LibrarySpace({
     setSelectedIds(new Set());
   }, []);
 
-  const handleBulkDelete = useCallback(async () => {
-    if (selectedIds.size === 0 || !backendURL) return;
+  /** Shared by the bulk toolbar and the preview pane's overflow menu. */
+  const deleteComponents = useCallback(
+    async (ids: readonly string[]) => {
+      if (ids.length === 0 || !backendURL) return;
 
-    const confirmed = window.confirm(
-      `Delete ${selectedIds.size} component${selectedIds.size > 1 ? "s" : ""}? This will also remove orphaned symbols and footprints.`,
-    );
-    if (!confirmed) return;
-
-    setDeleting(true);
-    try {
-      const response = await fetch(
-        `${backendURL}/api/modules/${moduleId}/components/delete`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ids: [...selectedIds] }),
-        },
+      const confirmed = window.confirm(
+        `Delete ${ids.length} component${ids.length > 1 ? "s" : ""}? This will also remove orphaned symbols and footprints.`,
       );
-      const payload = (await response.json().catch(() => null)) as unknown;
-      if (!response.ok) {
-        throw new Error(
-          toUserError(payload, `Delete failed (HTTP ${response.status})`),
+      if (!confirmed) return;
+
+      setDeleting(true);
+      try {
+        const response = await fetch(
+          `${backendURL}/api/modules/${moduleId}/components/delete`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ids: [...ids] }),
+          },
         );
+        const payload = (await response.json().catch(() => null)) as unknown;
+        if (!response.ok) {
+          throw new Error(
+            toUserError(payload, `Delete failed (HTTP ${response.status})`),
+          );
+        }
+        setSelectedIds(new Set());
+        setRefreshTick((v) => v + 1);
+      } catch (deleteError) {
+        setError(
+          deleteError instanceof Error
+            ? deleteError.message
+            : "Failed to delete components",
+        );
+      } finally {
+        setDeleting(false);
       }
-      setSelectedIds(new Set());
-      setRefreshTick((v) => v + 1);
-    } catch (deleteError) {
-      setError(
-        deleteError instanceof Error
-          ? deleteError.message
-          : "Failed to delete components",
-      );
-    } finally {
-      setDeleting(false);
-    }
-  }, [selectedIds, backendURL, moduleId]);
+    },
+    [backendURL, moduleId],
+  );
+
+  const handleBulkDelete = useCallback(
+    () => deleteComponents([...selectedIds]),
+    [deleteComponents, selectedIds],
+  );
+
+  const handleDeleteComponent = useCallback(
+    (componentId: string) => {
+      void deleteComponents([componentId]);
+    },
+    [deleteComponents],
+  );
 
   const handleZipUpload = useCallback(
     async (file: File | null | undefined) => {
@@ -530,11 +539,30 @@ export function LibrarySpace({
     setSelectedIds((prev) => (prev.size === 0 ? prev : new Set()));
   }, [components]);
 
+  // Drop the preview selection when the highlighted row leaves the result set.
+  useEffect(() => {
+    setSelectedComponentId((prev) =>
+      prev && components.some((component) => component.id === prev)
+        ? prev
+        : null,
+    );
+  }, [components]);
+
   useEffect(() => {
     if (!notice) return;
     const timeout = window.setTimeout(() => setNotice(null), 5000);
     return () => window.clearTimeout(timeout);
   }, [notice]);
+
+  const sorted = useMemo(() => sortByName(components), [components]);
+  // The preview pane always shows a part (design 3b): default to the first row.
+  useEffect(() => {
+    const first = sorted[0];
+    if (selectedComponentId || !first) return;
+    setSelectedComponentId(first.id);
+  }, [selectedComponentId, sorted]);
+  const totalCount = facets.total > 0 ? facets.total : components.length;
+  const sourceCount = facets.source.length;
 
   if (detailComponentId) {
     return (
@@ -560,10 +588,8 @@ export function LibrarySpace({
     return (
       <Suspense
         fallback={
-          <div className="flex h-full w-full items-center justify-center bg-slate-50 dark:bg-slate-950">
-            <div className="text-sm text-slate-500 dark:text-slate-400">
-              Loading wizard...
-            </div>
+          <div className="flex h-full w-full items-center justify-center bg-surface-app">
+            <div className="text-xs text-text-tertiary">Loading wizard...</div>
           </div>
         }
       >
@@ -578,53 +604,65 @@ export function LibrarySpace({
   }
 
   return (
-    <div className="flex h-full w-full flex-col bg-slate-50 dark:bg-slate-950">
-      <header className="flex items-center justify-between gap-6 border-b border-slate-200 bg-white px-6 py-3 dark:border-slate-800 dark:bg-slate-900">
-        <h1 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
-          Library
-        </h1>
+    <div className="flex h-full w-full flex-col bg-surface-app">
+      <header className="flex h-[34px] shrink-0 items-center gap-2 border-b border-border bg-surface-rail px-3">
+        <h1 className="text-base font-medium text-text-strong">Library</h1>
+        <span className="font-mono text-2xs tabular-nums text-text-tertiary">
+          {totalCount} part{totalCount === 1 ? "" : "s"} · {sourceCount} source
+          {sourceCount === 1 ? "" : "s"}
+        </span>
 
-        <div className="flex items-center gap-2">
-          <label className="relative block">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search components..."
-              className="h-9 w-72 rounded-lg border border-slate-300 bg-white pl-9 pr-3 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-violet-500"
-            />
-          </label>
+        <SearchField
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search name, MPN, package…"
+          shortcutHint="/"
+          containerClassName="ml-2 w-[320px] shrink-0"
+        />
 
-          <ActionButton
-            icon={Upload}
-            label={zipImporting ? "Importing..." : "Upload ZIP"}
-            disabled={zipImporting}
-            onClick={() => zipInputRef.current?.click()}
-          />
-          <input
-            ref={zipInputRef}
-            type="file"
-            accept=".zip,application/zip"
-            className="hidden"
-            onChange={(event) => {
-              void handleZipUpload(event.currentTarget.files?.[0] ?? null);
-            }}
-          />
+        <div className="flex-1" />
 
-          <CloudLibrarySyncButton
-            backendURL={backendURL}
-            moduleId={moduleId}
-            onChanged={() => setRefreshTick((value) => value + 1)}
-          />
+        <SegmentedControl
+          aria-label="Result view"
+          options={VIEW_OPTIONS}
+          value={view}
+          onChange={setView}
+        />
 
-          <ActionButton
-            icon={Plus}
-            label="New"
-            primary
-            disabled={zipImporting}
-            onClick={() => setWizardOpen(true)}
-          />
-        </div>
+        <Button
+          type="button"
+          variant="outline"
+          icon={<Download className="h-3 w-3" />}
+          disabled={zipImporting}
+          onClick={() => zipInputRef.current?.click()}
+        >
+          {zipImporting ? "Importing…" : "Import library…"}
+        </Button>
+        <input
+          ref={zipInputRef}
+          type="file"
+          accept=".zip,application/zip"
+          className="hidden"
+          onChange={(event) => {
+            void handleZipUpload(event.currentTarget.files?.[0] ?? null);
+          }}
+        />
+
+        <CloudLibrarySyncButton
+          backendURL={backendURL}
+          moduleId={moduleId}
+          onChanged={() => setRefreshTick((value) => value + 1)}
+        />
+
+        <Button
+          type="button"
+          variant="primary"
+          icon={<Plus className="h-3 w-3" />}
+          disabled={zipImporting}
+          onClick={() => setWizardOpen(true)}
+        >
+          New part
+        </Button>
       </header>
 
       <div className="flex min-h-0 flex-1">
@@ -632,107 +670,96 @@ export function LibrarySpace({
           facets={facets}
           activeFilters={activeTags}
           onToggle={toggleTag}
-          onClearAll={clearAllFilters}
         />
         <div className="flex min-w-0 flex-1 flex-col">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/80 px-6 py-2.5 dark:border-slate-800 dark:bg-slate-900/50">
-            <div className="flex min-w-0 flex-1 items-center gap-3">
-              <span className="text-[11px] tabular-nums text-slate-500 dark:text-slate-400">
-                {components.length} component
-                {components.length === 1 ? "" : "s"}
-              </span>
-              <ActiveFilterChips
-                activeFilters={activeTags}
-                facets={facets}
-                onRemove={toggleTag}
-                onClearAll={clearAllFilters}
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <label className="flex select-none items-center gap-1.5 text-[11px] text-slate-600 dark:text-slate-400">
-                <ArrowDownAZ className="h-3.5 w-3.5 text-slate-400" />
-                <span>Sort</span>
-                <select
-                  value={sortKey}
-                  onChange={(event) =>
-                    setSortKey(event.target.value as LibrarySortKey)
-                  }
-                  className="h-7 rounded-md border border-slate-300 bg-white px-2 text-[11px] text-slate-700 outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                >
-                  <option value="name">Name</option>
-                  <option value="recent">As loaded</option>
-                </select>
-              </label>
-              <label className="flex cursor-pointer select-none items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
-                <input
-                  type="checkbox"
-                  checked={
-                    selectableCount > 0 && selectedIds.size === selectableCount
-                  }
-                  onChange={toggleSelectAll}
-                  disabled={selectableCount === 0}
-                  className="h-4 w-4 cursor-pointer rounded border-slate-300 text-violet-600 focus:ring-violet-600 dark:border-slate-600"
-                />
-                <span>Select All</span>
-              </label>
-            </div>
+          <div className="flex h-[26px] shrink-0 items-center gap-2 border-b border-border px-2.5 text-2xs text-text-tertiary">
+            <ActiveFilterChips
+              activeFilters={activeTags}
+              facets={facets}
+              onRemove={toggleTag}
+              onClearAll={clearAllFilters}
+            />
+            <span className="shrink-0 font-mono text-2xs tabular-nums">
+              {components.length} of {totalCount}
+            </span>
+            <div className="flex-1" />
+            <Checkbox
+              checked={
+                selectableCount > 0 && selectedIds.size === selectableCount
+              }
+              onChange={toggleSelectAll}
+              disabled={selectableCount === 0}
+              label="Select All"
+              wrapperClassName="text-2xs text-text-tertiary"
+            />
           </div>
 
           {selectionMode && (
-            <div className="flex items-center gap-3 border-b border-violet-200 bg-violet-50 px-6 py-2 dark:border-violet-900 dark:bg-violet-950/50">
-              <span className="text-sm font-medium text-violet-700 dark:text-violet-300">
+            <div className="flex h-[26px] shrink-0 items-center gap-2 border-b border-border bg-surface-section px-2.5">
+              <span className="text-2xs font-medium text-text-strong">
                 {selectedIds.size} selected
               </span>
-              <button
+              <Button
                 type="button"
+                size="sm"
                 onClick={() => void handleBulkDelete()}
                 disabled={deleting}
-                className="inline-flex h-7 items-center gap-1.5 rounded-md border border-red-300 bg-white px-3 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50 dark:border-red-800 dark:bg-red-950 dark:text-red-400 dark:hover:bg-red-900"
+                icon={<Trash2 className="h-3 w-3" />}
+                className="text-status-danger hover:text-status-danger"
               >
-                <Trash2 className="h-3.5 w-3.5" />
                 {deleting ? "Deleting..." : "Delete"}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                size="sm"
+                variant="ghost"
                 onClick={clearSelection}
-                className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                icon={<X className="h-3 w-3" />}
               >
-                <X className="h-3.5 w-3.5" />
                 Clear
-              </button>
+              </Button>
             </div>
           )}
 
-          <main className="flex-1 overflow-auto p-6">
-            <section className="space-y-4">
-              {loading && (
-                <div className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
-                  <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-violet-600" />
-                  Loading components...
-                </div>
-              )}
-              {error && (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
-                  {error}
-                </div>
-              )}
+          {loading && (
+            <div className="px-3 py-3 text-xs text-text-tertiary">
+              Loading components...
+            </div>
+          )}
+          {error && (
+            <div className="border-b border-border px-3 py-2 text-xs text-status-danger">
+              {error}
+            </div>
+          )}
 
-              {!loading && !error && components.length === 0 && (
-                <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-12 text-center dark:border-slate-700 dark:bg-slate-900">
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
-                    No components match the current filters.
-                  </p>
-                  <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
-                    {activeTags.size > 0
-                      ? "Try clearing some filters."
-                      : "Import a component to get started."}
-                  </p>
-                </div>
-              )}
+          {!loading && !error && components.length === 0 && (
+            <div className="flex flex-1 flex-col items-center justify-center gap-1 px-4 text-center">
+              <p className="text-xs text-text-secondary">
+                No components match the current filters.
+              </p>
+              <p className="text-2xs text-text-tertiary">
+                {activeTags.size > 0
+                  ? "Try clearing some filters."
+                  : "Import a component to get started."}
+              </p>
+            </div>
+          )}
 
-              {!loading && !error && components.length > 0 && (
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-5">
-                  {sortComponents(components, sortKey).map((component) => (
+          {!loading && !error && components.length > 0 ? (
+            view === "table" ? (
+              <LibraryTable
+                components={sorted}
+                selectedIds={selectedIds}
+                selectionMode={selectionMode}
+                selectedComponentId={selectedComponentId}
+                onSelectRow={setSelectedComponentId}
+                onOpen={setDetailComponentId}
+                onToggleSelect={toggleSelect}
+              />
+            ) : (
+              <main className="min-h-0 flex-1 overflow-auto p-3">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-3">
+                  {sorted.map((component) => (
                     <LibraryCard
                       key={component.id}
                       component={component}
@@ -744,10 +771,23 @@ export function LibrarySpace({
                     />
                   ))}
                 </div>
-              )}
-            </section>
-          </main>
+              </main>
+            )
+          ) : null}
         </div>
+
+        {view === "table" ? (
+          <TooltipProvider>
+            <LibraryPreviewPane
+              backendURL={backendURL}
+              moduleId={moduleId}
+              componentId={selectedComponentId}
+              onOpen={setDetailComponentId}
+              onDelete={handleDeleteComponent}
+              refreshToken={refreshTick}
+            />
+          </TooltipProvider>
+        ) : null}
       </div>
       <NoticeViewport notice={notice} onDismiss={() => setNotice(null)} />
     </div>

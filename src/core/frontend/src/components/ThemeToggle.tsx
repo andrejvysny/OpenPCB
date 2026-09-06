@@ -26,7 +26,7 @@ export function ThemeToggle({
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900",
+        "inline-flex items-center gap-1 rounded-control border border-border bg-surface-panel p-1",
         className,
       )}
     >
@@ -41,11 +41,11 @@ export function ThemeToggle({
             disabled={!isReady}
             onClick={() => handleChange(value)}
             className={cn(
-              "flex min-w-[3.5rem] flex-col items-center justify-center rounded-sm border border-transparent px-3 py-1 text-xs font-medium transition-colors",
+              "flex min-w-[3.5rem] flex-col items-center justify-center rounded-control border border-transparent px-3 py-1 text-xs font-medium transition-colors",
               isReady ? "cursor-pointer" : "cursor-default",
               isActive
-                ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
-                : "bg-transparent text-slate-700 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-800",
+                ? "bg-primary text-primary-foreground"
+                : "bg-transparent text-text hover:bg-surface-hover",
             )}
           >
             <span>{label}</span>

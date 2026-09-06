@@ -7,10 +7,8 @@ const REPO_URL = "https://github.com/andrejvysny/OpenPCB";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900/40">
-      <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-        {title}
-      </h3>
+    <section className="space-y-3 rounded-control border border-border bg-surface-panel p-5">
+      <h3 className="text-sm font-semibold text-text-strong">{title}</h3>
       {children}
     </section>
   );
@@ -77,7 +75,7 @@ function UpdatesSection() {
   return (
     <Section title="Updates">
       <div className="flex items-center justify-between gap-4">
-        <p className="text-sm text-slate-600 dark:text-slate-300">
+        <p className="text-sm text-text-secondary">
           {percent !== null && status?.state !== "downloaded"
             ? `Downloading… ${Math.round(percent)}%`
             : statusLabel(status)}
@@ -132,13 +130,13 @@ function UpdatesSection() {
         </Button>
       ) : null}
 
-      <p className="text-xs text-slate-500 dark:text-slate-500">
+      <p className="text-xs text-text-tertiary">
         Updates are downloaded from{" "}
         <a
           href={`${REPO_URL}/releases`}
           target="_blank"
           rel="noreferrer"
-          className="underline underline-offset-2 hover:text-slate-700 dark:hover:text-slate-300"
+          className="underline underline-offset-2 hover:text-text"
         >
           GitHub Releases
         </a>
@@ -197,11 +195,11 @@ function FilesSection() {
             className="flex items-center justify-between gap-3"
           >
             <div className="min-w-0">
-              <p className="text-sm text-slate-700 dark:text-slate-300">
+              <p className="text-sm text-text">
                 {row.label}
               </p>
               <p
-                className="truncate font-mono text-xs text-slate-400 dark:text-slate-500"
+                className="truncate font-mono text-xs text-text-tertiary"
                 title={row.path}
               >
                 {row.path ?? "…"}
@@ -228,10 +226,10 @@ export function GeneralPanel() {
   return (
     <div className="space-y-8 pb-24">
       <div className="space-y-1">
-        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+        <h2 className="text-base font-semibold text-text-strong">
           General
         </h2>
-        <p className="text-sm text-slate-600 dark:text-slate-300">
+        <p className="text-sm text-text-secondary">
           Appearance, updates, and local files.
         </p>
       </div>

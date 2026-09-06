@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactElement } from "react";
+import { PcbParamRow } from "./PcbTopToolbar";
 import type { TuneHudModel } from "./tools/tune-hud-model";
 
 interface TuneHudProps {
@@ -13,14 +14,14 @@ interface TuneHudProps {
 }
 
 const BAND_CLASS: Record<NonNullable<TuneHudModel["band"]>, string> = {
-  short: "font-medium text-amber-600 dark:text-amber-400",
-  ok: "font-medium text-emerald-600 dark:text-emerald-400",
-  long: "font-medium text-red-600 dark:text-red-400",
+  short: "font-medium text-status-warning",
+  ok: "font-medium text-status-success",
+  long: "font-medium text-status-danger",
 };
 
 /**
- * Bottom status strip for the length-Tune tool: which net, current vs target
- * length with tolerance-band color, serpentine parameters, and the key map.
+ * Parameter-row content for the length-Tune tool: which net, current vs target
+ * length with tolerance-band colour, serpentine parameters, and the key map.
  */
 export function TuneHud({
   model,
@@ -37,112 +38,126 @@ export function TuneHud({
 
   if (!model) {
     return (
-      <div
-        role="status"
-        aria-label="Tune tool"
-        className="absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-lg border border-slate-300 bg-white/95 px-3 py-1.5 text-[11px] text-slate-600 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-300"
-      >
-        Tune — click a routed trace to add serpentine length · Esc exit
-      </div>
+      <PcbParamRow>
+        <span className="shrink-0 font-sans font-medium text-text-strong">
+          Tune
+        </span>
+        <span
+          role="status"
+          aria-label="Tune tool"
+          className="truncate font-sans text-text-tertiary"
+        >
+          Tune — click a routed trace to add serpentine length · Esc exit
+        </span>
+      </PcbParamRow>
     );
   }
 
   return (
-    <div
-      role="region"
-      aria-label="Tune status"
-      className="absolute bottom-3 left-1/2 z-30 flex -translate-x-1/2 flex-col gap-1 rounded-lg border border-slate-300 bg-white/95 px-3 py-1.5 shadow-xl backdrop-blur dark:border-slate-700 dark:bg-slate-900/95"
-    >
-      <div className="flex items-center gap-3 text-[11px] text-slate-700 dark:text-slate-200">
-        <span className="font-semibold">{model.netName ?? "no net"}</span>
-        <span className={model.band ? BAND_CLASS[model.band] : "text-slate-500 dark:text-slate-400"}>
-          {model.currentMm.toFixed(2)}
-          {model.targetMm !== null ? ` / ${model.targetMm.toFixed(2)}` : ""} mm
+    <>
+      <PcbParamRow>
+        <span className="shrink-0 font-sans font-medium text-text-strong">
+          Tune
         </span>
-        {model.band ? (
-          <span className="text-slate-400 dark:text-slate-500">
-            {model.band === "ok"
-              ? "in tolerance"
-              : model.band === "short"
-                ? `${Math.abs(model.deltaMm ?? 0).toFixed(2)} mm short`
-                : `${Math.abs(model.deltaMm ?? 0).toFixed(2)} mm over`}
+        <span
+          role="region"
+          aria-label="Tune status"
+          className="flex min-w-0 flex-1 items-center gap-2.5"
+        >
+          <span className="font-medium text-text-strong">
+            {model.netName ?? "no net"}
           </span>
-        ) : null}
-        {targetInputOpen ? (
-          <input
-            ref={inputRef}
-            type="number"
-            step={0.1}
-            min={0.1}
-            defaultValue={model.targetMm ?? undefined}
-            aria-label="Target length (mm)"
-            className="w-20 rounded border border-slate-300 bg-white px-1 py-0.5 text-[11px] dark:border-slate-600 dark:bg-slate-800"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                const next = Number(e.currentTarget.value);
-                if (Number.isFinite(next) && next > 0) {
-                  onTargetInputSubmit(next);
+          <span
+            className={model.band ? BAND_CLASS[model.band] : "text-text-tertiary"}
+          >
+            {model.currentMm.toFixed(2)}
+            {model.targetMm !== null ? ` / ${model.targetMm.toFixed(2)}` : ""} mm
+          </span>
+          {model.band ? (
+            <span className="text-text-disabled">
+              {model.band === "ok"
+                ? "in tolerance"
+                : model.band === "short"
+                  ? `${Math.abs(model.deltaMm ?? 0).toFixed(2)} mm short`
+                  : `${Math.abs(model.deltaMm ?? 0).toFixed(2)} mm over`}
+            </span>
+          ) : null}
+          {targetInputOpen ? (
+            <input
+              ref={inputRef}
+              type="number"
+              step={0.1}
+              min={0.1}
+              defaultValue={model.targetMm ?? undefined}
+              aria-label="Target length (mm)"
+              className="h-[20px] w-20 rounded-control border border-border-control bg-surface-input px-1 text-2xs text-text-strong outline-none"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const next = Number(e.currentTarget.value);
+                  if (Number.isFinite(next) && next > 0) {
+                    onTargetInputSubmit(next);
+                  }
+                  onTargetInputClose();
+                  e.stopPropagation();
                 }
-                onTargetInputClose();
-                e.stopPropagation();
-              }
-              if (e.key === "Escape") {
-                onTargetInputClose();
-                e.stopPropagation();
-              }
-            }}
-            onBlur={onTargetInputClose}
-          />
-        ) : (
-          <button
-            type="button"
-            className="rounded px-1 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-            title="Type a target length (overrides the group rule)"
-            onClick={onOpenTargetInput}
-          >
-            {model.targetSource === "override"
-              ? "target: typed"
-              : model.targetSource === "group"
-                ? `target: '${model.groupName}'`
-                : "set target…"}
-          </button>
-        )}
-        {model.targetSource === "override" ? (
-          <button
-            type="button"
-            className="rounded px-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
-            title="Clear the typed target"
-            onClick={onClearTargetOverride}
-          >
-            ×
-          </button>
-        ) : null}
-        <span className="text-slate-500 dark:text-slate-400">
-          A {model.amplitudeMm.toFixed(2)} · pitch {model.spacingMm.toFixed(2)}
+                if (e.key === "Escape") {
+                  onTargetInputClose();
+                  e.stopPropagation();
+                }
+              }}
+              onBlur={onTargetInputClose}
+            />
+          ) : (
+            <button
+              type="button"
+              className="rounded-control px-1 text-text-tertiary transition-colors hover:bg-surface-hover hover:text-text-strong"
+              title="Type a target length (overrides the group rule)"
+              onClick={onOpenTargetInput}
+            >
+              {model.targetSource === "override"
+                ? "target: typed"
+                : model.targetSource === "group"
+                  ? `target: '${model.groupName}'`
+                  : "set target…"}
+            </button>
+          )}
+          {model.targetSource === "override" ? (
+            <button
+              type="button"
+              className="rounded-control px-1 text-text-tertiary transition-colors hover:bg-surface-hover hover:text-text-strong"
+              title="Clear the typed target"
+              onClick={onClearTargetOverride}
+            >
+              ×
+            </button>
+          ) : null}
+          <span className="text-text-tertiary">
+            A {model.amplitudeMm.toFixed(2)} · pitch {model.spacingMm.toFixed(2)}
+          </span>
+          {model.meanderStatus === "too-short" ? (
+            <span className="text-status-warning">
+              span too small for target — extend the sweep or raise amplitude
+            </span>
+          ) : null}
+          {model.meanderStatus === "span-too-small" ? (
+            <span className="text-status-warning">
+              sweep along the trace to place serpentines
+            </span>
+          ) : null}
+          {model.meanderStatus === "target-met" ? (
+            <span className="text-status-success">
+              already at target — nothing to add
+            </span>
+          ) : null}
+          {model.meanderStatus === "blocked" ? (
+            <span className="text-status-warning">
+              keep-outs block serpentines here — sweep another span or lower
+              amplitude
+            </span>
+          ) : null}
         </span>
-        {model.meanderStatus === "too-short" ? (
-          <span className="text-amber-600 dark:text-amber-400">
-            span too small for target — extend the sweep or raise amplitude
-          </span>
-        ) : null}
-        {model.meanderStatus === "span-too-small" ? (
-          <span className="text-amber-600 dark:text-amber-400">
-            sweep along the trace to place serpentines
-          </span>
-        ) : null}
-        {model.meanderStatus === "target-met" ? (
-          <span className="text-emerald-600 dark:text-emerald-400">
-            already at target — nothing to add
-          </span>
-        ) : null}
-        {model.meanderStatus === "blocked" ? (
-          <span className="text-amber-600 dark:text-amber-400">
-            keep-outs block serpentines here — sweep another span or lower
-            amplitude
-          </span>
-        ) : null}
-      </div>
-      <div className="flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500">
+      </PcbParamRow>
+      <PcbParamRow className="text-text-disabled">
         <span>
           <kbd className="font-sans">drag</kbd> paint span
         </span>
@@ -161,7 +176,7 @@ export function TuneHud({
         <span>
           <kbd className="font-sans">Esc</kbd> cancel
         </span>
-      </div>
-    </div>
+      </PcbParamRow>
+    </>
   );
 }

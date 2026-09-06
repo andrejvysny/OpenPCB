@@ -8,7 +8,6 @@ import {
 import {
   BookOpen,
   ChevronDown,
-  ChevronRight,
   CircuitBoard,
   Layers,
   Replace,
@@ -16,20 +15,80 @@ import {
 import type {
   DesignerPlacedPart,
   DesignerSchematicProjection,
+  LibraryComponent,
   LibraryComponentFootprintVariant,
 } from "../../../../../sdks";
 import type { DesignerWorkspaceActions } from "../../hooks/useDesignerWorkspace";
 import { classifyNet, netClassTextClass } from "../../lib/net-class";
+import { Button } from "@shared/frontend/ui/button";
+import { Checkbox } from "@shared/frontend/ui/checkbox";
+import { PanelSectionHeader } from "@shared/frontend/ui/panel-section-header";
+import { PropertyGrid, PropertyRow } from "@shared/frontend/ui/property-grid";
+import { TableHeaderRow, TableRow } from "@shared/frontend/ui/data-table";
+
+const INPUT_CLASS =
+  "h-[22px] w-full rounded-control border border-border-control bg-surface-input px-1.5 text-xs text-text-strong outline-none placeholder:text-text-disabled focus:border-selection";
+const NUMBER_INPUT_CLASS = `${INPUT_CLASS} font-mono tabular-nums`;
+const PIN_COLS = "28px 1fr 70px";
+
+/** `PartPropertiesJson` is not re-exported from the SDK barrel. */
+type PartProps = DesignerPlacedPart["propertiesJson"];
 
 interface PartInspectorPanelProps {
   part: DesignerPlacedPart;
   projection: DesignerSchematicProjection;
   variants: readonly LibraryComponentFootprintVariant[];
+  /** Library record behind the part; fallback source for the Fields rows. */
+  component?: LibraryComponent | null;
   dispatchCommand: DesignerWorkspaceActions["dispatchCommand"];
   setError: DesignerWorkspaceActions["setError"];
   onOpenInLibrary?(componentId: string): void;
   onCrossProbePcb?(): void;
   onReplaceComponentDisabledMessage?: string;
+}
+
+function readPropString(
+  props: PartProps,
+  ...keys: string[]
+): string | null {
+  for (const key of keys) {
+    const raw = props[key];
+    if (typeof raw === "string" && raw.trim().length > 0) return raw;
+  }
+  return null;
+}
+
+function readPropBoolean(props: PartProps, key: string): boolean {
+  return props[key] === true;
+}
+
+/**
+ * Merge a per-part field override, dropping the key entirely when cleared so
+ * the library value takes over again instead of an empty string shadowing it.
+ */
+function mergeProp(
+  props: PartProps,
+  key: string,
+  value: string,
+): PartProps {
+  const next: PartProps = { ...props };
+  if (value.length === 0) delete next[key];
+  else next[key] = value;
+  return next;
+}
+
+/** Prefer the Electron shell for external links; fall back to a new tab. */
+function openExternalUrl(url: string): void {
+  const api = (
+    window as unknown as {
+      electronAPI?: { openExternal?: (target: string) => Promise<void> };
+    }
+  ).electronAPI;
+  if (api?.openExternal) {
+    void api.openExternal(url);
+    return;
+  }
+  window.open(url, "_blank", "noopener,noreferrer");
 }
 
 function inferValueKind(
@@ -110,6 +169,7 @@ export function PartInspectorPanel({
   part,
   projection,
   variants,
+  component = null,
   dispatchCommand,
   setError,
   onOpenInLibrary,
@@ -132,6 +192,28 @@ export function PartInspectorPanel({
   const [footprintMenuOpen, setFootprintMenuOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
+  // Fields: a per-part override in `propertiesJson` wins; otherwise the
+  // library record behind the part. Same precedence the BOM writer applies.
+  const props = part.propertiesJson;
+  const mpnValue =
+    readPropString(props, "manufacturerPartNumber", "mpn") ??
+    component?.manufacturerPartNumber ??
+    "";
+  const manufacturerValue =
+    readPropString(props, "manufacturer") ?? component?.manufacturer ?? "";
+  const datasheetUrl =
+    readPropString(props, "datasheetUrl", "datasheet") ??
+    component?.datasheetUrl ??
+    "";
+  const dnp = readPropBoolean(props, "dnp");
+
+  const [mpnDraft, setMpnDraft] = useState(mpnValue);
+  const [manufacturerDraft, setManufacturerDraft] = useState(manufacturerValue);
+  // Optimistic DNP so the checkbox flips instantly; reset from the projection
+  // once the command round-trips, and on failure.
+  const [dnpPending, setDnpPending] = useState<boolean | null>(null);
+  const dnpChecked = dnpPending ?? dnp;
+
   useEffect(() => {
     setValueDraft(part.value);
   }, [part.value]);
@@ -145,6 +227,15 @@ export function PartInspectorPanel({
   useEffect(() => {
     setRotDraft(String(part.rotationDeg));
   }, [part.rotationDeg]);
+  useEffect(() => {
+    setMpnDraft(mpnValue);
+  }, [mpnValue]);
+  useEffect(() => {
+    setManufacturerDraft(manufacturerValue);
+  }, [manufacturerValue]);
+  useEffect(() => {
+    setDnpPending(null);
+  }, [dnp, part.id]);
 
   const commitValue = useCallback(async () => {
     const trimmedValue = valueDraft.trim();
@@ -202,6 +293,66 @@ export function PartInspectorPanel({
       setToleranceDraft(current.tolerance ?? "");
     }
   }, [dispatchCommand, part, setError, toleranceDraft]);
+
+  const commitField = useCallback(
+    async (key: string, draft: string, current: string, label: string) => {
+      const trimmed = draft.trim();
+      if (trimmed === current) return;
+      try {
+        await dispatchCommand({
+          type: "update_part_properties",
+          partId: part.id,
+          propertiesJson: mergeProp(part.propertiesJson, key, trimmed),
+        });
+      } catch (error) {
+        setError(
+          error instanceof Error ? error.message : `Failed to update ${label}`,
+        );
+        return current;
+      }
+      return undefined;
+    },
+    [dispatchCommand, part.id, part.propertiesJson, setError],
+  );
+
+  const commitMpn = useCallback(async () => {
+    const revert = await commitField(
+      "manufacturerPartNumber",
+      mpnDraft,
+      mpnValue,
+      "MPN",
+    );
+    if (revert !== undefined) setMpnDraft(revert);
+  }, [commitField, mpnDraft, mpnValue]);
+
+  const commitManufacturer = useCallback(async () => {
+    const revert = await commitField(
+      "manufacturer",
+      manufacturerDraft,
+      manufacturerValue,
+      "manufacturer",
+    );
+    if (revert !== undefined) setManufacturerDraft(revert);
+  }, [commitField, manufacturerDraft, manufacturerValue]);
+
+  const commitDnp = useCallback(
+    async (next: boolean) => {
+      setDnpPending(next);
+      try {
+        await dispatchCommand({
+          type: "update_part_properties",
+          partId: part.id,
+          propertiesJson: { ...part.propertiesJson, dnp: next },
+        });
+      } catch (error) {
+        setDnpPending(null);
+        setError(
+          error instanceof Error ? error.message : "Failed to update DNP",
+        );
+      }
+    },
+    [dispatchCommand, part.id, part.propertiesJson, setError],
+  );
 
   const commitPosition = useCallback(async () => {
     const xMm = Number.parseFloat(xDraft);
@@ -284,13 +435,13 @@ export function PartInspectorPanel({
   }, [part.pins, projection.nets]);
 
   return (
-    <div className="flex flex-col gap-3">
-      {/* Identity */}
-      <section className="flex flex-col gap-2">
-        <label className="flex flex-col gap-0.5">
-          <span className="text-[10px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            Value
-          </span>
+    <div className="flex flex-col">
+      <PanelSectionHeader variant="uppercase" title="General" />
+      <PropertyGrid>
+        <PropertyRow label="Reference" mono title={part.reference}>
+          {part.reference || "—"}
+        </PropertyRow>
+        <PropertyRow label="Value" className="h-[26px]">
           <input
             value={valueDraft}
             onChange={(event) => setValueDraft(event.target.value)}
@@ -298,289 +449,306 @@ export function PartInspectorPanel({
             onKeyDown={(event) => {
               if (event.key === "Enter") event.currentTarget.blur();
             }}
+            aria-label="Value"
             placeholder={
               inferredKind === "generic"
                 ? "—"
                 : `e.g. 10${unitsForKind(inferredKind)[0] ?? ""}`
             }
-            className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-800 outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            className={INPUT_CLASS}
           />
-        </label>
-        {inferredKind !== "generic" && (
-          <label className="flex flex-col gap-0.5">
-            <span className="text-[10px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Tolerance
-            </span>
+        </PropertyRow>
+        {inferredKind !== "generic" ? (
+          <PropertyRow label="Tolerance" className="h-[26px]">
             <input
               value={toleranceDraft}
               onChange={(event) => setToleranceDraft(event.target.value)}
               onBlur={() => void commitTolerance()}
+              aria-label="Tolerance"
               placeholder="1%, 5%"
-              className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-800 outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              className={INPUT_CLASS}
             />
-          </label>
-        )}
-      </section>
-
-      <div className="h-px bg-slate-200 dark:bg-slate-800" />
-
-      {/* Footprint */}
-      {variants.length > 0 && currentVariant && (
-        <section className="flex flex-col gap-1">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Footprint
-            </span>
+          </PropertyRow>
+        ) : null}
+        {variants.length > 0 && currentVariant ? (
+          <PropertyRow label="Footprint">
             {hasAlternatives ? (
               <button
                 type="button"
                 onClick={() => setFootprintMenuOpen((prev) => !prev)}
-                className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+                aria-expanded={footprintMenuOpen}
+                className="flex h-[18px] w-full min-w-0 items-center gap-1 rounded-control border border-border-control bg-surface-input px-1.5 text-left font-mono text-2xs text-text-strong hover:bg-surface-hover"
               >
-                <Layers className="h-3 w-3 text-violet-500 dark:text-violet-300" />
-                <span className="max-w-[10rem] truncate">
+                <Layers className="h-3 w-3 shrink-0 text-text-tertiary" />
+                <span className="min-w-0 flex-1 truncate">
                   {currentVariant.variantLabel}
                 </span>
-                <ChevronDown className="h-3 w-3 text-slate-400" />
+                <ChevronDown className="h-3 w-3 shrink-0 text-text-tertiary" />
               </button>
             ) : (
-              <span className="rounded-md border border-slate-300 bg-slate-50 px-2 py-1 text-[11px] text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+              <span
+                className="block truncate font-mono text-2xs"
+                title={currentVariant.variantLabel}
+              >
                 {currentVariant.variantLabel}
               </span>
             )}
-          </div>
-          {footprintMenuOpen && hasAlternatives && (
-            <ul
-              role="listbox"
-              className="mt-1 max-h-48 overflow-y-auto rounded-md border border-slate-200 bg-white py-1 dark:border-slate-700 dark:bg-slate-900"
-            >
-              {variants
-                .slice()
-                .sort((a, b) => a.sortOrder - b.sortOrder)
-                .map((variant) => {
-                  const active =
-                    variant.footprintId === currentVariant.footprintId;
-                  const disabled = Boolean(onReplaceComponentDisabledMessage);
-                  return (
-                    <li key={variant.footprintId}>
-                      <button
-                        type="button"
-                        disabled={disabled || active}
-                        onClick={() => setFootprintMenuOpen(false)}
-                        className={`flex w-full items-center justify-between gap-3 px-3 py-1.5 text-left text-[11px] transition-colors ${
-                          active
-                            ? "bg-violet-50 text-violet-700 dark:bg-violet-950/60 dark:text-violet-200"
-                            : disabled
-                              ? "cursor-not-allowed text-slate-400 dark:text-slate-600"
-                              : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
-                        }`}
-                      >
-                        <span className="flex flex-col">
-                          <span className="font-medium">
-                            {variant.variantLabel}
-                          </span>
-                          <span className="text-[10px] text-slate-500">
-                            {variant.mountType ?? "—"} · {variant.padCount} pads
-                          </span>
-                        </span>
-                        {variant.isDefault && (
-                          <span className="rounded-full bg-slate-200 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-                            Default
-                          </span>
-                        )}
-                      </button>
-                    </li>
-                  );
-                })}
-            </ul>
-          )}
-          {onReplaceComponentDisabledMessage && (
-            <p className="text-[10px] leading-snug text-amber-500 dark:text-amber-400/80">
-              {onReplaceComponentDisabledMessage}
-            </p>
-          )}
-        </section>
-      )}
+          </PropertyRow>
+        ) : null}
+        <PropertyRow label="Symbol" mono title={part.symbol.name}>
+          {part.symbol.name}
+        </PropertyRow>
+      </PropertyGrid>
 
-      <div className="h-px bg-slate-200 dark:bg-slate-800" />
-
-      {/* Placement */}
-      <section>
-        <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
-          Placement
-        </p>
-        <div className="grid grid-cols-2 gap-2">
-          <label className="flex flex-col gap-0.5">
-            <span className="text-[10px] text-slate-500 dark:text-slate-500">
-              X (mm)
-            </span>
-            <input
-              value={xDraft}
-              onChange={(event) => setXDraft(event.target.value)}
-              onBlur={() => void commitPosition()}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") event.currentTarget.blur();
-              }}
-              className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-800 outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-            />
-          </label>
-          <label className="flex flex-col gap-0.5">
-            <span className="text-[10px] text-slate-500 dark:text-slate-500">
-              Y (mm)
-            </span>
-            <input
-              value={yDraft}
-              onChange={(event) => setYDraft(event.target.value)}
-              onBlur={() => void commitPosition()}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") event.currentTarget.blur();
-              }}
-              className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-800 outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-            />
-          </label>
-          <label className="flex flex-col gap-0.5">
-            <span className="text-[10px] text-slate-500 dark:text-slate-500">
-              Rotation (°)
-            </span>
-            <input
-              value={rotDraft}
-              onChange={(event) => setRotDraft(event.target.value)}
-              onBlur={() => void commitRotation()}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") event.currentTarget.blur();
-              }}
-              className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-800 outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-            />
-          </label>
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[10px] text-slate-500 dark:text-slate-500">
-              Mirrored
-            </span>
-            <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-300">
-              {part.mirrored ? "Yes" : "No"}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {pinNets.length > 0 && (
-        <>
-          <div className="h-px bg-slate-200 dark:bg-slate-800" />
-          <section>
-            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Pin connections
-            </p>
-            <div className="flex flex-col gap-0.5">
-              {pinNets.map(({ pin, net }) => (
-                <div
-                  key={pin.id}
-                  className="flex items-center justify-between gap-2 text-[11px]"
-                >
-                  <span className="min-w-0 flex-1 truncate font-mono text-slate-600 dark:text-slate-300">
-                    <span className="text-slate-400 dark:text-slate-500">
-                      {pin.number ?? "·"}
-                    </span>{" "}
-                    {pin.name}
-                  </span>
-                  <span
-                    className={`shrink-0 font-mono ${
-                      net
-                        ? netClassTextClass(classifyNet(net))
-                        : "text-slate-400 dark:text-slate-600"
+      {footprintMenuOpen && hasAlternatives && currentVariant ? (
+        <ul
+          role="listbox"
+          aria-label="Footprint variants"
+          className="max-h-48 overflow-y-auto border-b border-border bg-surface-raised py-1"
+        >
+          {variants
+            .slice()
+            .sort((a, b) => a.sortOrder - b.sortOrder)
+            .map((variant) => {
+              const active = variant.footprintId === currentVariant.footprintId;
+              const disabled = Boolean(onReplaceComponentDisabledMessage);
+              return (
+                <li key={variant.footprintId}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={active}
+                    disabled={disabled || active}
+                    onClick={() => setFootprintMenuOpen(false)}
+                    className={`flex w-full items-center justify-between gap-3 px-2 py-1 text-left text-xs transition-colors ${
+                      active
+                        ? "bg-surface-selected text-text-strong"
+                        : disabled
+                          ? "cursor-not-allowed text-text-disabled"
+                          : "text-text hover:bg-surface-hover"
                     }`}
                   >
-                    {net ?? "—"}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </section>
+                    <span className="flex min-w-0 flex-col">
+                      <span className="truncate font-mono">
+                        {variant.variantLabel}
+                      </span>
+                      <span className="truncate text-2xs text-text-tertiary">
+                        {variant.mountType ?? "—"} · {variant.padCount} pads
+                      </span>
+                    </span>
+                    {variant.isDefault ? (
+                      <span className="shrink-0 rounded-control border border-border-control px-1 text-2xs uppercase tracking-[.04em] text-text-tertiary">
+                        Default
+                      </span>
+                    ) : null}
+                  </button>
+                </li>
+              );
+            })}
+        </ul>
+      ) : null}
+      {variants.length > 0 && onReplaceComponentDisabledMessage ? (
+        <p className="border-b border-border px-2 py-1 text-2xs leading-snug text-status-warning">
+          {onReplaceComponentDisabledMessage}
+        </p>
+      ) : null}
+
+      <PanelSectionHeader variant="uppercase" title="Attributes" />
+      <div className="flex items-center border-b border-border px-2 py-1.5">
+        <Checkbox
+          checked={dnpChecked}
+          onChange={(event) => void commitDnp(event.target.checked)}
+          label="DNP (do not populate)"
+          wrapperClassName="text-xs text-text"
+        />
+      </div>
+
+      <PanelSectionHeader variant="uppercase" title="Fields" />
+      <PropertyGrid>
+        <PropertyRow label="MPN" className="h-[26px]">
+          <input
+            value={mpnDraft}
+            onChange={(event) => setMpnDraft(event.target.value)}
+            onBlur={() => void commitMpn()}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") event.currentTarget.blur();
+            }}
+            aria-label="MPN"
+            placeholder="—"
+            className={`${INPUT_CLASS} font-mono`}
+          />
+        </PropertyRow>
+        <PropertyRow label="Manufacturer" className="h-[26px]">
+          <input
+            value={manufacturerDraft}
+            onChange={(event) => setManufacturerDraft(event.target.value)}
+            onBlur={() => void commitManufacturer()}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") event.currentTarget.blur();
+            }}
+            aria-label="Manufacturer"
+            placeholder="—"
+            className={INPUT_CLASS}
+          />
+        </PropertyRow>
+        <PropertyRow label="Datasheet" title={datasheetUrl || undefined}>
+          {datasheetUrl ? (
+            <a
+              href={datasheetUrl}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(event) => {
+                event.preventDefault();
+                openExternalUrl(datasheetUrl);
+              }}
+              className="block truncate text-text-secondary underline underline-offset-2 hover:text-text-strong"
+            >
+              {datasheetUrl}
+            </a>
+          ) : (
+            "—"
+          )}
+        </PropertyRow>
+      </PropertyGrid>
+
+      <PanelSectionHeader variant="uppercase" title="Placement" />
+      <PropertyGrid>
+        <PropertyRow label="X" hint="mm" className="h-[26px]">
+          <input
+            value={xDraft}
+            onChange={(event) => setXDraft(event.target.value)}
+            onBlur={() => void commitPosition()}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") event.currentTarget.blur();
+            }}
+            aria-label="X (mm)"
+            className={NUMBER_INPUT_CLASS}
+          />
+        </PropertyRow>
+        <PropertyRow label="Y" hint="mm" className="h-[26px]">
+          <input
+            value={yDraft}
+            onChange={(event) => setYDraft(event.target.value)}
+            onBlur={() => void commitPosition()}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") event.currentTarget.blur();
+            }}
+            aria-label="Y (mm)"
+            className={NUMBER_INPUT_CLASS}
+          />
+        </PropertyRow>
+        <PropertyRow label="Rotation" hint="°" className="h-[26px]">
+          <input
+            value={rotDraft}
+            onChange={(event) => setRotDraft(event.target.value)}
+            onBlur={() => void commitRotation()}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") event.currentTarget.blur();
+            }}
+            aria-label="Rotation (°)"
+            className={NUMBER_INPUT_CLASS}
+          />
+        </PropertyRow>
+        <PropertyRow label="Mirrored">
+          {part.mirrored ? "Yes" : "No"}
+        </PropertyRow>
+      </PropertyGrid>
+
+      {pinNets.length > 0 ? (
+        <>
+          <PanelSectionHeader
+            variant="uppercase"
+            title="Pins"
+            count={pinNets.length}
+          />
+          <TableHeaderRow cols={PIN_COLS}>
+            <span>#</span>
+            <span>Name · net</span>
+            <span className="text-right">Type</span>
+          </TableHeaderRow>
+          {pinNets.map(({ pin, net }) => (
+            <TableRow key={pin.id} cols={PIN_COLS}>
+              <span className="truncate font-mono text-2xs text-text-tertiary">
+                {pin.number ?? "·"}
+              </span>
+              <span className="flex min-w-0 items-center gap-1.5 font-mono text-2xs">
+                <span className="truncate text-text-strong">{pin.name}</span>
+                <span
+                  className={`min-w-0 truncate ${
+                    net
+                      ? netClassTextClass(classifyNet(net))
+                      : "text-text-disabled"
+                  }`}
+                >
+                  {net ?? "—"}
+                </span>
+              </span>
+              <span className="truncate text-right text-2xs text-text-tertiary">
+                {pin.electricalType || "—"}
+              </span>
+            </TableRow>
+          ))}
         </>
-      )}
+      ) : null}
 
-      <div className="h-px bg-slate-200 dark:bg-slate-800" />
-
-      {/* Quick actions */}
-      <section className="flex flex-col gap-1.5">
-        {onCrossProbePcb && (
-          <button
-            type="button"
+      <PanelSectionHeader variant="uppercase" title="Quick actions" />
+      <div className="flex flex-col items-stretch gap-1 border-b border-border p-2">
+        {onCrossProbePcb ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            className="justify-start"
             onClick={onCrossProbePcb}
-            className="flex cursor-pointer items-center gap-2 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+            icon={<CircuitBoard className="h-3 w-3 text-text-tertiary" />}
           >
-            <CircuitBoard className="h-3.5 w-3.5 text-slate-400" />
             View on PCB
-          </button>
-        )}
-        <button
-          type="button"
+          </Button>
+        ) : null}
+        <Button
+          variant="secondary"
+          size="sm"
+          className="justify-start"
           disabled
           title="Replace component — coming in a future designer phase"
-          className="flex cursor-not-allowed items-center justify-between gap-2 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-600"
+          icon={<Replace className="h-3 w-3" />}
         >
-          <span className="flex items-center gap-2">
-            <Replace className="h-3.5 w-3.5" />
-            Replace component
-          </span>
-          <span className="text-[10px] uppercase tracking-wider">soon</span>
-        </button>
-        <button
-          type="button"
+          Replace component
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          className="justify-start"
           onClick={() => onOpenInLibrary?.(part.componentId)}
           disabled={!onOpenInLibrary}
-          className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+          icon={<BookOpen className="h-3 w-3 text-text-tertiary" />}
         >
-          <BookOpen className="h-3.5 w-3.5 text-slate-400" />
           Open in Library
-        </button>
-      </section>
+        </Button>
+      </div>
 
-      {/* Advanced */}
-      <button
-        type="button"
-        onClick={() => setAdvancedOpen((prev) => !prev)}
-        className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-slate-500 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300"
-      >
-        {advancedOpen ? (
-          <ChevronDown className="h-3 w-3" />
-        ) : (
-          <ChevronRight className="h-3 w-3" />
-        )}
-        Advanced
-      </button>
-      {advancedOpen && (
-        <section className="flex flex-col gap-0.5 rounded-md border border-slate-200 bg-slate-50 p-2 text-[10px] dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex justify-between gap-2">
-            <span className="text-slate-500">Component</span>
-            <span
-              className="max-w-[60%] truncate font-mono text-slate-700 dark:text-slate-300"
-              title={part.componentId}
-            >
-              {part.componentId.slice(0, 12)}…
-            </span>
-          </div>
-          <div className="flex justify-between gap-2">
-            <span className="text-slate-500">Symbol</span>
-            <span
-              className="max-w-[60%] truncate text-slate-700 dark:text-slate-300"
-              title={part.symbol.name}
-            >
-              {part.symbol.name}
-            </span>
-          </div>
-          <div className="flex justify-between gap-2">
-            <span className="text-slate-500">Pins</span>
-            <span className="text-slate-700 dark:text-slate-300">
+      <PanelSectionHeader
+        variant="uppercase"
+        title="Advanced"
+        collapsed={!advancedOpen}
+        onToggle={() => setAdvancedOpen((prev) => !prev)}
+      />
+      {advancedOpen ? (
+        <>
+          <PropertyGrid>
+            <PropertyRow label="Component" mono title={part.componentId}>
+              {part.componentId}
+            </PropertyRow>
+            <PropertyRow label="Pins" mono>
               {part.pins.length}
-            </span>
-          </div>
-          {part.propertiesJson?.pcb?.staleReason && (
-            <div className="mt-1 rounded border border-amber-300/60 bg-amber-50 p-1.5 text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-400">
+            </PropertyRow>
+          </PropertyGrid>
+          {part.propertiesJson?.pcb?.staleReason ? (
+            <p className="border-b border-border px-2 py-1 text-2xs leading-snug text-status-warning">
               PCB: {part.propertiesJson.pcb.staleReason}
-            </div>
-          )}
-        </section>
-      )}
+            </p>
+          ) : null}
+        </>
+      ) : null}
     </div>
   );
 }

@@ -15,6 +15,9 @@ const BG = "#131313";
 const WIRE = "#94a3b8";
 const SYMBOL_STROKE = "#e2e8f0";
 const SYMBOL_FILL = "#111111";
+// Empty-state ink — the well is dark in both themes, so these are fixed.
+const EMPTY_ICON = "#55555a";
+const EMPTY_TEXT = "#7f7f84";
 
 // Stroke widths in rendered px (vector-effect non-scaling-stroke keeps them
 // constant regardless of how far the design extent is zoomed to fit the card).
@@ -28,8 +31,14 @@ function EmptyPreview() {
       className="flex h-full w-full flex-col items-center justify-center gap-1.5"
       style={{ backgroundColor: BG }}
     >
-      <PencilRuler className="h-5 w-5 text-slate-600" aria-hidden="true" />
-      <span className="text-[11px] text-slate-500">Empty design</span>
+      <PencilRuler
+        className="h-5 w-5"
+        style={{ color: EMPTY_ICON }}
+        aria-hidden="true"
+      />
+      <span className="text-xs" style={{ color: EMPTY_TEXT }}>
+        Empty design
+      </span>
     </div>
   );
 }

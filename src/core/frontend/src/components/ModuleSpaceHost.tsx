@@ -61,7 +61,7 @@ export function getFrontendModuleEntry(
 
 function ModuleLoadError({ message }: { message: string }) {
   return (
-    <div className="m-6 rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+    <div className="m-6 rounded-control border border-status-danger/40 bg-status-danger-soft p-5 text-sm text-status-danger">
       {message}
     </div>
   );
@@ -149,7 +149,7 @@ export function ModuleSpaceHost({
   }
 
   if (!Component) {
-    return <div className="m-6 text-sm text-slate-500">Loading module…</div>;
+    return <div className="m-6 text-sm text-text-tertiary">Loading module…</div>;
   }
 
   return (

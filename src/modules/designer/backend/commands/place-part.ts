@@ -114,10 +114,10 @@ export function recomputePinWorldPositions(
 }
 
 /**
- * Seed a placement's `propertiesJson` with the library component's sourcing so
- * the BOM is populated without a manual override. Only non-empty fields are
- * written (keys match what the BOM writer reads); returns `"{}"` when the
- * component carries no sourcing.
+ * Seed a placement's `propertiesJson` with the library component's sourcing
+ * (plus its description) so the BOM is populated without a manual override.
+ * Only non-empty fields are written (keys match what the BOM writer reads);
+ * returns `"{}"` when the component carries none of it.
  */
 export function buildSourcingPropertiesJson(
   component: LibraryComponentPlacementDetail["component"],
@@ -128,6 +128,7 @@ export function buildSourcingPropertiesJson(
     props.manufacturerPartNumber = component.manufacturerPartNumber;
   if (component.lcscPartNumber) props.lcscPartNumber = component.lcscPartNumber;
   if (component.supplier) props.supplier = component.supplier;
+  if (component.description) props.description = component.description;
   return JSON.stringify(props);
 }
 

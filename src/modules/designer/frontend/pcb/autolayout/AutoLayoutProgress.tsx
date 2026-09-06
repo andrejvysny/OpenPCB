@@ -25,20 +25,20 @@ export function AutoLayoutProgress({
   return (
     <div className="space-y-3">
       <div>
-        <p className="text-xs font-medium text-slate-700 dark:text-slate-200">
+        <p className="text-xs font-medium text-text">
           {cancelling
             ? "Cancelling…"
             : phaseLabel(progress.lastFrame, progress.candidates.length)}
         </p>
-        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded bg-slate-200 dark:bg-slate-800">
+        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-control bg-surface-control">
           <div
-            className={`h-full rounded bg-violet-600 transition-[width] duration-300 ${
+            className={`h-full rounded-control bg-selection transition-[width] duration-300 ${
               percent === null ? "animate-pulse w-1/3" : ""
             }`}
             style={percent === null ? undefined : { width: `${percent}%` }}
           />
         </div>
-        <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+        <p className="mt-1 text-[11px] text-text-tertiary">
           {percent === null ? "Working…" : `${percent}% of the work budget`}
           {total !== null
             ? ` · ${progress.candidatesFinished}/${total} candidates evaluated`
@@ -57,16 +57,16 @@ export function AutoLayoutProgress({
             .map((candidate) => (
               <li
                 key={candidate.candidateId}
-                className="flex items-center justify-between rounded border border-slate-200 px-2 py-1 text-[11px] dark:border-slate-800"
+                className="flex items-center justify-between rounded-control border border-border px-2 py-1 text-[11px]"
               >
-                <span className="text-slate-700 dark:text-slate-200">
+                <span className="text-text">
                   Candidate {candidate.index + 1}
                 </span>
                 <span
                   className={
                     candidate.finished
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : "text-slate-500 dark:text-slate-400"
+                      ? "text-status-success"
+                      : "text-text-tertiary"
                   }
                 >
                   {candidate.finished ? "done" : (candidate.stage ?? "queued")}

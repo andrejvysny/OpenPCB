@@ -639,6 +639,102 @@ describe("BOM CSV writer", () => {
     expect(out).toContain("10k,R1,R_0603_1608Metric");
   });
 
+  test("reads description from schematic propertiesJson", () => {
+    const sch: DesignerSchematicProjection = {
+      designId: "blink",
+      revision: 1,
+      parts: [
+        {
+          id: "part-1",
+          componentId: "c-555",
+          reference: "U1",
+          value: "NE555",
+          rotationDeg: 0,
+          mirrored: false,
+          positionNm: { x: 0, y: 0 },
+          symbol: {} as never,
+          footprint: {} as never,
+          pins: [],
+          propertiesJson: { description: "555 timer IC" } as never,
+        },
+      ],
+      wires: [],
+      labels: [],
+      primitives: [],
+      junctions: [],
+      derivedNets: [],
+      designName: "blink",
+      sheetSize: "A4",
+      updatedAt: new Date().toISOString(),
+    } as unknown as DesignerSchematicProjection;
+    const row = buildBomProjection(fixtureProjection(), sch).rows.find(
+      (candidate) => candidate.refdesList === "U1",
+    );
+    expect(row?.description).toBe("555 timer IC");
+  });
+
+  test("description absent → null (no fake fallback)", () => {
+    const row = buildBomProjection(fixtureProjection(), null).rows.find(
+      (candidate) => candidate.refdesList === "U1",
+    );
+    expect(row?.description).toBeNull();
+  });
+
+  test("grouped line takes the first non-empty description when refs disagree", () => {
+    const sch: DesignerSchematicProjection = {
+      designId: "blink",
+      revision: 1,
+      parts: [
+        {
+          id: "part-r1",
+          componentId: "c-r10k",
+          reference: "R1",
+          value: "10k",
+          rotationDeg: 0,
+          mirrored: false,
+          positionNm: { x: 0, y: 0 },
+          symbol: {} as never,
+          footprint: {} as never,
+          pins: [],
+          propertiesJson: {} as never,
+        },
+        {
+          id: "part-r2",
+          componentId: "c-r10k",
+          reference: "R2",
+          value: "10k",
+          rotationDeg: 0,
+          mirrored: false,
+          positionNm: { x: 0, y: 0 },
+          symbol: {} as never,
+          footprint: {} as never,
+          pins: [],
+          propertiesJson: { description: "10k 1% 0603 resistor" } as never,
+        },
+      ],
+      wires: [],
+      labels: [],
+      primitives: [],
+      junctions: [],
+      derivedNets: [],
+      designName: "blink",
+      sheetSize: "A4",
+      updatedAt: new Date().toISOString(),
+    } as unknown as DesignerSchematicProjection;
+    const proj = fixtureProjection();
+    // Give R2 the same footprint as R1 so they group into one BOM line.
+    proj.placements.push({
+      ...proj.placements[1]!,
+      id: "p3",
+      partId: "part-r2",
+      reference: "R2",
+    });
+    const row = buildBomProjection(proj, sch).rows.find(
+      (candidate) => candidate.refdesList === "R1,R2",
+    );
+    expect(row?.description).toBe("10k 1% 0603 resistor");
+  });
+
   test("applies BOM overrides and groups by LCSC/JLC", () => {
     const projection = buildBomProjection(fixtureProjection(), null, [
       {

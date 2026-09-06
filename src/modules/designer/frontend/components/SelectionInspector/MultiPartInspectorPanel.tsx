@@ -2,6 +2,12 @@ import { useCallback, useMemo, useState, type ReactElement } from "react";
 import { Trash2 } from "lucide-react";
 import type { DesignerPlacedPart } from "../../../../../sdks";
 import type { DesignerWorkspaceActions } from "../../hooks/useDesignerWorkspace";
+import { Button } from "@shared/frontend/ui/button";
+import { PanelSectionHeader } from "@shared/frontend/ui/panel-section-header";
+import { PropertyGrid, PropertyRow } from "@shared/frontend/ui/property-grid";
+
+const INPUT_CLASS =
+  "h-[22px] w-full rounded-control border border-border-control bg-surface-input px-1.5 text-xs text-text-strong outline-none placeholder:text-text-disabled focus:border-selection";
 
 interface MultiPartInspectorPanelProps {
   parts: DesignerPlacedPart[];
@@ -52,54 +58,52 @@ export function MultiPartInspectorPanel({
   }, [parts, dispatchCommand, setError]);
 
   return (
-    <div className="flex flex-col gap-3">
-      <section className="flex flex-col gap-1 rounded-md border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-900">
-        <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-          {parts.length} parts selected
-        </p>
-        {commonComponentId ? (
-          <p className="text-[11px] text-slate-500 dark:text-slate-400">
-            Same component type · batch edit available
-          </p>
-        ) : (
-          <p className="text-[11px] text-slate-500 dark:text-slate-400">
-            Mixed component types
-          </p>
-        )}
-      </section>
+    <div className="flex flex-col">
+      <PanelSectionHeader
+        variant="uppercase"
+        title="Selection"
+        count={parts.length}
+      />
+      <PropertyGrid>
+        <PropertyRow label="Parts" mono>
+          {parts.length}
+        </PropertyRow>
+        <PropertyRow label="Type">
+          {commonComponentId ? "Same component" : "Mixed components"}
+        </PropertyRow>
+      </PropertyGrid>
 
-      <label className="flex flex-col gap-0.5">
-        <span className="text-[10px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
-          Set Value (batch)
-        </span>
-        <div className="flex gap-2">
+      <PanelSectionHeader variant="uppercase" title="Batch edit" />
+      <div className="flex flex-col gap-1.5 border-b border-border p-2">
+        <div className="flex items-center gap-1.5">
           <input
             value={batchValue}
             onChange={(event) => setBatchValue(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter") void applyBatchValue();
             }}
+            aria-label="Set Value (batch)"
             placeholder="e.g. 10nF"
-            className="min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-800 outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            className={INPUT_CLASS}
           />
-          <button
-            type="button"
+          <Button
+            variant="primary"
+            size="sm"
             onClick={() => void applyBatchValue()}
-            className="rounded-md bg-violet-600 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-violet-500"
           >
             Apply
-          </button>
+          </Button>
         </div>
-      </label>
-
-      <button
-        type="button"
-        onClick={() => void deleteAll()}
-        className="flex items-center justify-center gap-2 rounded-md border border-rose-300 bg-rose-50 px-2.5 py-1.5 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-100 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-400 dark:hover:bg-rose-950/60"
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-        Delete all {parts.length}
-      </button>
+        <Button
+          variant="danger"
+          size="sm"
+          className="justify-center"
+          onClick={() => void deleteAll()}
+          icon={<Trash2 className="h-3 w-3" />}
+        >
+          Delete all {parts.length}
+        </Button>
+      </div>
     </div>
   );
 }

@@ -13,7 +13,6 @@ import {
   Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Card } from "@shared/frontend/ui/card";
 import { Pill } from "@shared/frontend/ui/pill";
 import {
   DropdownMenu,
@@ -41,7 +40,6 @@ export interface DesignSummary {
 
 interface DesignCardProps {
   design: DesignSummary;
-  view: "grid" | "list";
   starred: boolean;
   archived: boolean;
   onOpen: () => void;
@@ -51,10 +49,14 @@ interface DesignCardProps {
 }
 
 /** DRC status badge sourced from the latest persisted run on the summary. */
-function DrcPill({ status }: { status?: DesignerDrcStatus | null }) {
+export function DrcPill({ status }: { status?: DesignerDrcStatus | null }) {
   if (!status) {
     return (
-      <Pill tone="neutral" icon={<CircleDashed className="h-3 w-3" />}>
+      <Pill
+        tone="neutral"
+        icon={<CircleDashed className="h-3 w-3" />}
+        className="text-text-secondary"
+      >
         DRC not run
       </Pill>
     );
@@ -65,6 +67,7 @@ function DrcPill({ status }: { status?: DesignerDrcStatus | null }) {
         tone="neutral"
         icon={<CircleDashed className="h-3 w-3" />}
         title={`DRC last ran at r${status.ranAtRevision}; board has changed`}
+        className="text-text-secondary"
       >
         DRC stale
       </Pill>
@@ -91,11 +94,14 @@ function DrcPill({ status }: { status?: DesignerDrcStatus | null }) {
   );
 }
 
-function ActionsMenu({
+export function ActionsMenu({
   archived,
   onToggleArchive,
   onDelete,
-}: Pick<DesignCardProps, "archived" | "onToggleArchive" | "onDelete">) {
+  className,
+}: Pick<DesignCardProps, "archived" | "onToggleArchive" | "onDelete"> & {
+  className?: string;
+}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -103,9 +109,13 @@ function ActionsMenu({
           type="button"
           aria-label="More actions"
           onClick={(e) => e.stopPropagation()}
-          className="flex rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+          className={cn(
+            "flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-control",
+            "text-text-tertiary outline-none hover:bg-surface-hover hover:text-text-strong",
+            className,
+          )}
         >
-          <MoreHorizontal className="h-4 w-4" />
+          <MoreHorizontal className="h-3.5 w-3.5" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
@@ -150,7 +160,7 @@ function ActionsMenu({
   );
 }
 
-function StarButton({
+export function StarButton({
   starred,
   onToggle,
 }: {
@@ -167,76 +177,45 @@ function StarButton({
         onToggle();
       }}
       className={cn(
-        "flex p-0.5",
+        "flex p-0.5 outline-none",
         starred
-          ? "text-amber-500 dark:text-amber-400"
-          : "text-slate-300 hover:text-slate-400 dark:text-slate-600 dark:hover:text-slate-500",
+          ? "text-status-warning"
+          : "text-border-control hover:text-text-secondary",
       )}
     >
-      <Star className="h-3.5 w-3.5" fill={starred ? "currentColor" : "none"} />
+      <Star className="h-3 w-3" fill={starred ? "currentColor" : "none"} />
     </button>
   );
 }
 
 export function DesignCard(props: DesignCardProps) {
-  const { design, view, starred, onOpen, onToggleStar } = props;
-
-  if (view === "list") {
-    return (
-      <Card
-        interactive
-        onClick={onOpen}
-        className="flex cursor-pointer items-center gap-3 px-3.5 py-2.5"
-      >
-        <div className="h-9 w-16 shrink-0 overflow-hidden rounded">
-          <SchematicThumbnail preview={design.schematicPreview} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
-            {design.name}
-          </h3>
-          <div className="mt-0.5 flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-            <span className="rounded bg-slate-100 px-1.5 font-mono text-[10px] text-violet-600 dark:bg-slate-800 dark:text-violet-300">
-              r{design.revision}
-            </span>
-            <span>{formatRelativeTime(design.updatedAt)}</span>
-          </div>
-        </div>
-        <DrcPill status={design.drcStatus} />
-        <StarButton starred={starred} onToggle={onToggleStar} />
-        <ActionsMenu {...props} />
-      </Card>
-    );
-  }
+  const { design, starred, onOpen, onToggleStar } = props;
 
   return (
-    <Card
-      interactive
+    <div
       onClick={onOpen}
-      className="cursor-pointer overflow-hidden"
+      className="cursor-pointer overflow-hidden rounded-control border border-border bg-surface-panel transition-colors hover:border-border-control hover:bg-surface-hover"
     >
-      <div className="aspect-[2/1] overflow-hidden rounded-t-card bg-[#131313]">
+      <div className="aspect-[2/1] overflow-hidden border-b border-border bg-surface-canvas-well">
         <SchematicThumbnail preview={design.schematicPreview} />
       </div>
-      <div className="p-3">
-        <div className="mb-1.5 flex items-center justify-between gap-1.5">
-          <h3 className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
+      <div className="p-2">
+        <div className="mb-1 flex items-center justify-between gap-1.5">
+          <h3 className="truncate text-sm font-medium text-text-strong">
             {design.name}
           </h3>
           <StarButton starred={starred} onToggle={onToggleStar} />
         </div>
-        <div className="mb-2 flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-          <span className="rounded bg-slate-100 px-1.5 font-mono text-[10px] text-violet-600 dark:bg-slate-800 dark:text-violet-300">
-            r{design.revision}
-          </span>
-          <span className="text-slate-400 dark:text-slate-600">·</span>
+        <div className="mb-1.5 flex items-center gap-1.5 text-2xs text-text-tertiary">
+          <span className="font-mono">r{design.revision}</span>
+          <span className="text-text-disabled">·</span>
           <span>{formatRelativeTime(design.updatedAt)}</span>
         </div>
-        <div className="flex items-center justify-between border-t border-slate-100 pt-2 dark:border-slate-800">
+        <div className="flex items-center justify-between border-t border-border-subtle pt-1.5">
           <DrcPill status={design.drcStatus} />
           <ActionsMenu {...props} />
         </div>
       </div>
-    </Card>
+    </div>
   );
 }

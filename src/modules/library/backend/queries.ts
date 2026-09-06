@@ -15,6 +15,7 @@ import type {
   LibraryFootprintModelDescriptor,
   LibraryFootprintPlacementSnapshot,
   LibraryListTagsOptions,
+  LibraryMountType,
   LibraryPreviewWarning,
   LibraryPinMapEntry,
   LibrarySearchParams,
@@ -573,6 +574,48 @@ function parsePackageCode(value: unknown): {
   };
 }
 
+/** Parse a footprint `data_json` column into a record; null on absence/garbage. */
+function parseFootprintDataJson(
+  footprintDataJson: string | null,
+): Record<string, unknown> | null {
+  if (!footprintDataJson) return null;
+  try {
+    return asRecord(JSON.parse(footprintDataJson) as unknown);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Raw footprint mount value (`smd`, `through_hole`, …) → the display form the
+ * component list renders. Unrecognised values (e.g. the `virtual` placeholder
+ * footprint) collapse to null so the UI shows "—" rather than a raw token.
+ */
+function displayMountType(rawMount: string | null): LibraryMountType | null {
+  if (!rawMount) return null;
+  switch (rawMount.trim().toLowerCase().replace(/[\s_-]+/g, "")) {
+    case "smd":
+    case "smt":
+    case "surfacemount":
+      return "SMD";
+    case "tht":
+    case "thruhole":
+    case "throughhole":
+    case "pth":
+      return "THT";
+    case "mixed":
+      return "Mixed";
+    default:
+      return null;
+  }
+}
+
+/** Pad count derived straight from a footprint `data_json` column. */
+function extractPadCount(footprintDataJson: string | null): number | null {
+  const data = parseFootprintDataJson(footprintDataJson);
+  return data ? padCountFrom(data) : null;
+}
+
 export function mapComponent(row: ComponentRow): LibraryComponent {
   return {
     id: row.id,
@@ -589,6 +632,22 @@ export function mapComponent(row: ComponentRow): LibraryComponent {
     subcategory: row.subcategory,
     datasheetUrl: row.datasheetUrl,
     keywords: row.keywordsJson ? parseJsonStringArray(row.keywordsJson) : [],
+  };
+}
+
+/**
+ * List-DTO variant of {@link mapComponent}: adds the default footprint's mount
+ * style and pad count. Both are null when the component has no resolvable
+ * footprint row (`footprintDataJson === null`) or the blob carries no value.
+ */
+function mapComponentListRow(
+  row: ComponentRow,
+  footprintDataJson: string | null,
+): LibraryComponent {
+  return {
+    ...mapComponent(row),
+    mountType: displayMountType(extractMountType(footprintDataJson)),
+    padCount: extractPadCount(footprintDataJson),
   };
 }
 
@@ -629,11 +688,32 @@ export function mapSymbolDetail(row: SymbolRow): LibrarySymbolDetail {
   };
 }
 
+/**
+ * Raw `mountType` of a parsed footprint `dataJson` blob. Canonical location is
+ * `normalized.mountType`; the legacy fallback is the top-level field.
+ */
+function rawMountTypeFrom(data: Record<string, unknown>): string | null {
+  const normalized = asRecord(data.normalized);
+  return asString(normalized?.mountType) ?? asString(data.mountType);
+}
+
+/**
+ * Pad count of a parsed footprint `dataJson` blob: the explicit
+ * `normalized.padCount` when present, else the length of `normalized.pads`.
+ * Null when the blob carries neither.
+ */
+function padCountFrom(data: Record<string, unknown>): number | null {
+  const normalized = asRecord(data.normalized);
+  const explicit = asNumber(normalized?.padCount);
+  if (explicit !== null) return explicit;
+  return normalized && Array.isArray(normalized.pads)
+    ? normalized.pads.length
+    : null;
+}
+
 export function mapFootprintDetail(row: FootprintRow): LibraryFootprintDetail {
   const data = parseJsonObject(row.dataJson);
   const normalized = asRecord(data.normalized);
-  const normalizedPads =
-    normalized && Array.isArray(normalized.pads) ? normalized.pads : null;
   const previewCandidate = normalized?.preview ?? data.preview;
   const preview = isFootprintRenderModel(previewCandidate)
     ? (rederivedFootprintPreview(previewCandidate) as unknown as Record<
@@ -642,15 +722,11 @@ export function mapFootprintDetail(row: FootprintRow): LibraryFootprintDetail {
       >)
     : asRecord(previewCandidate);
 
-  const padCountFromNormalized = asNumber(normalized?.padCount);
-  const mountType = asString(normalized?.mountType) ?? asString(data.mountType);
-
   return {
     id: row.id,
     name: row.name,
-    mountType,
-    padCount:
-      padCountFromNormalized ?? (normalizedPads ? normalizedPads.length : 0),
+    mountType: rawMountTypeFrom(data),
+    padCount: padCountFrom(data) ?? 0,
     packageCode: parsePackageCode(normalized?.packageCode ?? data.packageCode),
     warnings: parseWarnings(normalized?.warnings ?? data.warnings),
     preview,
@@ -682,7 +758,16 @@ export async function searchComponents(
   }
   const hasFilter = sourceFilters.size > 0 || expectedTags.size > 0;
 
-  let rows: ComponentRow[];
+  // Each row carries its default footprint's blob (same left join computeFacets
+  // uses) so the list DTO can report mount type + pad count.
+  const listSelection = {
+    component: components,
+    footprintDataJson: footprints.dataJson,
+  };
+  let rows: Array<{
+    component: ComponentRow;
+    footprintDataJson: string | null;
+  }>;
   if (query.length > 0) {
     const phraseNeedle = `%${escapeLikeNeedle(query)}%`;
     const tokenNeedles = queryTokens.map(
@@ -694,8 +779,9 @@ export async function searchComponents(
         ? and(...tokenNeedles.map((needle) => like(searchableText, needle)))
         : undefined;
     const baseQuery = db
-      .select()
+      .select(listSelection)
       .from(components)
+      .leftJoin(footprints, eq(components.footprintId, footprints.id))
       .where(
         or(
           like(sql`lower(${components.name})`, phraseNeedle),
@@ -707,14 +793,20 @@ export async function searchComponents(
       .orderBy(components.name);
     rows = hasFilter ? await baseQuery.all() : await baseQuery.limit(limit);
   } else {
-    const baseQuery = db.select().from(components).orderBy(components.name);
+    const baseQuery = db
+      .select(listSelection)
+      .from(components)
+      .leftJoin(footprints, eq(components.footprintId, footprints.id))
+      .orderBy(components.name);
     rows = hasFilter ? await baseQuery.all() : await baseQuery.limit(limit);
   }
 
   if (!hasFilter) {
-    return rows.map(mapComponent);
+    return rows.map((row) =>
+      mapComponentListRow(row.component, row.footprintDataJson),
+    );
   }
-  const filteredRows = rows.filter((row) => {
+  const filteredRows = rows.filter(({ component: row }) => {
     if (sourceFilters.size > 0) {
       const sourceKey = row.sourceId ?? (row.isBuiltin === 1 ? "core" : "user");
       if (!sourceFilters.has(sourceKey)) return false;
@@ -729,7 +821,9 @@ export async function searchComponents(
     }
     return true;
   });
-  return filteredRows.slice(0, limit).map(mapComponent);
+  return filteredRows
+    .slice(0, limit)
+    .map((row) => mapComponentListRow(row.component, row.footprintDataJson));
 }
 
 function tokenizeSearchQuery(query: string): string[] {
@@ -1497,18 +1591,9 @@ interface NormalizedComponentForFacets {
  * mount value.
  */
 function extractMountType(footprintDataJson: string | null): string | null {
-  if (!footprintDataJson) return null;
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(footprintDataJson);
-  } catch {
-    return null;
-  }
-  const root = asRecord(parsed);
-  if (!root) return null;
-  const normalized = asRecord(root.normalized);
-  const mount =
-    asString(normalized?.mountType) ?? asString(root.mountType) ?? null;
+  const data = parseFootprintDataJson(footprintDataJson);
+  if (!data) return null;
+  const mount = rawMountTypeFrom(data);
   if (!mount) return null;
   const lc = mount.trim().toLowerCase();
   return lc.length > 0 ? lc : null;

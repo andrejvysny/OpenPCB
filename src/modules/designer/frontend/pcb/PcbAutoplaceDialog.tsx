@@ -146,12 +146,12 @@ export function PcbAutoplaceDialog({
       role="dialog"
       aria-label="Auto-place"
       aria-labelledby="pcb-autoplace-dialog-title"
-      className="fixed bottom-4 right-4 z-40 flex w-[360px] max-w-[92vw] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-950"
+      className="fixed bottom-4 right-4 z-40 flex w-[360px] max-w-[92vw] flex-col overflow-hidden rounded-float border border-border bg-surface-raised shadow-2xl"
     >
-      <header className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+      <header className="flex items-center justify-between border-b border-border px-4 py-3">
         <h2
           id="pcb-autoplace-dialog-title"
-          className="text-sm font-semibold text-slate-900 dark:text-slate-100"
+          className="text-sm font-semibold text-text-strong"
         >
           Auto-place
         </h2>
@@ -159,15 +159,15 @@ export function PcbAutoplaceDialog({
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="rounded p-1 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+          className="rounded-control p-1 text-text-tertiary hover:bg-surface-hover"
         >
           <X className="h-4 w-4" />
         </button>
       </header>
 
-      <section className="space-y-3 px-4 py-4 text-sm text-slate-700 dark:text-slate-200">
+      <section className="space-y-3 px-4 py-4 text-sm text-text">
         {warnings.length > 0 ? (
-          <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200">
+          <div className="rounded-control border border-status-warning bg-status-warning-soft px-3 py-2 text-xs text-status-warning">
             <p className="flex items-center gap-1.5 font-medium">
               <AlertTriangle className="h-3.5 w-3.5" />
               {warnings.length} warning{warnings.length === 1 ? "" : "s"}
@@ -181,17 +181,17 @@ export function PcbAutoplaceDialog({
         ) : null}
 
         {phase === "submitting" ? (
-          <p className="text-xs text-slate-500 dark:text-slate-400">
+          <p className="text-xs text-text-tertiary">
             Submitting board to the auto-placer…
           </p>
         ) : null}
         {phase === "polling" ? (
-          <p className="text-xs text-violet-600 dark:text-violet-300">
+          <p className="text-xs text-selection">
             Optimizing placement…
           </p>
         ) : null}
         {phase === "error" ? (
-          <p className="rounded border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-200">
+          <p className="rounded-control border border-status-danger bg-status-danger-soft px-3 py-2 text-xs text-status-danger">
             {message ?? "Auto-place failed"}
           </p>
         ) : null}

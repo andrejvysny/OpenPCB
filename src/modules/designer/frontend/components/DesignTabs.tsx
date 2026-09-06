@@ -5,7 +5,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@shared/frontend/ui/context-menu";
-import { Plus, X } from "lucide-react";
+import { CircuitBoard, Plus, X } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -207,23 +207,23 @@ export function DesignTabs({
                   e.stopPropagation();
                   startRename(designId);
                 }}
-                className={`group relative flex h-7 min-w-[120px] max-w-[200px] cursor-pointer select-none items-center gap-1.5 rounded-md border px-2 text-xs transition-colors ${
+                className={`group relative flex min-w-[120px] max-w-[200px] cursor-pointer select-none items-center gap-1.5 px-2 text-xs transition-colors ${
                   isActive
-                    ? "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-800/60 dark:bg-violet-950/40 dark:text-violet-200"
-                    : "border-transparent text-slate-600 hover:bg-slate-200/80 dark:text-slate-300 dark:hover:bg-slate-800"
+                    ? "self-stretch border-r border-border bg-surface-app font-medium text-text-strong"
+                    : "h-[26px] self-center text-text-tertiary hover:text-text"
                 } ${dragIndex === index ? "opacity-50" : ""}`}
                 data-testid={`design-tab-${designId}`}
               >
                 {indicator === "before" && (
                   <span
                     aria-hidden="true"
-                    className="pointer-events-none absolute inset-y-1 -left-0.5 w-0.5 rounded bg-violet-500"
+                    className="pointer-events-none absolute inset-y-0.5 -left-px w-0.5 bg-selection"
                   />
                 )}
                 {indicator === "after" && (
                   <span
                     aria-hidden="true"
-                    className="pointer-events-none absolute inset-y-1 -right-0.5 w-0.5 rounded bg-violet-500"
+                    className="pointer-events-none absolute inset-y-0.5 -right-px w-0.5 bg-selection"
                   />
                 )}
                 {isEditing ? (
@@ -238,15 +238,19 @@ export function DesignTabs({
                     onClick={(e) => e.stopPropagation()}
                     onDoubleClick={(e) => e.stopPropagation()}
                     maxLength={120}
-                    className="h-5 min-w-0 flex-1 rounded-sm border border-violet-300 bg-white px-1 text-xs text-slate-900 outline-none dark:border-violet-700 dark:bg-slate-900 dark:text-slate-100"
+                    className="h-[18px] min-w-0 flex-1 rounded-control border border-selection bg-surface-input px-1 text-xs text-text-strong outline-none"
                   />
                 ) : (
                   <>
-                    <span className="flex-1 truncate font-medium" title={name}>
+                    <CircuitBoard
+                      aria-hidden="true"
+                      className="h-3 w-3 shrink-0 text-text-tertiary"
+                    />
+                    <span className="flex-1 truncate" title={name}>
                       {name}
                     </span>
                     {isActive && revision !== null && (
-                      <span className="shrink-0 text-[10px] text-slate-400 dark:text-slate-500">
+                      <span className="shrink-0 font-mono text-2xs text-text-disabled">
                         r{revision}
                       </span>
                     )}
@@ -257,7 +261,7 @@ export function DesignTabs({
                         onClose(designId);
                       }}
                       aria-label={`Close ${name}`}
-                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-sm transition-opacity hover:bg-slate-300/80 dark:hover:bg-slate-700 ${
+                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-control text-text-tertiary transition-opacity hover:bg-surface-hover hover:text-text-strong ${
                         isActive
                           ? "opacity-80"
                           : "opacity-0 group-hover:opacity-80"
@@ -323,7 +327,7 @@ export function DesignTabs({
     <div
       role="tablist"
       aria-label="Open designs"
-      className="flex min-w-0 items-center gap-1 overflow-x-auto"
+      className="flex min-w-0 items-stretch overflow-x-auto"
       style={{ scrollbarWidth: "none" }}
     >
       {items}
@@ -333,9 +337,9 @@ export function DesignTabs({
         disabled={creatingDesign}
         aria-label="New design"
         title={creatingDesign ? "Creating…" : "New design"}
-        className="ml-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-200/80 disabled:opacity-50 dark:text-slate-400 dark:hover:bg-slate-800"
+        className="ml-1 flex h-[22px] w-[22px] shrink-0 self-center items-center justify-center rounded-control text-text-tertiary transition-colors hover:bg-surface-hover hover:text-text-strong disabled:opacity-50"
       >
-        <Plus className="h-4 w-4" />
+        <Plus className="h-3.5 w-3.5" />
       </button>
     </div>
   );

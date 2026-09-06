@@ -265,10 +265,10 @@ export function LibrariesPanel() {
   };
 
   return (
-    <div className="space-y-6 pb-24 text-slate-900 dark:text-slate-100">
+    <div className="space-y-6 pb-24 text-text-strong">
       <div>
         <h2 className="text-lg font-semibold">Libraries</h2>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+        <p className="mt-1 text-sm text-text-tertiary">
           Component libraries installed in this workspace. The core library
           ships with OpenPCB; install additional <code>.opclib</code> packages
           from file or URL.
@@ -305,7 +305,7 @@ export function LibrariesPanel() {
           type="button"
           disabled={busy}
           onClick={() => fileInputRef.current?.click()}
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:hover:bg-slate-800"
+          className="inline-flex items-center gap-2 rounded-control border border-border-control px-3 py-2 text-sm hover:bg-surface-hover disabled:opacity-50"
         >
           <Upload className="h-4 w-4" />
           Install from file…
@@ -314,7 +314,7 @@ export function LibrariesPanel() {
           type="button"
           disabled={busy}
           onClick={() => setUrlPrompt((s) => !s)}
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:hover:bg-slate-800"
+          className="inline-flex items-center gap-2 rounded-control border border-border-control px-3 py-2 text-sm hover:bg-surface-hover disabled:opacity-50"
         >
           <Link2 className="h-4 w-4" />
           Install from URL…
@@ -322,28 +322,28 @@ export function LibrariesPanel() {
       </div>
 
       {urlPrompt ? (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex flex-wrap items-center gap-2 rounded-control border border-border bg-surface-panel p-3">
           <input
             type="url"
             placeholder="https://github.com/.../release.opclib"
             value={urlValue}
             onChange={(e) => setUrlValue(e.target.value)}
-            className="min-w-[20rem] flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-950"
+            className="min-w-[20rem] flex-1 rounded-control border border-border-control bg-surface-input px-3 py-1.5 text-sm"
           />
           <button
             type="button"
             disabled={busy || !urlValue.trim()}
             onClick={() => void handleUrl()}
-            className="rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-50"
+            className="rounded-control bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
           >
             Install
           </button>
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800">
+      <div className="overflow-hidden rounded-control border border-border">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+          <thead className="bg-surface-panel-head text-left text-xs uppercase tracking-wider text-text-caps">
             <tr>
               <th className="px-4 py-2">Source</th>
               <th className="px-4 py-2">Version</th>
@@ -357,7 +357,7 @@ export function LibrariesPanel() {
               <tr>
                 <td
                   colSpan={5}
-                  className="px-4 py-6 text-center text-slate-500"
+                  className="px-4 py-6 text-center text-text-tertiary"
                 >
                   Loading…
                 </td>
@@ -366,7 +366,7 @@ export function LibrariesPanel() {
               <tr>
                 <td
                   colSpan={5}
-                  className="px-4 py-6 text-center text-slate-500"
+                  className="px-4 py-6 text-center text-text-tertiary"
                 >
                   No libraries installed.
                 </td>
@@ -375,13 +375,13 @@ export function LibrariesPanel() {
               sources.map((s) => (
                 <tr
                   key={s.id}
-                  className="border-t border-slate-100 dark:border-slate-800"
+                  className="border-t border-border"
                 >
                   <td className="px-4 py-2">
                     <div className="font-medium">{s.name}</div>
-                    <div className="text-xs text-slate-500">{s.id}</div>
+                    <div className="text-xs text-text-tertiary">{s.id}</div>
                     <div className="mt-0.5 text-xs">
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                      <span className="rounded-full bg-surface-hover px-2 py-0.5 text-text-secondary">
                         {s.kind}
                       </span>
                       {s.isReadOnly ? (
@@ -395,18 +395,18 @@ export function LibrariesPanel() {
                     {s.latestVersion ? (
                       <div>
                         <div>{s.latestVersion}</div>
-                        <div className="text-xs text-slate-500">
+                        <div className="text-xs text-text-tertiary">
                           {s.latestChannel ?? ""}
                         </div>
                       </div>
                     ) : (
-                      <span className="text-slate-400">—</span>
+                      <span className="text-text-disabled">—</span>
                     )}
                   </td>
                   <td className="px-4 py-2 align-top">{s.componentCount}</td>
                   <td className="px-4 py-2 align-top">
                     {s.latestVersion === null ? (
-                      <span className="text-slate-400">—</span>
+                      <span className="text-text-disabled">—</span>
                     ) : s.latestSignatureValid ? (
                       <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-300">
                         <ShieldCheck className="h-4 w-4" /> verified
@@ -423,7 +423,7 @@ export function LibrariesPanel() {
                         type="button"
                         disabled={busy}
                         onClick={() => void handleDelete(s.id)}
-                        className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50 dark:border-slate-700 dark:hover:bg-red-950/40"
+                        className="inline-flex items-center gap-1 rounded-control border border-border-control px-2 py-1 text-xs text-status-danger hover:bg-status-danger-soft disabled:opacity-50"
                         title="Remove this library"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -467,16 +467,16 @@ function CoreLibraryCard({
   const stateLabel = status ? formatCoreState(status.state) : "Loading…";
 
   return (
-    <section className="rounded-2xl border border-violet-200 bg-violet-50/60 p-4 dark:border-violet-900/60 dark:bg-violet-950/20">
+    <section className="rounded-control border border-selection/30 bg-selection-soft p-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-semibold">OpenPCB Core Library</h3>
-            <span className="rounded-full bg-white px-2 py-0.5 text-xs text-violet-700 dark:bg-violet-950 dark:text-violet-200">
+            <span className="rounded-full bg-surface-panel px-2 py-0.5 text-xs text-selection">
               {stateLabel}
             </span>
           </div>
-          <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+          <p className="mt-1 text-xs text-text-secondary">
             Official symbols, footprints, component variants, and 3D models.
           </p>
           <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
@@ -511,7 +511,7 @@ function CoreLibraryCard({
             type="button"
             disabled={disabled}
             onClick={onCheck}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800"
+            className="inline-flex items-center gap-2 rounded-control border border-border-control bg-surface-panel px-3 py-2 text-sm hover:bg-surface-hover disabled:opacity-50"
           >
             <RefreshCw className={`h-4 w-4 ${busy === "check" ? "animate-spin" : ""}`} />
             {busy === "check" ? "Checking…" : "Check for updates"}
@@ -520,7 +520,7 @@ function CoreLibraryCard({
             type="button"
             disabled={disabled || !canUpdate}
             onClick={onUpdate}
-            className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-control bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
             title={canUpdate ? undefined : "Run check first; updates install latest stable remote release."}
           >
             <Download className="h-4 w-4" />
@@ -539,8 +539,8 @@ function CoreLibraryCard({
 function CoreFact({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-slate-500 dark:text-slate-400">{label}</dt>
-      <dd className="mt-0.5 font-medium text-slate-800 dark:text-slate-100">
+      <dt className="text-text-tertiary">{label}</dt>
+      <dd className="mt-0.5 font-medium text-text-strong">
         {value}
       </dd>
     </div>

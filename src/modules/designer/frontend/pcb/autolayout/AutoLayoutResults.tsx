@@ -31,7 +31,7 @@ export function AutoLayoutResults({
   return (
     <div className="space-y-3">
       {stale ? (
-        <p className="flex items-start gap-1.5 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200">
+        <p className="flex items-start gap-1.5 rounded-control border border-status-warning bg-status-warning-soft px-3 py-2 text-xs text-status-warning">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <span>
             The board changed while Auto Layout was running. You can still inspect and
@@ -41,7 +41,7 @@ export function AutoLayoutResults({
       ) : null}
 
       {result.warnings.length > 0 ? (
-        <ul className="list-disc space-y-0.5 rounded border border-slate-200 bg-slate-50 px-4 py-2 text-[11px] text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+        <ul className="list-disc space-y-0.5 rounded-control border border-border bg-surface-panel px-4 py-2 text-[11px] text-text-secondary">
           {result.warnings.map((warning, i) => (
             <li key={i}>{warning}</li>
           ))}
@@ -62,7 +62,7 @@ export function AutoLayoutResults({
 
       {alternatives.length > 0 ? (
         <div>
-          <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-text-caps">
             Alternatives
           </p>
           <ul className="space-y-1">
@@ -80,7 +80,7 @@ export function AutoLayoutResults({
         </div>
       ) : null}
 
-      <p className="text-[10px] text-slate-400 dark:text-slate-500">
+      <p className="text-[10px] text-text-tertiary">
         Engine {Object.entries(result.engineVersions ?? {})
           .map(([name, version]) => `${name} ${version}`)
           .join(" · ")}

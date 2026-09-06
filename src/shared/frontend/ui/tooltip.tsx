@@ -15,7 +15,7 @@ export const TooltipContent = React.forwardRef<
       ref={ref}
       sideOffset={sideOffset}
       className={cn(
-        "z-50 rounded-md bg-slate-900 px-2 py-1 text-[11px] text-slate-100 shadow-md dark:bg-slate-700",
+        "z-50 rounded-float border border-tooltip-border bg-tooltip-bg px-2 py-1 text-2xs text-tooltip-text shadow-md",
         className,
       )}
       {...props}

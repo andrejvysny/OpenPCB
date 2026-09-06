@@ -11,8 +11,8 @@ export const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "inline-flex h-9 items-center justify-center rounded-md bg-slate-100 p-1 text-slate-600",
-      "data-[orientation=vertical]:h-auto data-[orientation=vertical]:w-full data-[orientation=vertical]:flex-col data-[orientation=vertical]:items-stretch data-[orientation=vertical]:justify-start data-[orientation=vertical]:gap-1 data-[orientation=vertical]:rounded-none data-[orientation=vertical]:bg-transparent data-[orientation=vertical]:p-0",
+      "inline-flex h-[30px] items-stretch justify-center rounded-none bg-transparent text-text-tertiary",
+      "data-[orientation=vertical]:h-auto data-[orientation=vertical]:w-full data-[orientation=vertical]:flex-col data-[orientation=vertical]:items-stretch data-[orientation=vertical]:justify-start data-[orientation=vertical]:gap-1",
       className,
     )}
     {...props}
@@ -27,9 +27,9 @@ export const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      "inline-flex items-center justify-center whitespace-nowrap rounded-md border border-transparent px-3 py-1 text-sm font-medium transition-colors",
-      "data-[state=active]:bg-white data-[state=active]:text-slate-900 hover:bg-slate-100 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-slate-100 dark:hover:bg-slate-800",
-      "data-[orientation=vertical]:w-full data-[orientation=vertical]:justify-start data-[orientation=vertical]:px-2 data-[orientation=vertical]:py-2",
+      "inline-flex items-center justify-center whitespace-nowrap rounded-none border-b-2 border-transparent px-3 text-xs transition-colors outline-none",
+      "hover:text-text data-[state=active]:border-text data-[state=active]:font-medium data-[state=active]:text-text-strong",
+      "data-[orientation=vertical]:w-full data-[orientation=vertical]:justify-start data-[orientation=vertical]:border-b-0 data-[orientation=vertical]:px-2 data-[orientation=vertical]:py-1.5",
       className,
     )}
     {...props}

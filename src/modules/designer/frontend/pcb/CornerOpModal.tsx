@@ -48,7 +48,7 @@ export function CornerOpModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-[300px] rounded-card border border-slate-200 bg-surface-raised p-4 shadow-xl dark:border-slate-700">
+      <div className="w-[300px] rounded-card border border-border bg-surface-raised p-4 shadow-xl">
         <h2 className="mb-3 text-sm font-semibold capitalize text-text-primary">
           {mode} corner
         </h2>
@@ -67,7 +67,7 @@ export function CornerOpModal({
                 }
                 if (e.key === "Escape") onClose();
               }}
-              className="h-8 w-full rounded-control border border-slate-300 bg-surface-input pl-2 pr-8 text-sm text-text-primary outline-none focus:border-accent dark:border-slate-700"
+              className="h-8 w-full rounded-control border border-border-control bg-surface-input pl-2 pr-8 text-sm text-text-primary outline-none focus:border-accent"
             />
             <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-[11px] text-text-tertiary">
               mm

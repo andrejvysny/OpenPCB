@@ -1,5 +1,6 @@
 import { FileUp, Plus } from "lucide-react";
 import { type ReactElement } from "react";
+import { Button } from "@shared/frontend/ui/button";
 import type { DesignerDesignSummary } from "../../../../sdks/designer";
 
 interface DesignerEmptyStateProps {
@@ -18,53 +19,53 @@ export function DesignerEmptyState({
   onImportKicad,
 }: DesignerEmptyStateProps): ReactElement {
   return (
-    <div className="flex h-full w-full items-center justify-center bg-slate-50 p-6 dark:bg-slate-950">
-      <div className="flex w-full max-w-md flex-col items-stretch gap-5 rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/60">
+    <div className="flex h-full w-full items-center justify-center bg-surface-app p-6">
+      <div className="flex w-full max-w-md flex-col items-stretch gap-4 rounded-control border border-border bg-surface-panel p-6">
         <div className="text-center">
-          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+          <h2 className="text-base font-medium text-text-strong">
             No design open
           </h2>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-xs text-text-tertiary">
             Create a new design or open an existing one to get started.
           </p>
         </div>
-        <button
-          type="button"
+        <Button
+          variant="primary"
+          size="lg"
           onClick={onCreate}
           disabled={creatingDesign}
-          className="inline-flex items-center justify-center gap-2 rounded-md bg-violet-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-violet-500 disabled:opacity-60"
+          icon={<Plus className="h-3.5 w-3.5" />}
         >
-          <Plus className="h-4 w-4" />
           {creatingDesign ? "Creating…" : "New design"}
-        </button>
+        </Button>
         {onImportKicad && (
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            size="lg"
             onClick={onImportKicad}
             disabled={creatingDesign}
-            className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:hover:bg-slate-800"
+            icon={<FileUp className="h-3.5 w-3.5" />}
           >
-            <FileUp className="h-4 w-4" />
             Import KiCad project…
-          </button>
+          </Button>
         )}
         {designs.length > 0 && (
-          <div className="flex flex-col gap-1.5">
-            <div className="px-1 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+          <div className="flex flex-col">
+            <div className="px-2 py-1 text-2xs uppercase tracking-[.04em] text-text-caps">
               Open existing
             </div>
-            <div className="flex max-h-64 flex-col gap-0.5 overflow-y-auto">
+            <div className="flex max-h-64 flex-col overflow-y-auto">
               {designs.map((design) => (
                 <button
                   key={design.id}
                   type="button"
                   onClick={() => onOpen(design.id)}
-                  className="flex items-center justify-between rounded-md px-2 py-1.5 text-left text-sm text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                  className="flex h-[22px] items-center justify-between gap-2 px-2 text-left text-xs text-text transition-colors hover:bg-surface-hover hover:text-text-strong"
                 >
                   <span className="truncate">
                     {design.name || "Untitled Design"}
                   </span>
-                  <span className="ml-2 shrink-0 text-[10px] text-slate-500">
+                  <span className="shrink-0 font-mono text-2xs text-text-disabled">
                     r{design.revision}
                   </span>
                 </button>

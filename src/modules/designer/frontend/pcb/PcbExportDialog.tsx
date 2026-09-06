@@ -164,16 +164,16 @@ export function PcbExportDialog({
       role="dialog"
       aria-modal="true"
       aria-labelledby="pcb-export-dialog-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-[480px] max-w-[90vw] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-950">
-        <header className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+      <div className="w-[480px] max-w-[90vw] overflow-hidden rounded-float border border-border bg-surface-raised shadow-2xl">
+        <header className="flex items-center justify-between border-b border-border px-4 py-3">
           <h2
             id="pcb-export-dialog-title"
-            className="text-sm font-semibold text-slate-900 dark:text-slate-100"
+            className="text-sm font-semibold text-text-strong"
           >
             Export manufacturing files
           </h2>
@@ -181,32 +181,32 @@ export function PcbExportDialog({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="rounded p-1 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+            className="rounded-control p-1 text-text-tertiary hover:bg-surface-hover"
           >
             <X className="h-4 w-4" />
           </button>
         </header>
 
-        <section className="space-y-3 px-4 py-4 text-sm text-slate-700 dark:text-slate-200">
-          <p className="text-xs text-slate-500 dark:text-slate-400">
+        <section className="space-y-3 px-4 py-4 text-sm text-text">
+          <p className="text-xs text-text-tertiary">
             Bundle contents: Gerber X2 per copper / mask / paste / silk layer +
             Edge.Cuts + Excellon drill file. Optional BOM and pick-and-place
             CSVs. Output is a ZIP ready for JLCPCB / PCBWay upload.
           </p>
 
           {drcGate.state === "running" ? (
-            <p className="rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+            <p className="rounded-control border border-border bg-surface-panel px-3 py-2 text-xs text-text-secondary">
               Running DRC…
             </p>
           ) : null}
           {drcGate.state === "error" ? (
-            <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200">
+            <p className="rounded-control border border-status-warning bg-status-warning-soft px-3 py-2 text-xs text-status-warning">
               DRC could not run ({drcGate.message}). Export is allowed but
               unverified.
             </p>
           ) : null}
           {drcGate.state === "ok" && drcGate.errors === 0 ? (
-            <p className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200">
+            <p className="rounded-control border border-status-success bg-status-success-soft px-3 py-2 text-xs text-status-success">
               DRC passed
               {drcGate.warnings > 0
                 ? ` with ${drcGate.warnings} warning(s)`
@@ -215,7 +215,7 @@ export function PcbExportDialog({
             </p>
           ) : null}
           {drcGate.state === "ok" && drcGate.errors > 0 ? (
-            <div className="rounded border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-200">
+            <div className="rounded-control border border-status-danger bg-status-danger-soft px-3 py-2 text-xs text-status-danger">
               <p className="font-medium">
                 DRC found {drcGate.errors} error(s)
                 {drcGate.warnings > 0
@@ -260,12 +260,12 @@ export function PcbExportDialog({
           </label>
 
           {summaryState === "loading" ? (
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-text-tertiary">
               Preparing export preview…
             </p>
           ) : null}
           {summaryState === "ok" && summary && summary.warnings.length > 0 ? (
-            <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200">
+            <div className="rounded-control border border-status-warning bg-status-warning-soft px-3 py-2 text-xs text-status-warning">
               <p className="flex items-center gap-1.5 font-medium">
                 <AlertTriangle className="h-3.5 w-3.5" />
                 {summary.warnings.length} export warning
@@ -279,7 +279,7 @@ export function PcbExportDialog({
             </div>
           ) : null}
           {summaryState === "ok" && summary ? (
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-text-tertiary">
               {summary.files.length} files ·{" "}
               <span className="font-mono">{summary.bundleName}.zip</span>
               {summary.warnings.length === 0 ? " · no warnings" : null}
@@ -287,12 +287,12 @@ export function PcbExportDialog({
           ) : null}
 
           {status.state === "running" ? (
-            <p className="text-xs text-violet-600 dark:text-violet-300">
+            <p className="text-xs text-selection">
               Building bundle…
             </p>
           ) : null}
           {status.state === "ok" ? (
-            <p className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200">
+            <p className="rounded-control border border-status-success bg-status-success-soft px-3 py-2 text-xs text-status-success">
               Downloaded{" "}
               <span className="font-mono">{status.bundleName}.zip</span>
               {status.warnings && status.warnings > 0
@@ -301,17 +301,17 @@ export function PcbExportDialog({
             </p>
           ) : null}
           {status.state === "error" ? (
-            <p className="rounded border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-200">
+            <p className="rounded-control border border-status-danger bg-status-danger-soft px-3 py-2 text-xs text-status-danger">
               {status.message ?? "Export failed"}
             </p>
           ) : null}
         </section>
 
-        <footer className="flex justify-end gap-2 border-t border-slate-200 px-4 py-3 dark:border-slate-800">
+        <footer className="flex justify-end gap-2 border-t border-border px-4 py-3">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+            className="rounded-control border border-border-control px-3 py-1.5 text-xs font-medium text-text hover:bg-surface-hover hover:text-text-strong"
           >
             Close
           </button>
@@ -328,7 +328,7 @@ export function PcbExportDialog({
                 ? "Resolve DRC errors or check “Export anyway”"
                 : undefined
             }
-            className="inline-flex items-center gap-1.5 rounded-md bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-control bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Download className="h-3.5 w-3.5" />
             {ackErrors && drcGate.errors > 0 ? "Export anyway" : "Download ZIP"}

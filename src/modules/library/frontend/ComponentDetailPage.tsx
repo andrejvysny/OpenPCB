@@ -21,6 +21,7 @@ import {
   FootprintPreviewCanvas,
   SymbolPreviewCanvas,
 } from "../../../shared/frontend/canvas/preview";
+import { Button } from "@shared/frontend/ui";
 import type { LibraryComponent } from "../../../sdks/library";
 import { useTheme } from "../../../core/frontend/src/providers/ThemeProvider";
 import { TagTokenInput } from "./components/TagTokenInput";
@@ -30,7 +31,7 @@ import { PinsTable } from "./components/PinsTable";
 import { PreviewModal } from "./components/PreviewModal";
 import { useLibraryTags } from "./hooks/useLibraryTags";
 import { useFootprintGeometry } from "./hooks/useFootprintGeometry";
-import type { ComponentDetailPayload } from "./types";
+import { useComponentDetail } from "./hooks/useComponentDetail";
 import { ThreeDComponentPreview } from "./three-d/ThreeDComponentPreview";
 import {
   uploadFootprintStepModel,
@@ -70,9 +71,15 @@ export function ComponentDetailPage({
   refreshToken?: number;
 }): ReactElement {
   const { mode: themeMode } = useTheme();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [detail, setDetail] = useState<ComponentDetailPayload | null>(null);
+  const {
+    detail,
+    loading,
+    error: loadError,
+    setDetail,
+  } = useComponentDetail({ backendURL, moduleId, componentId, refreshToken });
+  /** Errors raised by page actions (clone), kept separate from the load error. */
+  const [actionError, setActionError] = useState<string | null>(null);
+  const error = loadError ?? actionError;
   const [cloning, setCloning] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>("idle");
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -96,58 +103,6 @@ export function ComponentDetailPage({
     excludeSystem: true,
     refreshToken: tagsRefreshToken + refreshToken,
   });
-
-  useEffect(() => {
-    if (!backendURL) {
-      setLoading(false);
-      setError("Backend URL unavailable");
-      setDetail(null);
-      return;
-    }
-
-    const controller = new AbortController();
-    const run = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await fetch(
-          `${backendURL}/api/modules/${moduleId}/components/${componentId}/detail`,
-          { signal: controller.signal },
-        );
-        const payload = (await response.json()) as {
-          ok?: boolean;
-          data?: { detail?: ComponentDetailPayload };
-          error?: string;
-        };
-        if (!response.ok || !payload.ok || !payload.data?.detail) {
-          throw new Error(
-            toUserError(
-              payload,
-              `Detail fetch failed (HTTP ${response.status})`,
-            ),
-          );
-        }
-        setDetail(payload.data.detail);
-      } catch (fetchError) {
-        if (controller.signal.aborted) {
-          return;
-        }
-        setDetail(null);
-        setError(
-          fetchError instanceof Error
-            ? fetchError.message
-            : "Failed to load component detail",
-        );
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    void run();
-    return () => controller.abort();
-  }, [backendURL, componentId, moduleId, refreshToken]);
 
   // Reset selection to the default footprint whenever the component changes.
   const defaultFootprintId = detail?.footprint.id ?? "";
@@ -281,7 +236,7 @@ export function ComponentDetailPage({
   const handleClone = useCallback(async () => {
     if (!backendURL || !detail) return;
     setCloning(true);
-    setError(null);
+    setActionError(null);
     try {
       const response = await fetch(
         `${backendURL}/api/modules/${moduleId}/components/${componentId}/clone`,
@@ -298,7 +253,7 @@ export function ComponentDetailPage({
       }
       onCloned?.(payload.data.componentId);
     } catch (cloneError) {
-      setError(
+      setActionError(
         cloneError instanceof Error
           ? cloneError.message
           : "Failed to duplicate component",
@@ -376,82 +331,75 @@ export function ComponentDetailPage({
   const canUploadStep = !isBuiltin && !isPlaceholderFootprint && editing;
 
   return (
-    <div className="flex h-full w-full flex-col bg-slate-50 dark:bg-slate-950">
-      <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-slate-200 bg-white/90 px-6 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
-        <button
-          type="button"
-          onClick={onBack}
-          className="inline-flex h-9 cursor-pointer items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-        >
-          <ArrowLeft className="h-4 w-4" />
+    <div className="flex h-full w-full flex-col bg-surface-app">
+      <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-border bg-surface-rail px-3 py-2">
+        <Button type="button" onClick={onBack} icon={<ArrowLeft className="h-3 w-3" />}>
           Back
-        </button>
-        <h1 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+        </Button>
+        <h1 className="text-base font-medium text-text-strong">
           {loading
             ? "Loading component..."
             : (detail?.component.name ?? "Component")}
         </h1>
         {detail && isBuiltin && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">
-            <Lock className="h-3 w-3" />
+          <span className="inline-flex items-center gap-1 bg-surface-control px-1.5 text-2xs uppercase tracking-[.06em] text-text-strong">
+            <Lock className="h-2.5 w-2.5" />
             Core
           </span>
         )}
         {detail && (
           <div className="ml-auto flex items-center gap-2">
-            <button
+            <Button
               type="button"
               disabled
               title="Open a design to place"
-              className="inline-flex h-9 cursor-not-allowed items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-500 opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400"
+              icon={<Plus className="h-3 w-3" />}
             >
-              <Plus className="h-4 w-4" />
               Place in design
-            </button>
+            </Button>
 
             {isBuiltin ? (
-              <button
+              <Button
                 type="button"
+                variant="primary"
                 onClick={() => void handleClone()}
                 disabled={cloning || !backendURL}
-                className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-violet-600 bg-violet-600 px-3 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+                icon={<Copy className="h-3 w-3" />}
               >
-                <Copy className="h-4 w-4" />
                 {cloning ? "Duplicating..." : "Duplicate to edit"}
-              </button>
+              </Button>
             ) : editing ? (
               <>
-                <button
+                <Button
                   type="button"
                   onClick={cancelEdit}
                   disabled={saving}
-                  className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                  icon={<X className="h-3 w-3" />}
                 >
-                  <X className="h-4 w-4" />
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="primary"
                   onClick={() => void handleSave()}
                   disabled={saving || !backendURL}
-                  className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-violet-600 bg-violet-600 px-3 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+                  icon={<Save className="h-3 w-3" />}
                   data-testid="component-save-button"
                 >
-                  <Save className="h-4 w-4" />
                   {saving ? "Saving…" : "Save"}
-                </button>
+                </Button>
               </>
             ) : (
-              <button
+              <Button
                 type="button"
+                variant="primary"
                 onClick={beginEdit}
                 disabled={!backendURL}
-                className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-violet-600 bg-violet-600 px-3 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+                icon={<Pencil className="h-3 w-3" />}
                 data-testid="component-edit-button"
               >
-                <Pencil className="h-4 w-4" />
                 Edit
-              </button>
+              </Button>
             )}
           </div>
         )}
@@ -460,13 +408,13 @@ export function ComponentDetailPage({
       <main className="flex-1 overflow-auto">
         <div className="mx-auto w-full max-w-[1380px] px-6 py-6">
           {loading && (
-            <div className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+            <div className="rounded-control border border-border bg-surface-panel px-4 py-10 text-center text-xs text-text-tertiary">
               Loading component detail...
             </div>
           )}
 
           {!loading && error && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+            <div className="rounded-control border border-status-danger px-4 py-4 text-xs text-status-danger">
               {error}
             </div>
           )}
@@ -474,10 +422,10 @@ export function ComponentDetailPage({
           {!loading && !error && detail && (
             <div className="space-y-[18px]">
               {isBuiltin && (
-                <p className="flex items-center gap-2 text-[13px] text-slate-500 dark:text-slate-400">
-                  <Lock className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
+                <p className="flex items-center gap-2 text-xs text-text-tertiary">
+                  <Lock className="h-3 w-3 text-text-disabled" />
                   <span>
-                    <span className="font-semibold text-slate-700 dark:text-slate-200">
+                    <span className="font-medium text-text-strong">
                       Read-only built-in.
                     </span>{" "}
                     Duplicate to make an editable copy. Placing is allowed.
@@ -486,12 +434,12 @@ export function ComponentDetailPage({
               )}
 
               {editing ? (
-                <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+                <div className="rounded-control border border-border bg-surface-panel p-4">
                   <div className="space-y-3">
                     <div>
                       <label
                         htmlFor="component-edit-name"
-                        className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400"
+                        className="block text-2xs uppercase tracking-[.04em] text-text-caps"
                       >
                         Name
                       </label>
@@ -500,14 +448,14 @@ export function ComponentDetailPage({
                         type="text"
                         value={draftName}
                         onChange={(event) => setDraftName(event.target.value)}
-                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                        className="mt-1 w-full rounded-control border border-border-control bg-surface-input px-2 py-1 text-xs text-text-strong outline-none focus:border-selection"
                         maxLength={200}
                       />
                     </div>
                     <div>
                       <label
                         htmlFor="component-edit-description"
-                        className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400"
+                        className="block text-2xs uppercase tracking-[.04em] text-text-caps"
                       >
                         Description
                       </label>
@@ -518,12 +466,12 @@ export function ComponentDetailPage({
                           setDraftDescription(event.target.value)
                         }
                         rows={3}
-                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                        className="mt-1 w-full rounded-control border border-border-control bg-surface-input px-2 py-1 text-xs text-text-strong outline-none focus:border-selection"
                         maxLength={2000}
                       />
                     </div>
                     <div>
-                      <span className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      <span className="block text-2xs uppercase tracking-[.04em] text-text-caps">
                         Tags
                       </span>
                       <div className="mt-1">
@@ -535,7 +483,7 @@ export function ComponentDetailPage({
                       </div>
                     </div>
                     {saveError ? (
-                      <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+                      <div className="rounded-control border border-status-danger px-2 py-1.5 text-2xs text-status-danger">
                         {saveError}
                       </div>
                     ) : null}
@@ -543,11 +491,11 @@ export function ComponentDetailPage({
                 </div>
               ) : (
                 <div>
-                  <h2 className="text-[26px] font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                  <h2 className="text-xl font-medium tracking-tight text-text-strong">
                     {detail.component.name}
                   </h2>
                   {detail.component.description ? (
-                    <p className="mt-1.5 max-w-2xl text-[14.5px] leading-relaxed text-slate-500 dark:text-slate-400">
+                    <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-text-tertiary">
                       {detail.component.description}
                     </p>
                   ) : null}
@@ -555,7 +503,7 @@ export function ComponentDetailPage({
                     {tagSplit.semantic.map((tag) => (
                       <span
                         key={tag}
-                        className="rounded-md border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700 dark:border-violet-800/50 dark:bg-violet-950/40 dark:text-violet-300"
+                        className="inline-flex h-[18px] items-center rounded-control border border-border-control px-1.5 text-2xs text-text"
                       >
                         {tag}
                       </span>
@@ -563,7 +511,7 @@ export function ComponentDetailPage({
                     {tagSplit.provenance.map((chip) => (
                       <span
                         key={chip.tag}
-                        className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-dashed border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-500 dark:border-slate-600 dark:text-slate-400"
+                        className="ml-auto inline-flex h-[18px] items-center gap-1.5 rounded-control border border-dashed border-border-control px-1.5 text-2xs text-text-tertiary"
                       >
                         {chip.label}
                       </span>
@@ -584,13 +532,13 @@ export function ComponentDetailPage({
                   datasheetUrl={detail.component.datasheetUrl ?? null}
                 />
 
-                <section className="flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-                  <header className="flex items-center justify-between gap-2 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
-                    <span className="font-mono text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                <section className="flex h-full flex-col overflow-hidden rounded-control border border-border bg-surface-panel">
+                  <header className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+                    <span className="font-mono text-2xs uppercase tracking-[.04em] text-text-tertiary">
                       Symbol
                     </span>
                     <div className="flex items-center gap-2">
-                      <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 font-mono text-[11px] font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+                      <span className="inline-flex h-[18px] items-center rounded-control border border-border-control px-1.5 font-mono text-2xs text-text-tertiary">
                         shared across options
                       </span>
                       <button
@@ -599,29 +547,27 @@ export function ComponentDetailPage({
                         disabled={!symbolPreview}
                         title="Full screen"
                         aria-label="Open symbol full screen"
-                        className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                        className="inline-flex h-[22px] w-[22px] cursor-pointer items-center justify-center rounded-control border border-border-control text-text-secondary outline-none transition-colors hover:bg-surface-hover hover:text-text-strong disabled:cursor-not-allowed disabled:opacity-40"
                       >
-                        <Maximize2 className="h-3.5 w-3.5" />
+                        <Maximize2 className="h-3 w-3" />
                       </button>
                     </div>
                   </header>
-                  <div className="min-h-[320px] flex-1 overflow-hidden bg-slate-950">
+                  <div className="min-h-[320px] flex-1 overflow-hidden bg-surface-canvas-well">
                     <SymbolPreviewCanvas
                       model={symbolPreview}
                       emptyMessage="No symbol preview"
                     />
                   </div>
-                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 border-t border-slate-200 px-4 py-3 dark:border-slate-800">
-                    <dt className="text-sm text-slate-500 dark:text-slate-400">
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 border-t border-border px-3 py-2">
+                    <dt className="text-xs text-text-tertiary">
                       Reference prefix
                     </dt>
-                    <dd className="text-right font-mono text-xs font-semibold text-slate-800 dark:text-slate-200">
+                    <dd className="text-right font-mono text-2xs text-text-strong">
                       {detail.symbol.referencePrefix || "—"}
                     </dd>
-                    <dt className="text-sm text-slate-500 dark:text-slate-400">
-                      Pins
-                    </dt>
-                    <dd className="text-right font-mono text-xs font-semibold text-slate-800 dark:text-slate-200">
+                    <dt className="text-xs text-text-tertiary">Pins</dt>
+                    <dd className="text-right font-mono text-2xs text-text-strong">
                       {detail.symbol.pinCount}
                     </dd>
                   </dl>
@@ -645,15 +591,15 @@ export function ComponentDetailPage({
                   />
                 ) : null}
 
-                <section className="flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-                  <header className="flex items-center justify-between gap-2 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
-                    <span className="font-mono text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                <section className="flex h-full flex-col overflow-hidden rounded-control border border-border bg-surface-panel">
+                  <header className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+                    <span className="font-mono text-2xs uppercase tracking-[.04em] text-text-tertiary">
                       Footprint
                     </span>
                     <div className="flex items-center gap-2">
                       {hasOptions && selectedVariant ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 font-mono text-[10px] font-semibold text-violet-600 dark:border-violet-800/50 dark:bg-violet-950/40 dark:text-violet-300">
-                          <RefreshCw className="h-3 w-3" />
+                        <span className="inline-flex h-[18px] items-center gap-1.5 rounded-control border border-border-control px-1.5 font-mono text-2xs text-text-secondary">
+                          <RefreshCw className="h-2.5 w-2.5" />
                           {selectedVariant.variantLabel}
                         </span>
                       ) : null}
@@ -663,14 +609,14 @@ export function ComponentDetailPage({
                         disabled={geometry.status !== "ready"}
                         title="Full screen"
                         aria-label="Open footprint full screen"
-                        className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                        className="inline-flex h-[22px] w-[22px] cursor-pointer items-center justify-center rounded-control border border-border-control text-text-secondary outline-none transition-colors hover:bg-surface-hover hover:text-text-strong disabled:cursor-not-allowed disabled:opacity-40"
                       >
-                        <Maximize2 className="h-3.5 w-3.5" />
+                        <Maximize2 className="h-3 w-3" />
                       </button>
                     </div>
                   </header>
                   <div
-                    className="relative min-h-[300px] flex-1 overflow-hidden bg-slate-950"
+                    className="relative min-h-[300px] flex-1 overflow-hidden bg-surface-canvas-well"
                     data-testid="footprint-preview-canvas"
                   >
                     {isPlaceholderFootprint ? (
@@ -679,14 +625,11 @@ export function ComponentDetailPage({
                         emptyMessage="No footprint yet"
                       />
                     ) : geometry.status === "loading" ? (
-                      <div className="flex h-full items-center justify-center text-sm text-slate-400">
-                        <div className="flex items-center gap-2 rounded-md border border-slate-700 bg-slate-900/85 px-3 py-2">
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-600 border-t-violet-400" />
-                          Loading footprint…
-                        </div>
+                      <div className="flex h-full items-center justify-center text-xs text-text-tertiary">
+                        Loading footprint…
                       </div>
                     ) : geometry.status === "error" ? (
-                      <div className="flex h-full items-center justify-center bg-red-950/40 px-4 text-center text-sm text-red-300">
+                      <div className="flex h-full items-center justify-center px-4 text-center text-xs text-status-danger">
                         {geometry.message}
                       </div>
                     ) : (
@@ -698,27 +641,21 @@ export function ComponentDetailPage({
                       />
                     )}
                   </div>
-                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 border-t border-slate-200 px-4 py-3 dark:border-slate-800">
-                    <dt className="text-sm text-slate-500 dark:text-slate-400">
-                      Package
-                    </dt>
-                    <dd className="text-right font-mono text-xs font-semibold text-slate-800 dark:text-slate-200">
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 border-t border-border px-3 py-2">
+                    <dt className="text-xs text-text-tertiary">Package</dt>
+                    <dd className="text-right font-mono text-2xs text-text-strong">
                       {selectedPackageLabel}
                     </dd>
-                    <dt className="text-sm text-slate-500 dark:text-slate-400">
-                      Mount
-                    </dt>
+                    <dt className="text-xs text-text-tertiary">Mount</dt>
                     <dd
-                      className="text-right font-mono text-xs font-semibold text-slate-800 dark:text-slate-200"
+                      className="text-right font-mono text-2xs text-text-strong"
                       data-testid="component-mount-type"
                     >
                       {selectedVariant?.mountType ?? "—"}
                     </dd>
-                    <dt className="text-sm text-slate-500 dark:text-slate-400">
-                      Pads
-                    </dt>
+                    <dt className="text-xs text-text-tertiary">Pads</dt>
                     <dd
-                      className="text-right font-mono text-xs font-semibold text-slate-800 dark:text-slate-200"
+                      className="text-right font-mono text-2xs text-text-strong"
                       data-testid="component-pad-count"
                     >
                       {selectedVariant?.padCount ?? 0}
@@ -727,23 +664,23 @@ export function ComponentDetailPage({
                 </section>
 
                 <section
-                  className="flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+                  className="flex h-full flex-col overflow-hidden rounded-control border border-border bg-surface-panel"
                   data-testid="library-component-3d-card"
                 >
-                  <header className="flex items-center justify-between gap-2 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
-                    <span className="font-mono text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  <header className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+                    <span className="font-mono text-2xs uppercase tracking-[.04em] text-text-tertiary">
                       3D model
                     </span>
                     <div className="flex items-center gap-2">
                       {hasOptions && selectedVariant ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 font-mono text-[10px] font-semibold text-violet-600 dark:border-violet-800/50 dark:bg-violet-950/40 dark:text-violet-300">
-                          <RefreshCw className="h-3 w-3" />
+                        <span className="inline-flex h-[18px] items-center gap-1.5 rounded-control border border-border-control px-1.5 font-mono text-2xs text-text-secondary">
+                          <RefreshCw className="h-2.5 w-2.5" />
                           {selectedVariant.variantLabel}
                         </span>
                       ) : null}
                       {canUploadStep ? (
-                        <label className="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-lg border border-violet-300 bg-white px-2.5 text-xs font-medium text-violet-700 transition-colors hover:bg-violet-50 dark:border-violet-700 dark:bg-slate-800 dark:text-violet-300 dark:hover:bg-slate-700">
-                          <Upload className="h-3.5 w-3.5" />
+                        <label className="inline-flex h-[22px] cursor-pointer items-center gap-1.5 rounded-control border border-border-control px-2 text-xs text-text transition-colors hover:bg-surface-hover hover:text-text-strong">
+                          <Upload className="h-3 w-3" />
                           Upload STEP
                           <input
                             type="file"
@@ -766,7 +703,7 @@ export function ComponentDetailPage({
                   </header>
                   {uploadStatus !== "idle" ? (
                     <span
-                      className="px-4 pt-2 text-xs text-slate-500 dark:text-slate-400"
+                      className="px-3 pt-2 text-2xs text-text-tertiary"
                       data-testid="library-3d-upload-progress"
                     >
                       {uploadStatus === "converting"
@@ -778,7 +715,7 @@ export function ComponentDetailPage({
                   ) : null}
                   {uploadError ? (
                     <div
-                      className="mx-4 mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
+                      className="mx-3 mt-2 rounded-control border border-status-danger px-2 py-1.5 text-2xs text-status-danger"
                       data-testid="library-3d-upload-error"
                     >
                       {uploadError}
@@ -786,7 +723,7 @@ export function ComponentDetailPage({
                   ) : null}
                   <div className="flex min-h-[300px] flex-1 flex-col">
                     {isPlaceholderFootprint ? (
-                      <div className="flex h-full min-h-[300px] items-center justify-center bg-slate-950 px-4 text-center text-xs text-slate-400">
+                      <div className="flex h-full min-h-[300px] items-center justify-center bg-surface-canvas-well px-4 text-center text-2xs text-text-tertiary">
                         Add a footprint to enable 3D preview.
                       </div>
                     ) : (
@@ -801,8 +738,8 @@ export function ComponentDetailPage({
                       />
                     )}
                   </div>
-                  <p className="flex items-center justify-center gap-1.5 border-t border-slate-200 px-4 py-2.5 text-[11px] text-slate-400 dark:border-slate-800 dark:text-slate-500">
-                    <RefreshCw className="h-3 w-3" />
+                  <p className="flex items-center justify-center gap-1.5 border-t border-border px-3 py-2 text-2xs text-text-tertiary">
+                    <RefreshCw className="h-2.5 w-2.5" />
                     Drag to rotate · scroll to zoom
                   </p>
                 </section>

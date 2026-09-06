@@ -85,9 +85,8 @@ export function resolveThreeDPreviewState(
 
 function LoadingMessage({ children }: { children: string }): ReactElement {
   return (
-    <div className="flex h-full items-center justify-center bg-slate-950 text-sm text-slate-300">
-      <div className="flex items-center gap-2 rounded-md border border-slate-700 bg-slate-900/85 px-3 py-2">
-        <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-600 border-t-violet-400" />
+    <div className="flex h-full items-center justify-center bg-surface-canvas-well text-xs text-text-secondary">
+      <div className="rounded-control border border-border-control px-3 py-2">
         {children}
       </div>
     </div>
@@ -111,7 +110,7 @@ export function ThreeDPreviewStatePanel({
   }
   if (state.kind === "unsupported_format") {
     return (
-      <div className="flex h-full items-center justify-center bg-slate-950 px-4 text-center text-sm text-amber-200">
+      <div className="flex h-full items-center justify-center bg-surface-canvas-well px-4 text-center text-xs text-status-warning">
         WRL format not supported
       </div>
     );
@@ -139,13 +138,13 @@ export function ThreeDPreviewStatePanel({
     );
   }
   return (
-    <div className="flex h-full items-center justify-center bg-slate-950 px-4 text-center text-sm text-slate-300">
+    <div className="flex h-full items-center justify-center bg-surface-canvas-well px-4 text-center text-xs text-text-secondary">
       {isBuiltin ? (
         <span>No 3D model is available for this built-in component.</span>
       ) : (
         <button
           type="button"
-          className="inline-flex h-9 items-center rounded-lg border border-violet-500 bg-violet-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-violet-700"
+          className="inline-flex h-[22px] items-center rounded-control bg-primary px-[10px] text-xs font-medium text-primary-foreground outline-none transition-opacity hover:opacity-90"
           data-testid="library-3d-upload-step"
         >
           Upload STEP
@@ -173,7 +172,7 @@ function ThreeDCanvas({
     <Canvas
       frameloop="demand"
       camera={{ position: [3, 3, 3], fov: 45, near: 0.1, far: 1000 }}
-      className="h-full w-full bg-slate-950"
+      className="h-full w-full bg-surface-canvas-well"
       data-testid="library-3d-canvas"
     >
       <ambientLight intensity={2.1} />
@@ -356,7 +355,7 @@ export function ThreeDComponentPreview({
   const state = resolveThreeDPreviewState(metadata, modelUrl, loadError);
 
   return (
-    <div className="h-full min-h-[260px] flex-1 overflow-hidden bg-slate-950">
+    <div className="h-full min-h-[260px] flex-1 overflow-hidden bg-surface-canvas-well">
       {state.kind === "ready" ? (
         <ThreeDCanvas
           modelUrl={state.modelUrl}

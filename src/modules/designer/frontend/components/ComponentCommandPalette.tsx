@@ -287,9 +287,9 @@ export function ComponentCommandPalette({
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50" />
         <DialogPrimitive.Content
-          className="fixed left-1/2 top-[12vh] z-50 flex max-h-[80vh] w-[min(860px,94vw)] -translate-x-1/2 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+          className="fixed left-1/2 top-[12vh] z-50 flex max-h-[80vh] w-[min(860px,94vw)] -translate-x-1/2 flex-col overflow-hidden rounded-float border border-border bg-surface-raised text-xs shadow-lg"
           onPointerDownOutside={() => onOpenChange(false)}
           onEscapeKeyDown={() => onOpenChange(false)}
         >
@@ -298,24 +298,24 @@ export function ComponentCommandPalette({
           </DialogPrimitive.Title>
 
           {/* Search bar */}
-          <div className="flex items-center gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-700">
-            <Search className="h-4 w-4 shrink-0 text-slate-400" />
+          <div className="flex h-[34px] shrink-0 items-center gap-2 border-b border-border px-3">
+            <Search className="h-3.5 w-3.5 shrink-0 text-text-tertiary" />
             <input
               ref={inputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Search component by name, description, or tag…"
-              className="w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-slate-100"
+              className="w-full bg-transparent text-sm text-text-strong outline-none placeholder:text-text-disabled"
             />
-            <kbd className="hidden rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 sm:inline-block">
+            <kbd className="hidden rounded-control border border-border-control px-1 font-mono text-2xs text-text-tertiary sm:inline-block">
               ESC
             </kbd>
           </div>
 
           {/* Tag filter chips */}
           {tagGroups.length > 0 && (
-            <div className="max-h-32 overflow-y-auto border-b border-slate-200 px-4 py-2 dark:border-slate-700">
+            <div className="max-h-32 shrink-0 overflow-y-auto border-b border-border px-3 py-1.5">
               <TagFilterChips
                 groups={tagGroups}
                 active={activeTags}
@@ -333,7 +333,7 @@ export function ComponentCommandPalette({
               data-testid="palette-results-list"
             >
               {results.length === 0 && !loading && (
-                <li className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+                <li className="px-3 py-6 text-center text-xs text-text-tertiary">
                   {query.trim().length > 0 || activeTags.size > 0
                     ? "No components match"
                     : "No components available"}
@@ -371,39 +371,37 @@ export function ComponentCommandPalette({
                         type="button"
                         onMouseEnter={() => setHighlightedIndex(flatIndex)}
                         onClick={() => onSelect(component.id)}
-                        className={`flex w-full items-center gap-2 px-4 py-2 text-left transition-colors ${
-                          active
-                            ? "bg-violet-50 dark:bg-violet-950/40"
-                            : "hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                        className={`flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors ${
+                          active ? "bg-surface-selected" : "hover:bg-surface-hover"
                         }`}
                       >
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">
+                            <span className="truncate text-sm font-medium text-text-strong">
                               {component.name}
                             </span>
                             {component.isBuiltin && (
-                              <span className="inline-flex shrink-0 items-center rounded-full bg-violet-100 px-1.5 text-[0.6rem] font-semibold uppercase tracking-wider text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">
+                              <span className="inline-flex shrink-0 items-center rounded-control border border-border-control px-1 text-2xs uppercase tracking-[.04em] text-text-tertiary">
                                 Core
                               </span>
                             )}
                             {packageTag && (
-                              <span className="inline-flex shrink-0 items-center rounded-full bg-slate-100 px-1.5 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                              <span className="inline-flex shrink-0 items-center rounded-control bg-surface-control px-1 font-mono text-2xs text-text-secondary">
                                 {packageTag}
                               </span>
                             )}
                             {mountTag && (
-                              <span className="inline-flex shrink-0 items-center rounded-full bg-slate-100 px-1.5 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                              <span className="inline-flex shrink-0 items-center rounded-control bg-surface-control px-1 font-mono text-2xs text-text-secondary">
                                 {mountTag}
                               </span>
                             )}
                           </div>
-                          <span className="block truncate text-xs text-slate-500 dark:text-slate-400">
+                          <span className="block truncate text-xs text-text-tertiary">
                             {component.description || component.id}
                           </span>
                         </div>
                         {active && (
-                          <kbd className="hidden shrink-0 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 sm:inline-block">
+                          <kbd className="hidden shrink-0 rounded-control border border-border-control px-1 font-mono text-2xs text-text-tertiary sm:inline-block">
                             ENTER
                           </kbd>
                         )}
@@ -418,7 +416,7 @@ export function ComponentCommandPalette({
                     const start = cursor;
                     const block = (
                       <ul key={section.label} className="contents">
-                        <li className="px-4 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                        <li className="flex h-[22px] items-center bg-surface-section px-3 text-2xs uppercase tracking-[.04em] text-text-tertiary">
                           {section.label}
                         </li>
                         {section.components.map((component) =>
@@ -437,62 +435,62 @@ export function ComponentCommandPalette({
                 );
               })()}
               {loading && (
-                <li className="px-4 py-3 text-xs text-slate-400 dark:text-slate-500">
+                <li className="px-3 py-2 text-xs text-text-tertiary">
                   Searching…
                 </li>
               )}
             </ul>
 
             {/* Preview panel */}
-            <aside className="flex w-72 shrink-0 flex-col border-l border-slate-200 dark:border-slate-700">
-              <div className="h-44 border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-950">
+            <aside className="flex w-72 shrink-0 flex-col border-l border-border">
+              <div className="h-44 border-b border-border bg-surface-app">
                 {previewLoading && !symbolPreview ? (
-                  <div className="flex h-full items-center justify-center text-[11px] text-slate-400 dark:text-slate-500">
+                  <div className="flex h-full items-center justify-center text-xs text-text-tertiary">
                     Loading preview…
                   </div>
                 ) : symbolPreview ? (
                   <SymbolPreviewCanvas model={symbolPreview} />
                 ) : (
-                  <div className="flex h-full items-center justify-center text-[11px] text-slate-400 dark:text-slate-500">
+                  <div className="flex h-full items-center justify-center text-xs text-text-tertiary">
                     {highlighted
                       ? "No preview available"
                       : "Select a component"}
                   </div>
                 )}
               </div>
-              <div className="flex-1 overflow-y-auto px-3 py-3 text-xs text-slate-700 dark:text-slate-200">
+              <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2 text-xs text-text">
                 {highlighted ? (
                   <>
-                    <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
+                    <p className="truncate text-sm font-medium text-text-strong">
                       {highlighted.name}
                     </p>
-                    <p className="mt-1 text-[11px] text-slate-500 line-clamp-3 dark:text-slate-400">
+                    <p className="mt-1 text-xs leading-snug text-text-tertiary line-clamp-3">
                       {highlighted.description || "No description"}
                     </p>
                     {previewMeta && (
-                      <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-[11px]">
-                        <dt className="text-slate-400 dark:text-slate-500">
+                      <dl className="mt-2.5 grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-xs">
+                        <dt className="text-text-tertiary">
                           Ref
                         </dt>
-                        <dd className="text-slate-700 dark:text-slate-300">
+                        <dd className="text-text">
                           {previewMeta.referencePrefix}
                         </dd>
-                        <dt className="text-slate-400 dark:text-slate-500">
+                        <dt className="text-text-tertiary">
                           Pins
                         </dt>
-                        <dd className="text-slate-700 dark:text-slate-300">
+                        <dd className="text-text">
                           {previewMeta.pinCount}
                         </dd>
-                        <dt className="text-slate-400 dark:text-slate-500">
+                        <dt className="text-text-tertiary">
                           Mount
                         </dt>
-                        <dd className="text-slate-700 dark:text-slate-300">
+                        <dd className="text-text">
                           {previewMeta.mountType}
                         </dd>
-                        <dt className="text-slate-400 dark:text-slate-500">
+                        <dt className="text-text-tertiary">
                           Footprint
                         </dt>
-                        <dd className="truncate text-slate-700 dark:text-slate-300">
+                        <dd className="truncate text-text">
                           {previewMeta.footprintName}
                           {previewMeta.variantCount > 1
                             ? ` (+${previewMeta.variantCount - 1} variants)`
@@ -505,7 +503,7 @@ export function ComponentCommandPalette({
                         {highlighted.tags.slice(0, 8).map((tag) => (
                           <span
                             key={tag}
-                            className="inline-flex items-center rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400"
+                            className="inline-flex items-center rounded-control bg-surface-control px-1 text-2xs text-text-secondary"
                           >
                             {tag}
                           </span>
@@ -514,7 +512,7 @@ export function ComponentCommandPalette({
                     )}
                   </>
                 ) : (
-                  <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                  <p className="text-xs text-text-tertiary">
                     Highlight a component to preview.
                   </p>
                 )}
@@ -523,10 +521,10 @@ export function ComponentCommandPalette({
                 type="button"
                 onClick={() => highlighted && onSelect(highlighted.id)}
                 disabled={!highlighted}
-                className="mx-3 mb-3 inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-violet-600 px-3 text-sm font-semibold text-white transition-colors hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="mx-3 mb-3 inline-flex h-[22px] shrink-0 items-center justify-center gap-1.5 rounded-control bg-primary px-[10px] text-xs font-medium text-primary-foreground transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Place
-                <kbd className="rounded bg-white/15 px-1.5 py-0.5 text-[10px] font-medium text-white/90">
+                <kbd className="font-mono text-2xs opacity-70">
                   ↵
                 </kbd>
               </button>
@@ -534,7 +532,7 @@ export function ComponentCommandPalette({
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between gap-3 border-t border-slate-200 px-4 py-2 text-[11px] text-slate-400 dark:border-slate-700 dark:text-slate-500">
+          <div className="flex h-[22px] shrink-0 items-center justify-between gap-3 border-t border-border px-3 text-2xs text-text-tertiary">
             <span>
               {results.length} result{results.length !== 1 ? "s" : ""}
               {activeTags.size > 0
@@ -542,14 +540,14 @@ export function ComponentCommandPalette({
                 : ""}
             </span>
             <span className="hidden sm:inline">
-              <kbd className="rounded border border-slate-200 bg-slate-50 px-1 py-0.5 dark:border-slate-700 dark:bg-slate-800">
+              <kbd className="rounded-control border border-border-control px-1 font-mono">
                 ↑
               </kbd>{" "}
-              <kbd className="rounded border border-slate-200 bg-slate-50 px-1 py-0.5 dark:border-slate-700 dark:bg-slate-800">
+              <kbd className="rounded-control border border-border-control px-1 font-mono">
                 ↓
               </kbd>{" "}
               to navigate{" "}
-              <kbd className="rounded border border-slate-200 bg-slate-50 px-1 py-0.5 dark:border-slate-700 dark:bg-slate-800">
+              <kbd className="rounded-control border border-border-control px-1 font-mono">
                 enter
               </kbd>{" "}
               to place

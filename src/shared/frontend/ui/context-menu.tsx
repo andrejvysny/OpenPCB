@@ -14,8 +14,7 @@ export const ContextMenuContent = React.forwardRef<
     <ContextMenuPrimitive.Content
       ref={ref}
       className={cn(
-        "z-50 min-w-[10rem] overflow-hidden rounded-md border border-slate-200 bg-white p-1 text-sm text-slate-700 shadow-md",
-        "dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200",
+        "z-50 min-w-[10rem] overflow-hidden rounded-float border border-menu-border bg-menu-bg p-1 text-xs text-text shadow-md",
         className,
       )}
       {...props}
@@ -24,16 +23,26 @@ export const ContextMenuContent = React.forwardRef<
 ));
 ContextMenuContent.displayName = ContextMenuPrimitive.Content.displayName;
 
+export interface ContextMenuItemProps extends React.ComponentPropsWithoutRef<
+  typeof ContextMenuPrimitive.Item
+> {
+  destructive?: boolean;
+}
+
 export const ContextMenuItem = React.forwardRef<
   React.ElementRef<typeof ContextMenuPrimitive.Item>,
-  React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.Item>
->(({ className, ...props }, ref) => (
+  ContextMenuItemProps
+>(({ className, destructive = false, ...props }, ref) => (
   <ContextMenuPrimitive.Item
     ref={ref}
     className={cn(
-      "flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors",
-      "focus:bg-slate-100 focus:text-slate-900 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-      "dark:focus:bg-slate-800 dark:focus:text-slate-100",
+      "flex h-[22px] cursor-pointer select-none items-center gap-2 rounded-control px-2 text-xs outline-none transition-colors",
+      "[&_svg]:h-3 [&_svg]:w-3 [&_svg]:shrink-0",
+      "focus:bg-menu-highlight focus:text-text-strong",
+      "data-[highlighted]:bg-menu-highlight data-[highlighted]:text-text-strong",
+      "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      destructive &&
+        "text-status-danger focus:bg-status-danger-soft focus:text-status-danger data-[highlighted]:bg-status-danger-soft data-[highlighted]:text-status-danger",
       className,
     )}
     {...props}
@@ -47,7 +56,7 @@ export const ContextMenuSeparator = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ContextMenuPrimitive.Separator
     ref={ref}
-    className={cn("-mx-1 my-1 h-px bg-slate-200 dark:bg-slate-700", className)}
+    className={cn("-mx-1 my-1 h-px bg-divider", className)}
     {...props}
   />
 ));

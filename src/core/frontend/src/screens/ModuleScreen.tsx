@@ -10,13 +10,9 @@ function ModuleStateMessage({
   detail: string;
 }) {
   return (
-    <div className="m-6 rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-      <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-        {title}
-      </h2>
-      <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-        {detail}
-      </p>
+    <div className="m-6 rounded-control border border-border bg-surface-panel p-5">
+      <h2 className="text-sm font-semibold text-text-strong">{title}</h2>
+      <p className="mt-2 text-sm text-text-secondary">{detail}</p>
     </div>
   );
 }

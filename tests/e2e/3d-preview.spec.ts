@@ -247,9 +247,11 @@ test("Library imports KiCad ZIP and renders component 3D preview", async ({
     .getByRole("button", { name: /Library/ })
     .first()
     .click();
+  // Library defaults to the table view: a row click selects (preview pane),
+  // double-click opens the detail page.
   await page
-    .locator(`[data-testid="library-component-card-${componentId}"]`)
-    .click();
+    .locator(`[data-testid="library-component-row-${componentId}"]`)
+    .dblclick();
   // ComponentDetailPage now shows Symbol/Footprint/3D as side-by-side cards;
   // the 3D canvas is rendered immediately, no tab to click.
   await expect(page.locator('[data-testid="library-3d-canvas"]')).toBeVisible({
