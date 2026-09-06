@@ -2363,6 +2363,7 @@ export interface BomLine {
   refdesList: string;
   value: string;
   footprint: string;
+  description: string | null;
   quantity: number;
   manufacturer: string | null;
   manufacturerPartNumber: string | null;

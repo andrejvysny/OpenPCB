@@ -16,6 +16,7 @@ const NL = "\r\n";
 interface PartContext {
   value: string;
   footprint: string;
+  description: string | null;
   refdes: string;
   partId: string | null;
   placementId: string | null;
@@ -228,6 +229,7 @@ function collectParts(
     );
     const footprint = placement?.footprint.name ?? schPart?.footprint.name ?? "";
     const value = schPart?.value ?? "";
+    const description = readPropString(props, "description");
     const dnp = override?.dnp ?? readPropBoolean(props, "dnp") ?? false;
     const assemblySide = override?.assemblySide ?? pcbSide(placement) ?? null;
     const warnings: string[] = [];
@@ -238,6 +240,7 @@ function collectParts(
     out.push({
       value,
       footprint,
+      description,
       refdes,
       partId: schPart?.id ?? null,
       placementId: placement?.id ?? null,
@@ -258,7 +261,10 @@ function collectParts(
 }
 
 function aggregateRows(parts: readonly PartContext[]): BomLine[] {
-  const byKey = new Map<string, { first: PartContext; refs: BomLineRef[]; warnings: string[] }>();
+  const byKey = new Map<
+    string,
+    { first: PartContext; refs: BomLineRef[]; warnings: string[]; description: string | null }
+  >();
   for (const part of parts) {
     const key = [
       part.value,
@@ -278,8 +284,17 @@ function aggregateRows(parts: readonly PartContext[]): BomLine[] {
     if (existing) {
       existing.refs.push(ref);
       existing.warnings.push(...part.warnings);
+      // Refs in a line may disagree on description; keep the first non-empty.
+      if (!existing.description && part.description) {
+        existing.description = part.description;
+      }
     } else {
-      byKey.set(key, { first: part, refs: [ref], warnings: [...part.warnings] });
+      byKey.set(key, {
+        first: part,
+        refs: [ref],
+        warnings: [...part.warnings],
+        description: part.description,
+      });
     }
   }
 
@@ -295,6 +310,7 @@ function aggregateRows(parts: readonly PartContext[]): BomLine[] {
       refdesList: refs.map((ref) => ref.refdes).join(","),
       value: bucket.first.value,
       footprint: bucket.first.footprint,
+      description: bucket.description,
       quantity: refs.length,
       manufacturer: bucket.first.manufacturer,
       manufacturerPartNumber: bucket.first.manufacturerPartNumber,

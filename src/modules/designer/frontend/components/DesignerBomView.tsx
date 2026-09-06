@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactElement } from "react";
-import { Package, Sparkles } from "lucide-react";
+import { Package } from "lucide-react";
 import type {
   BomLine,
   BomOverridePatch,
@@ -26,17 +26,20 @@ import { Textarea } from "@shared/frontend/ui/textarea";
 import { createDesignerApi } from "../api";
 
 type SortKey = "refs" | "value" | "footprint" | "qty" | "mpn" | "lcsc";
-type FilterKey = "all" | "unsourced" | "sourced" | "dnp";
+type FilterKey = "all" | "missing-mpn" | "dnp";
 
 const ORDER_QTYS = [1, 5, 10, 50, 100];
 
+const isMac =
+  typeof navigator !== "undefined" &&
+  navigator.platform.toUpperCase().includes("MAC");
+const EXPORT_HOTKEY_LABEL = isMac ? "⌘E" : "Ctrl+E";
+
 /*
- * BOM table column grid (design D3 §3):
- * checkbox · tier dot · Designators · Value · Footprint · Qty · MPN · Unit · Ext.
- * The design's "Description" column is omitted — `BomLine` carries no
- * description field (PLAN §2 D6: nothing without backing data is faked).
+ * BOM table column grid (design D3 §3, handoff "3c BOM"):
+ * checkbox · tier dot · Designators · Value · Footprint · Description · Qty · MPN · Unit · Ext.
  */
-const COLS = "24px 28px 1fr 130px 170px 44px 170px 56px 72px";
+const COLS = "24px 28px 1fr 110px 140px 1.2fr 40px 150px 56px 70px";
 
 type Severity = "sourced" | "suggested" | "critical" | "review" | "dnp";
 
@@ -86,10 +89,6 @@ function severityOf(row: BomLine): Severity {
   return "review";
 }
 
-function isSourced(row: BomLine): boolean {
-  return !row.dnp && row.warnings.length === 0;
-}
-
 function hasPartNumber(row: BomLine): boolean {
   return Boolean(row.manufacturerPartNumber || row.lcscPartNumber);
 }
@@ -134,8 +133,7 @@ export function DesignerBomView({
   const counts = useMemo(
     () => ({
       all: allRows.length,
-      unsourced: allRows.filter((r) => !r.dnp && r.warnings.length > 0).length,
-      sourced: allRows.filter((r) => isSourced(r)).length,
+      missingMpn: allRows.filter((r) => !hasPartNumber(r)).length,
       dnp: allRows.filter((r) => r.dnp).length,
     }),
     [allRows],
@@ -174,9 +172,7 @@ export function DesignerBomView({
   const rows = useMemo(() => {
     const needle = query.trim().toLowerCase();
     const out = (bom?.rows ?? []).filter((row) => {
-      if (filter === "unsourced" && !(row.warnings.length > 0 && !row.dnp))
-        return false;
-      if (filter === "sourced" && !isSourced(row)) return false;
+      if (filter === "missing-mpn" && hasPartNumber(row)) return false;
       if (filter === "dnp" && !row.dnp) return false;
       if (!needle) return true;
       return [
@@ -268,6 +264,22 @@ export function DesignerBomView({
     await navigator.clipboard.writeText(text);
   }
 
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (!(event.metaKey || event.ctrlKey)) return;
+      if (event.key.toLowerCase() !== "e") return;
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) {
+        return;
+      }
+      event.preventDefault();
+      void exportArtifact("csv");
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [designId]);
+
   if (!designId) {
     return (
       <div className="flex h-full items-center justify-center bg-surface-app text-xs text-text-tertiary">
@@ -293,8 +305,10 @@ export function DesignerBomView({
 
   const filterOptions = [
     { id: "all" as FilterKey, label: `All ${counts.all}` },
-    { id: "unsourced" as FilterKey, label: `Unsourced ${counts.unsourced}` },
-    { id: "sourced" as FilterKey, label: `Sourced ${counts.sourced}` },
+    {
+      id: "missing-mpn" as FilterKey,
+      label: `Missing MPN ${counts.missingMpn}`,
+    },
     { id: "dnp" as FilterKey, label: `DNP ${counts.dnp}` },
   ];
   const allChecked = checkedIds.size > 0 && checkedIds.size === rows.length;
@@ -305,7 +319,7 @@ export function DesignerBomView({
   return (
     <div className="grid h-full grid-cols-[minmax(0,1fr)_320px] overflow-hidden bg-surface-app text-text">
       <section className="grid min-h-0 grid-rows-[auto_auto_1fr_auto_auto]">
-        {/* Toolbar: filter tabs · search · auto-source · export */}
+        {/* Toolbar: filter tabs · search · export */}
         <div className="flex h-[30px] shrink-0 items-center gap-2 border-b border-border bg-surface-panel px-[10px]">
           <SegmentedControl
             aria-label="BOM filter"
@@ -322,14 +336,6 @@ export function DesignerBomView({
             containerClassName="w-[220px]"
           />
           <div className="flex-1" />
-          <Button
-            variant="secondary"
-            disabled
-            title="Auto-source from JLCPCB — coming soon"
-            icon={<Sparkles className="h-3 w-3" />}
-          >
-            Auto-source all
-          </Button>
           <ExportMenu onExport={exportArtifact} onCopyTsv={copyTsv} />
         </div>
 
@@ -368,6 +374,7 @@ export function DesignerBomView({
             </button>
             <span>Value</span>
             <span>Footprint</span>
+            <span>Description</span>
             <span className="text-right">Qty</span>
             <span>MPN</span>
             <span className="text-right">Unit</span>
@@ -407,7 +414,7 @@ export function DesignerBomView({
           className="grid h-[24px] shrink-0 items-center gap-2 border-t border-border bg-surface-panel px-[10px] font-mono text-2xs text-text-secondary"
         >
           <span
-            style={{ gridColumn: "3 / span 3" }}
+            style={{ gridColumn: "3 / span 4" }}
             className="truncate font-sans"
           >
             {rows.length} {rows.length === 1 ? "line" : "lines"} ·{" "}
@@ -451,7 +458,7 @@ export function DesignerBomView({
             </select>
           </StatusSegment>
           <StatusSegment flex sans className="text-text-tertiary">
-            Click a line to edit sourcing
+            Click a line to edit sourcing · {EXPORT_HOTKEY_LABEL} export
           </StatusSegment>
           <StatusSegment>
             <SeverityDiamond severity="error" />
@@ -525,6 +532,12 @@ function BomRow({
         title={row.footprint}
       >
         {row.footprint || "—"}
+      </span>
+      <span
+        className="truncate text-text-secondary"
+        title={row.description ?? ""}
+      >
+        {row.description ?? ""}
       </span>
       <span className="text-right font-mono text-text-strong">
         {row.quantity}
@@ -659,6 +672,13 @@ function BomInspector({
           <PropertyRow label="Footprint" mono title={row.footprint}>
             {row.footprint || "—"}
           </PropertyRow>
+          <PropertyRow label="Description" title={row.description ?? ""}>
+            {row.description ?? (
+              <span className="italic text-text-tertiary">
+                No description
+              </span>
+            )}
+          </PropertyRow>
           <PropertyRow label="Quantity" mono>
             {row.quantity}
           </PropertyRow>
@@ -707,6 +727,7 @@ function BomInspector({
             onChange={(v) =>
               setDraft({ ...draft, unitPrice: v ? Number(v) : null })
             }
+            hint="@ 1"
           />
           <RailField
             label="Currency"
@@ -796,6 +817,7 @@ function RailField({
   mono = false,
   placeholder = "Not set",
   inputMode,
+  hint,
 }: {
   label: string;
   value: string;
@@ -803,9 +825,10 @@ function RailField({
   mono?: boolean;
   placeholder?: string;
   inputMode?: "decimal" | "text";
+  hint?: ReactElement | string;
 }): ReactElement {
   return (
-    <PropertyRow label={label} valueClassName="px-0">
+    <PropertyRow label={label} valueClassName="px-0" hint={hint}>
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}

@@ -49,4 +49,20 @@ describe("place-part sourcing inheritance", () => {
   test("unsourced component → empty object", () => {
     expect(buildSourcingPropertiesJson(component({}))).toBe("{}");
   });
+
+  test("seeds description when present", () => {
+    const props = JSON.parse(
+      buildSourcingPropertiesJson(
+        component({ description: "10k 1% 0603 resistor" }),
+      ),
+    );
+    expect(props.description).toBe("10k 1% 0603 resistor");
+  });
+
+  test("omits description when empty", () => {
+    const props = JSON.parse(
+      buildSourcingPropertiesJson(component({ description: "" })),
+    );
+    expect("description" in props).toBe(false);
+  });
 });
